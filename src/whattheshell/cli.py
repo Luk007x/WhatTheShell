@@ -2,6 +2,7 @@
 """Command line entry point."""
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -77,6 +78,16 @@ def main(argv: list[str] | None = None) -> int:
     inspect.add_argument("--refresh", action="store_true", help="Cache ignorieren")
     inspect.add_argument("--deep", action="store_true", help="Subbefehle eine Ebene mitlesen")
     args = parser.parse_args(argv)
+    try:
+        return _dispatch(parser, args)
+    except BrokenPipeError:
+        # Reader (e.g. head) closed early: not an error. Point stdout at devnull so the
+        # interpreter's final flush does not fail again.
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        return 0
+
+
+def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
     if args.command == "tools":
         needle = (args.search or "").lower()
         for tool in Catalog().tools():
