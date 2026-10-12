@@ -124,8 +124,13 @@ def test_memory_limit(tmp_path: Path) -> None:
 
 @needs_bwrap
 def test_nproc_limit_and_fixed_path(tmp_path: Path) -> None:
+    # /proc/self/limits statt `ulimit -u`: dash (Ubuntu) kennt -u nicht.
     result = run_sandboxed(
-        ["/usr/bin/sh", "-c", "ulimit -u; echo $PATH"], tmp_path, env={"PATH": "/evil"}
+        ["/usr/bin/sh", "-c", "grep 'Max processes' /proc/self/limits; echo $PATH"],
+        tmp_path,
+        env={"PATH": "/evil"},
     )
     assert result is not None
-    assert result.stdout.decode().split() == ["256", SANDBOX_PATH]
+    lines = result.stdout.decode().splitlines()
+    assert lines[0].split()[2:4] == ["256", "256"], lines
+    assert lines[-1] == SANDBOX_PATH
