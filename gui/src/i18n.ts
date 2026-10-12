@@ -65,6 +65,22 @@ const de = {
   "file.discard": "Ungespeicherte Änderungen verwerfen?", "file.delete.confirm": "„{name}“ löschen?", "file.overwrite": "„{id}“ existiert schon. Überschreiben?",
   "file.id": "Dateiname (id)", "file.id.help": "Kleinbuchstaben, Ziffern, - und _; beginnt mit Buchstabe oder Ziffer.",
   "canvas.target": "Ziel", "canvas.target.end": "ans Ende", "canvas.target.then": "in „Dann“", "canvas.target.else": "in „Sonst“", "canvas.target.body": "in „Schleife“",
+  "mod.nomapping": "kein YAML-Mapping", "mod.rename.confirm": "Als neues Modul „{tool}“ speichern?", "mod.badrows": "{n} Einträge sind keine Mappings und werden hier übersprungen. Im Rohtext korrigieren.",
+  "mod.discard": "Ungespeicherte Änderungen im Editor verwerfen?", "mod.crash": "Der Editor ist abgestürzt: {message}", "mod.reset": "Zurücksetzen",
+  "warn.varconflict": "Variable {a} existiert mit anderer Definition; die vorhandene bleibt.",
+  "a11y.skip": "Zum Hauptbereich springen",
+  "mod.button": "Module", "mod.title": "Modul-Editor", "mod.inputs": "Eingaben", "mod.options": "Optionen", "mod.examples": "Beispiele",
+  "mod.col.id": "id", "mod.col.flags": "Schalter", "mod.col.label": "Beschriftung", "mod.col.help": "Hilfe", "mod.col.group": "Gruppe", "mod.col.importance": "Wichtigkeit",
+  "mod.col.safety": "Sicherheit", "mod.col.type": "Typ", "mod.col.required": "Pflicht", "mod.col.display_name": "Anzeigename", "mod.col.category": "Kategorie",
+  "mod.col.summary": "Kurzbeschreibung", "mod.col.description": "Beschreibung",
+  "mod.syntax": "YAML-Syntaxfehler: {message}", "mod.delete.confirm": "Eigenes Modul „{tool}“ löschen?", "mod.export": "Exportieren", "mod.import": "Importieren",
+  "mod.saved": "Gespeichert.", "mod.unsaved": "ungespeichert", "mod.source.user": "eigene", "mod.source.bundled": "mitgeliefert", "mod.source.project": "Projekt",
+  "mod.tab.form": "Formular", "mod.tab.raw": "Rohtext", "mod.comments": "Kommentare gehen beim Formular-Speichern verloren.", "mod.examples.hint": "Beispiele im Rohtext bearbeiten.",
+  "mod.newtool": "Tool", "mod.scaffold": "Neu aus Tool", "mod.missing": "Für {tool} gibt es kein Modul. „Neu aus Tool“ erzeugt ein Gerüst.",
+  "mod.paths": "Suchpfade", "mod.count": "{n} Module", "mod.nodir": "nicht vorhanden", "mod.list": "Module", "mod.errors": "Fehler",
+  "tpl.title": "Vorlagen", "tpl.insert": "Einfügen", "tpl.insert.for": "Vorlage einfügen: {title}",
+  "settings.title": "Einstellungen", "settings.view": "Standardansicht", "settings.font": "Schriftgröße", "settings.font.small": "klein", "settings.font.normal": "normal", "settings.font.large": "groß",
+  "settings.autopreview": "Vorschau automatisch ausführen", "settings.close": "Schließen",
   "view.label": "Ansicht", "view.graph": "Graph", "view.blocks": "Blöcke",
   "blocks.slot.then": "dann", "blocks.slot.else": "sonst", "blocks.slot.body": "für jede Zeile", "blocks.slot.fallback": "bei Fehler",
   "blocks.root": "Hauptfolge", "blocks.pos": "{where}, Position {n}", "blocks.pipe": "< pipe: {id}", "blocks.empty": "leer: Baustein hierher ziehen",
@@ -138,6 +154,22 @@ const en: Record<keyof typeof de, string> = {
   "file.discard": "Discard unsaved changes?", "file.delete.confirm": "Delete “{name}”?", "file.overwrite": "“{id}” already exists. Overwrite?",
   "file.id": "File name (id)", "file.id.help": "Lowercase letters, digits, - and _; starts with a letter or digit.",
   "canvas.target": "Target", "canvas.target.end": "at the end", "canvas.target.then": "into “Then”", "canvas.target.else": "into “Else”", "canvas.target.body": "into “Loop”",
+  "mod.nomapping": "not a YAML mapping", "mod.rename.confirm": "Save as new module “{tool}”?", "mod.badrows": "{n} entries are not mappings and are skipped here. Fix them in the raw text.",
+  "mod.discard": "Discard unsaved changes in the editor?", "mod.crash": "The editor failed: {message}", "mod.reset": "Reset",
+  "warn.varconflict": "Variable {a} exists with a different definition; the existing one was kept.",
+  "a11y.skip": "Skip to main content",
+  "mod.button": "Modules", "mod.title": "Module editor", "mod.inputs": "Inputs", "mod.options": "Options", "mod.examples": "Examples",
+  "mod.col.id": "id", "mod.col.flags": "Flags", "mod.col.label": "Label", "mod.col.help": "Help", "mod.col.group": "Group", "mod.col.importance": "Importance",
+  "mod.col.safety": "Safety", "mod.col.type": "Type", "mod.col.required": "Required", "mod.col.display_name": "Display name", "mod.col.category": "Category",
+  "mod.col.summary": "Summary", "mod.col.description": "Description",
+  "mod.syntax": "YAML syntax error: {message}", "mod.delete.confirm": "Delete own module “{tool}”?", "mod.export": "Export", "mod.import": "Import",
+  "mod.saved": "Saved.", "mod.unsaved": "unsaved", "mod.source.user": "own", "mod.source.bundled": "bundled", "mod.source.project": "project",
+  "mod.tab.form": "Form", "mod.tab.raw": "Raw text", "mod.comments": "Comments are lost when saving from the form.", "mod.examples.hint": "Edit examples in the raw text.",
+  "mod.newtool": "Tool", "mod.scaffold": "New from tool", "mod.missing": "There is no module for {tool}. “New from tool” creates a scaffold.",
+  "mod.paths": "Search paths", "mod.count": "{n} modules", "mod.nodir": "missing", "mod.list": "Modules", "mod.errors": "Errors",
+  "tpl.title": "Templates", "tpl.insert": "Insert", "tpl.insert.for": "Insert template: {title}",
+  "settings.title": "Settings", "settings.view": "Default view", "settings.font": "Font size", "settings.font.small": "small", "settings.font.normal": "normal", "settings.font.large": "large",
+  "settings.autopreview": "Run preview automatically", "settings.close": "Close",
   "view.label": "View", "view.graph": "Graph", "view.blocks": "Blocks",
   "blocks.slot.then": "then", "blocks.slot.else": "else", "blocks.slot.body": "for each line", "blocks.slot.fallback": "on error",
   "blocks.root": "Main sequence", "blocks.pos": "{where}, position {n}", "blocks.pipe": "< pipe: {id}", "blocks.empty": "empty: drop a block here",
@@ -147,7 +179,7 @@ const en: Record<keyof typeof de, string> = {
 };
 
 export type Lang = "de" | "en";
-const dicts: Record<Lang, Record<string, string>> = { de, en };
+export const dicts: Record<Lang, Record<string, string>> = { de, en };
 
 function detect(): Lang {
   const stored = typeof localStorage === "undefined" ? null : localStorage.getItem("wts.lang");

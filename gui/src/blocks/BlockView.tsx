@@ -3,19 +3,19 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { Edit } from "../canvas/Canvas";
 import { t } from "../i18n";
-import { canDrop, CONTROL_KINDS, controlStep, dropIndex, moveTargets, placeOf, placeOfPath, toBlocks, type Block, type Move } from "../model/blocks";
-import { addStep, isCommand, moveStep, newId, removeStep, type SeqPath, type Step } from "../model/ops";
+import { canDrop, commandStep, CONTROL_KINDS, controlStep, dropIndex, moveTargets, placeOf, placeOfPath, toBlocks, type Block, type Move } from "../model/blocks";
+import { addStep, isCommand, moveStep, removeStep, type SeqPath, type Step } from "../model/ops";
+import { conditionOperator } from "../model/form";
 import type { Workflow } from "../types/workflow";
 
-const OPS = ["eq", "ne", "contains", "regex", "is_empty", "line_count_gt", "line_count_eq", "number_gt", "number_lt", "number_eq", "file_exists"] as const;
 
 const subtitle = (s: Step): string => {
   switch (s.kind) {
     case undefined:
     case "command": return [s.tool, ...(s.command ?? [])].join(" ");
     case "if": {
-      const op = OPS.find((o) => s.condition[o] != null);
-      return [s.condition.source, op, op ? String(s.condition[op]) : ""].join(" ").trim();
+      const op = conditionOperator(s.condition);
+      return [s.condition.source, op, op ? String(Reflect.get(s.condition, op)) : ""].join(" ").trim();
     }
     case "foreach": return s.source;
     case "set": return `${s.variable} = ${s.value}`;
@@ -91,7 +91,7 @@ export function BlockView(props: {
             {adding === key && (
               <ul className="add-list" aria-label={t("blocks.add", { where })}>
                 <li>
-                  <button disabled={!catalogTool} onClick={() => catalogTool && insert({ id: newId(wf, catalogTool), tool: catalogTool, args: {} }, path)}>
+                  <button disabled={!catalogTool} onClick={() => catalogTool && insert(commandStep(wf, catalogTool), path)}>
                     {catalogTool ? t("blocks.add.tool", { name: catalogTool }) : t("canvas.add.pick")}
                   </button>
                 </li>
@@ -181,7 +181,7 @@ export function BlockView(props: {
       <div className="toolbar">
         <label>{t("canvas.name")} <input value={wf.name} onChange={(e) => edit((w) => ({ ...w, name: e.target.value }), "name")} /></label>
       </div>
-      <div className="blocks" onClick={() => onSelect(null)}>{seq(tree.blocks, [], true)}</div>
+      <div className="blocks" onClick={() => onSelect(null)} onKeyDown={(e) => { if (e.key === "Escape") { setAdding(null); setMenu(null); } }}>{seq(tree, [], true)}</div>
       <div aria-live="polite" className="sr-only">{live}</div>
     </section>
   );

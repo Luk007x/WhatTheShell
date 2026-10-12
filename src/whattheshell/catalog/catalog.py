@@ -125,7 +125,7 @@ class Catalog:
     ) -> None:
         self._registry = registry
         self.sandbox = sandbox  # settable: the API sets it after the sandbox self test
-        self._cache_dir = cache_dir or paths.cache_dir() / "catalog"
+        self.cache_dir = cache_dir or paths.cache_dir() / "catalog"
         self._tools: list[Executable] | None = None
 
     def tools(self) -> list[Executable]:
@@ -187,11 +187,12 @@ class Catalog:
                 )
                 return self._apply_modules(fallback, base, subcommand)
         key = {"path": path, "mtime_ns": stat.st_mtime_ns, "size": stat.st_size}
-        cache_file = self._cache_dir / (".".join([base, *subcommand]).replace("/", "_") + ".json")
+        cache_file = self.cache_dir / (".".join([base, *subcommand]).replace("/", "_") + ".json")
         info = None if refresh else self._read(cache_file, key)
         if info is None:
             info = self._build(path, base, subcommand)
-            self._write(cache_file, key, info)
+            if info.source != "fallback":  # a failed fetch must not stick (tool, sandbox)
+                self._write(cache_file, key, info)
         info = self._apply_modules(info, base, subcommand)
         if depth > 0:
             info = self._expand(info, name, subcommand, depth)
@@ -250,7 +251,7 @@ class Catalog:
                 "Cache %s nicht beschreibbar (%s). Prüfe die Rechte von %s.",
                 cache_file,
                 err,
-                self._cache_dir,
+                self.cache_dir,
             )
 
     def _build(self, path: str, base: str, subcommand: Sequence[str]) -> ToolInfo:

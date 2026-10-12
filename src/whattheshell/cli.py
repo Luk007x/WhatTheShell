@@ -124,6 +124,9 @@ def main(argv: list[str] | None = None) -> int:
     inspect.add_argument("sub", nargs="*", help="Subbefehle")
     inspect.add_argument("--json", action="store_true", help="Ausgabe als JSON")
     inspect.add_argument("--refresh", action="store_true", help="Cache ignorieren")
+    inspect.add_argument(
+        "--no-sandbox", action="store_true", help="Hilfe-Abruf auf dem Host statt in der Sandbox"
+    )
     inspect.add_argument("--deep", action="store_true", help="Subbefehle eine Ebene mitlesen")
     validate = commands.add_parser("validate", help="Modul- und Workflow-Dateien prüfen")
     validate.add_argument("files", nargs="+", type=Path)
@@ -167,6 +170,11 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
 
+def _catalog(registry: ModuleRegistry | None = None, *, sandbox: bool = True) -> Catalog:
+    """Catalog that fetches help in the sandbox when it is available (host otherwise)."""
+    return Catalog(registry=registry, sandbox=self_test() if sandbox else None)
+
+
 def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
     if args.command == "tools":
         needle = (args.search or "").lower()
@@ -179,7 +187,7 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
         for err in registry.errors:
             print(f"WARNUNG {err}", file=sys.stderr)
         try:
-            info = Catalog(registry=registry).get(
+            info = _catalog(registry, sandbox=not args.no_sandbox).get(
                 args.tool,
                 args.sub,
                 refresh=args.refresh,
@@ -334,7 +342,7 @@ def _scaffold(args: argparse.Namespace) -> int:
         name = ".".join([Path(args.tool).name, *args.sub])
         out = paths.config_dir() / "modules" / f"{name}.module.yaml"
     try:
-        text = scaffold_module(Catalog().get(args.tool, args.sub))
+        text = scaffold_module(_catalog().get(args.tool, args.sub))
         if out is not None:
             out.parent.mkdir(parents=True, exist_ok=True)
             with out.open("w" if args.force else "x", encoding="utf-8") as handle:
@@ -391,7 +399,7 @@ def _example(args: argparse.Namespace) -> int:
         return 3
     registry = _registry()
     try:
-        info = Catalog(registry=registry).get(args.tool)
+        info = _catalog(registry).get(args.tool)
     except ToolNotFound as err:
         print(err, file=sys.stderr)
         return 1
@@ -521,7 +529,7 @@ def _run(args: argparse.Namespace) -> int:
         )
 
     runner = Runner(
-        Catalog(registry=registry),
+        _catalog(registry),
         confirm=confirm,
         on_event=None if args.json else on_event,
         controller=controller,

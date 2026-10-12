@@ -107,14 +107,14 @@ jobs:
         run: |
           wts gui --no-browser --port 48777 > gui.log 2>&1 &
           pid=$!
+          trap 'kill $pid 2>/dev/null || true' EXIT
           for _ in $(seq 30); do grep -q token= gui.log && break; sleep 0.5; done
           grep -q token= gui.log || { cat gui.log; exit 1; }
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:48777/)" = 200
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:48777/api/status)" = 401
-          kill $pid
       - name: Sandbox-Hinweis ohne bubblewrap
         run: |
-          ! command -v bwrap
+          if command -v bwrap >/dev/null; then echo "bwrap unexpectedly present"; exit 1; fi
           rc=0; wts sandbox > sandbox.log 2>&1 || rc=$?
           cat sandbox.log
           test "$rc" = 1

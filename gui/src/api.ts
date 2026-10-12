@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { getLang } from "./i18n";
 import type {
   CommandRequest, CommandResult, PreviewRequest, PreviewResult, RunAction, RunCreated, RunRequest,
   RunState, SandboxStatus, Status, ToolInfo, ToolSummary, ValidationResult, Workflow, WorkflowDoc, WorkflowListItem,
@@ -7,7 +8,7 @@ import type {
 export const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
 export class ApiError extends Error {
-  constructor(public status: number, public error: string, message: string, public errors: { path: string; message: string }[] = []) {
+  constructor(public status: number, public error: string, message: string, public errors: { path: string; message: string; line?: number | null }[] = []) {
     super(message);
     this.name = "ApiError";
   }
@@ -49,7 +50,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     if (res.ok) throw new ApiError(res.status, "body", `HTTP ${res.status}: ungültige JSON-Antwort`);
   }
   if (!res.ok) {
-    const e = (data ?? {}) as { error?: string; message?: string; errors?: { path: string; message: string }[] };
+    const e = (data ?? {}) as { error?: string; message?: string; errors?: { path: string; message: string; line?: number | null }[] };
     throw new ApiError(res.status, e.error ?? "http", e.message ?? `HTTP ${res.status}`, Array.isArray(e.errors) ? e.errors : []);
   }
   if (data === null && res.status !== 202) throw new ApiError(res.status, "body", `HTTP ${res.status}: leere Antwort`);
@@ -71,10 +72,10 @@ export function wsUrl(path: string): string {
 const enc = encodeURIComponent;
 
 export const getStatus = () => api.get<Status>("/api/status");
-export const listTools = (search = "") => api.get<ToolSummary[]>(`/api/tools?search=${enc(search)}`);
+export const listTools = (search = "") => api.get<ToolSummary[]>(`/api/tools?search=${enc(search)}&lang=${getLang()}`);
 export const getTool = (name: string, opts: { sub?: string[]; deep?: boolean; refresh?: boolean } = {}) =>
   api.get<ToolInfo>(
-    `/api/tools/${enc(name)}?sub=${enc((opts.sub ?? []).join("/"))}&deep=${opts.deep ? 1 : 0}&refresh=${opts.refresh ? 1 : 0}`,
+    `/api/tools/${enc(name)}?sub=${enc((opts.sub ?? []).join("/"))}&deep=${opts.deep ? 1 : 0}&refresh=${opts.refresh ? 1 : 0}&lang=${getLang()}`,
   );
 export const postCommand = (req: CommandRequest) => api.post<CommandResult>("/api/command", req);
 export const postPreview = (req: PreviewRequest) => api.post<PreviewResult>("/api/preview", req);
@@ -93,3 +94,28 @@ export const controlRun = (id: string, action: RunAction) =>
 export const confirmRun = (id: string, stepId: string, ok: boolean) =>
   api.post<void>(`/api/runs/${enc(id)}/confirm`, { step_id: stepId, ok });
 export const postSelftest = () => api.post<SandboxStatus>("/api/sandbox/selftest");
+
+export interface ModuleList {
+  search_paths: { dir: string; count: number; exists: boolean }[];
+  modules: { priority: number; tool: string; path: string }[];
+  errors: { path: string; line: number | null; message: string }[];
+}
+export interface ModuleFile {
+  tool: string;
+  source: "user" | "bundled";
+  path: string;
+  raw: string;
+  errors: { path: string; line: number | null; message: string }[];
+  scaffold_available: boolean;
+}
+export interface TemplateEntry {
+  title: string;
+  workflow: { id: string | null; document: Workflow | null };
+  error?: string;
+}
+export const listModules = () => api.get<ModuleList>("/api/modules");
+export const getModule = (tool: string) => api.get<ModuleFile>(`/api/modules/${enc(tool)}`);
+export const putModule = (tool: string, raw: string) => api.put<{ tool: string; path: string }>(`/api/modules/${enc(tool)}`, { raw });
+export const deleteModule = (tool: string) => api.del<void>(`/api/modules/${enc(tool)}`);
+export const scaffoldModule = (tool: string) => api.post<{ raw: string }>("/api/modules/scaffold", { tool, command: [] });
+export const getTemplates = (tool: string) => api.get<TemplateEntry[]>(`/api/templates/${enc(tool)}`);

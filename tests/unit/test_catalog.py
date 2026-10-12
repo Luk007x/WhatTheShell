@@ -74,13 +74,13 @@ def test_get_parses_and_caches(
     assert info.source == "help"
     assert {f for o in info.command.options for f in o.flags} == {"-a", "-b"}
     assert not info.command.interactive
-    assert (cat._cache_dir / "demo.json").exists()
+    assert (cat.cache_dir / "demo.json").exists()
 
     def boom(*args: object, **kwargs: object) -> NoReturn:
         raise AssertionError("cache not used")
 
     monkeypatch.setattr(impl, "fetch_help", boom)
-    assert Catalog(cat._cache_dir).get("demo") == info
+    assert Catalog(cat.cache_dir).get("demo") == info
 
 
 def test_mtime_change_invalidates(bin_dir: Path, cat: Catalog) -> None:
@@ -107,7 +107,7 @@ def test_refresh_and_broken_cache(
     assert not calls
     cat.get("demo", refresh=True)
     assert len(calls) == 1
-    (cat._cache_dir / "demo.json").write_text("{not json")
+    (cat.cache_dir / "demo.json").write_text("{not json")
     assert cat.get("demo").source == "help"
     assert len(calls) == 2
 
@@ -219,3 +219,11 @@ def test_module_subcommand_makes_it_known(bin_dir: Path, tmp_path: Path) -> None
     registry = _registry(tmp_path, "schema_version: 1\ntool: demo\nsubcommands:\n  - name: extra\n")
     Catalog(tmp_path / "cache", registry).get("demo", ("extra",))
     assert any(call.startswith("extra") for call in _calls(log))
+
+
+def test_fallback_is_not_cached(tmp_path: Path) -> None:
+    make_tool(tmp_path / "bin2", "mute", "#!/bin/sh\necho hi\n")
+    cat = Catalog(tmp_path / "cache2")
+    info = cat.get(str(tmp_path / "bin2" / "mute"))
+    assert info.source == "fallback"
+    assert not list((tmp_path / "cache2").glob("*.json"))

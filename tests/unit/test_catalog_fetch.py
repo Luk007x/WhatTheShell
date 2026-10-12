@@ -105,3 +105,33 @@ def test_fetch_help_in_sandbox_keeps_denylist(tmp_path: Path) -> None:
 def test_fetch_help_unavailable_sandbox_uses_host(tmp_path: Path) -> None:
     result = fetch_help(make_script(tmp_path, "tool", HELP_SCRIPT), sandbox=UNAVAILABLE)
     assert result is not None and result.source == "help"
+
+
+def test_fetch_help_hidden_prefix_uses_host(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from whattheshell.catalog import fetch
+
+    ok = SandboxStatus(True, "", "", "/usr/bin/bwrap")
+    calls: list[str] = []
+    monkeypatch.setattr(fetch, "SANDBOX_HIDDEN", (str(tmp_path),))
+    import whattheshell.sandbox as sandbox_module
+
+    monkeypatch.setattr(sandbox_module, "run_sandboxed", lambda *a, **k: calls.append("sb"))
+    result = fetch_help(make_script(tmp_path, "tool", HELP_SCRIPT), sandbox=ok)
+    assert result is not None and calls == []
+
+
+def test_fetch_help_retries_on_host_when_sandbox_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import whattheshell.sandbox as sandbox_module
+    from whattheshell.catalog import fetch
+
+    monkeypatch.setattr(fetch, "SANDBOX_HIDDEN", ())
+
+    ok = SandboxStatus(True, "", "", "/usr/bin/bwrap")
+    calls: list[str] = []
+    monkeypatch.setattr(sandbox_module, "run_sandboxed", lambda *a, **k: calls.append("sb"))
+    result = fetch_help(make_script(tmp_path, "tool", HELP_SCRIPT), sandbox=ok)
+    assert result is not None and calls  # sandbox tried first, host answered

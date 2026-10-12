@@ -120,3 +120,35 @@ def test_lifespan_starts_and_stops_watcher(client: TestClient, tmp_path: Path) -
     while any(t.name == "wts-modules-watch" for t in threading.enumerate()):
         assert time.monotonic() < deadline, "watcher thread still running"
         time.sleep(0.05)
+
+
+def test_put_ignores_planted_tmp_symlink(client: TestClient, tmp_path: Path) -> None:
+    victim = tmp_path / "victim.txt"
+    victim.write_text("keep")
+    target = user_file(tmp_path, "demo")
+    target.with_name(target.name + ".tmp").symlink_to(victim)
+    assert client.put("/api/modules/demo", json={"raw": MODULE}).status_code == 200
+    assert victim.read_text() == "keep"
+    assert target.read_text() == MODULE and not target.is_symlink()
+    assert [p.name for p in target.parent.iterdir() if p.name.startswith(".demo.")] == []
+
+
+def test_dangling_symlink_is_deleted_itself(client: TestClient, tmp_path: Path) -> None:
+    target = user_file(tmp_path, "demo")
+    target.symlink_to(tmp_path / "missing")
+    assert client.get("/api/modules/demo").status_code == 500  # unreadable, but found
+    assert client.delete("/api/modules/demo").status_code == 204
+    assert not target.is_symlink()
+
+
+def test_scaffold_knows_sandbox_without_status_call(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from whattheshell.api import rest
+    from whattheshell.sandbox import SandboxStatus
+
+    status = SandboxStatus(False, "test", "", None)
+    monkeypatch.setattr(rest, "self_test", lambda: status)
+    assert client.post("/api/modules/scaffold", json={"tool": "demo"}).status_code == 200
+    assert client.app.state.raw_catalog.sandbox is status  # type: ignore[attr-defined]
+    assert client.app.state.catalog.sandbox is status  # type: ignore[attr-defined]

@@ -148,8 +148,38 @@ test.describe.serial("smoke", () => {
     expect(await plan(/^ +ok \[message\]/m)).toBe(before);
   });
 
+  test("l) Modul-Editor", async () => {
+    await page.getByRole("button", { name: "Module", exact: true }).click();
+    await page.getByLabel("Tool", { exact: true }).fill("wc");
+    await page.getByRole("button", { name: "Neu aus Tool" }).click();
+    const raw = page.getByRole("textbox", { name: "Rohtext" });
+    await expect(raw).toHaveValue(/tool: wc/);
+    await raw.fill((await raw.inputValue()).replace(/^display_name:.*$/m, 'display_name: "wc – E2E"'));
+    const editor = page.locator(".mod-editor");
+    await editor.getByRole("button", { name: "Speichern", exact: true }).click();
+    await expect(editor.getByRole("status")).toContainText("Gespeichert");
+    await expect(page.locator(".modules .tools li", { hasText: "wc" }).filter({ hasText: "eigene" })).toHaveCount(1);
+    await expect(page.locator("button.tool", { hasText: "wc – E2E" })).toBeVisible();
+    await editor.getByRole("button", { name: "Löschen", exact: true }).click();
+    await expect(page.locator(".modules .tools li", { hasText: "eigene" })).toHaveCount(0);
+    await expect(page.locator("button.tool", { hasText: "wc – E2E" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Module", exact: true }).click();
+  });
+
+  test("m) Vorlage einfügen", async () => {
+    await page.getByRole("button", { name: "Neu", exact: true }).click();
+    await expect(nodes()).toHaveCount(0);
+    await page.getByRole("searchbox", { name: "Werkzeuge suchen" }).fill("grep");
+    await page.locator("button.tool", { hasText: "grep – Text durchsuchen" }).click();
+    await page.getByRole("button", { name: "Vorlage einfügen: Treffer zählen" }).click();
+    await expect(nodes()).toHaveCount(2);
+    await expect(page.locator('input[aria-label="Name"]').first()).toHaveValue("pattern");
+  });
+
   test("j) Sprache", async () => {
+    await page.getByRole("button", { name: "Einstellungen" }).click();
     await page.getByLabel("Sprache").selectOption("en");
+    await page.getByRole("button", { name: "Close" }).click(); // label already switched to English
     await expect(page.getByRole("button", { name: "Open", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Save", exact: true })).toBeVisible();
   });

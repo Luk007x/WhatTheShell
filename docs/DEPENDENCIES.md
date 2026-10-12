@@ -21,3 +21,18 @@ Lizenzen aus den Paket-Metadaten (importlib.metadata). Alle permissiv (MIT, BSD,
 | httpx (dev) | 0.28.1 | BSD-3-Clause | ja | `TestClient` der API-Tests |
 | httpcore, certifi (dev, via httpx) | 1.0.9, 2026.7.22 | BSD-3-Clause, MPL-2.0 | ja (nicht ausgeliefert) | Transitiv |
 | hatchling (Build) | 1.32.4 | MIT | ja | Build-Backend (nur Paketbau) |
+
+## Frontend (`gui/`, nur Build-Zeit; das gebaute Bundle liegt im Wheel)
+
+| Paket | Version | Lizenz | AGPL-kompatibel | Zweck |
+|---|---|---|---|---|
+| react, react-dom | 18.3 | MIT | ja | UI |
+| @xyflow/react | 12.12 | MIT | ja | Knoten-Graph |
+| @dagrejs/dagre | 3.1 | MIT | ja | Auto-Layout |
+| yaml | 2.x | ISC | ja | Modul-Editor: Formular ↔ YAML-Rohtext |
+| vite, @vitejs/plugin-react, vitest (dev) | 6.4, 4.7, 4.1 | MIT | ja | Build, Tests |
+| typescript (dev) | 5.9 | Apache-2.0 | ja | Typprüfung |
+| json-schema-to-typescript (dev) | 16 | MIT | ja | Typen aus `schemas/` |
+| @playwright/test (dev) | 1.64 | Apache-2.0 | ja | E2E-Smoke |
+| @axe-core/playwright (dev) | 4.x | MPL-2.0 | ja (nur Tests, nicht ausgeliefert) | Barrierefreiheits-Audit (WCAG 2.1 AA) |
+| @types/* (dev) | – | MIT | ja | Typdefinitionen |

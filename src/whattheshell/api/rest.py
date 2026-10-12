@@ -17,7 +17,7 @@ from whattheshell.catalog import Catalog, ToolNotFound
 from whattheshell.engine.argv import ArgvError, build_argv, display
 from whattheshell.models.catalog import ToolInfo
 from whattheshell.models.common import StrictModel, ToolName
-from whattheshell.modules.i18n import translate_command
+from whattheshell.modules.i18n import TEXT_FIELDS, translate_command
 from whattheshell.modules.registry import ModuleRegistry
 from whattheshell.safety import classify_command
 from whattheshell.sandbox import SandboxStatus, run_sandboxed, self_test
@@ -35,7 +35,6 @@ def fail(status: int, error: str, message: str, **extra: Any) -> HTTPException:
 SUB_WORD = r"^[A-Za-z][A-Za-z0-9_-]*$"
 SubWord = Annotated[str, Field(pattern=SUB_WORD)]
 Lang = Annotated[str, Query(pattern=r"^[a-z]{2,3}$")]  # "de" = original texts of the modules
-_TEXTS = {"display_name", "summary"}
 PREVIEW_SLOTS = threading.Semaphore(2)
 PREVIEW_WAIT = 15.0
 
@@ -125,7 +124,9 @@ def list_tools(request: Request, search: str = "", lang: Lang = "de") -> list[di
         loaded = registry.for_tool(tool.name)
         module = loaded[-1].module if loaded else None
         if module and lang != "de" and (text := module.i18n.get(lang)):
-            module = module.model_copy(update=text.model_dump(exclude_none=True, include=_TEXTS))
+            module = module.model_copy(
+                update=text.model_dump(exclude_none=True, include=TEXT_FIELDS)
+            )
         display_name = module.display_name if module else None
         if (
             needle
@@ -156,6 +157,7 @@ def tool_detail(
     lang: Lang = "de",
 ) -> ToolInfo:
     """Catalog entry of a tool or subcommand; unknown subcommands are never probed."""
+    _sandbox(request)  # both catalogs must know the sandbox before any help is fetched
     words = sub.split("/") if sub else []
     if bad := next((w for w in words if not re.fullmatch(SUB_WORD, w)), None):
         raise fail(

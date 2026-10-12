@@ -43,6 +43,7 @@ artifacts = ["src/whattheshell/api/static/**"]
 
 [tool.hatch.build.targets.sdist]
 artifacts = ["src/whattheshell/api/static/**"]
+exclude = ["gui/tsconfig.tsbuildinfo", "gui/node_modules", "gui/e2e-results", "gui/playwright-report"]
 
 [tool.ruff]
 line-length = 100

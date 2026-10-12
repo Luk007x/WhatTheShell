@@ -172,6 +172,10 @@ export function moveStep(wf: Workflow, id: string, path: SeqPath, index?: number
   if (!hit) return { wf, warnings: [] };
   if (path.some((p, i) => i % 2 === 0 && p === id)) return refuse(wf, `cycle:${id}`);
   if (!getSeq(wf, path)) return refuse(wf, `path:${path.join("/")}`);
+  if (hit.path.join("/") === path.join("/")) {
+    // same sequence: reorder in one step, an interim empty sequence would drop `on_error` (action) of a fallback
+    return done({ ...wf, steps: editSeq(wf.steps, path, (s) => insertAt(s.filter((x) => x.id !== id), hit.step, index)) });
+  }
   const removed = editSeq(wf.steps, hit.path, (s) => s.filter((x) => x.id !== id));
   return done({ ...wf, steps: editSeq(removed, path, (s) => insertAt(s, hit.step, index)) });
 }

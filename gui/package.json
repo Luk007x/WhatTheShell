@@ -15,9 +15,11 @@
     "@dagrejs/dagre": "^3.1.1",
     "@xyflow/react": "^12.12.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.64.0",
     "@types/node": "^20.19.43",
     "@types/react": "^18.3.31",

@@ -44,6 +44,13 @@ Kopfzeile „Graph" / „Blöcke" schaltet die Darstellung um (gespeichert in `l
 
 Block-Ansicht: verschachtelte Karten, Slots „dann / sonst / für jede Zeile / bei Fehler". Klick wählt aus. Verschieben per Drag & Drop auf Zwischenräume und Slots oder per Tastatur auf dem fokussierten Block: Alt+↑/↓ (hoch/runter), Alt+→ (in den vorhergehenden Container), Alt+← (hinter den Container), Entf (löschen, mit Rückfrage), Enter (auswählen). Das Menü „⋯" bietet dieselben Aktionen, „+" am Ende jeder Folge fügt einen Kontrollbaustein oder das im Katalog gewählte Werkzeug genau dort ein. Eine `aria-live`-Region meldet Verschiebungen.
 
+## Barrierefreiheit
+
+- Skip-Link „Zum Hauptbereich springen" ist das erste fokussierbare Element; Dialoge sind native `<dialog>` (Fokusfalle, Fokus-Rückgabe, Escape).
+- Block-Ansicht: Tastaturbedienung (Alt+Pfeile, Entf, Enter), Escape schließt „+"-Liste und Menü, Verschiebungen werden per `aria-live` gemeldet.
+- Schriftgröße (Einstellungen: klein/normal/groß) skaliert über `--font-scale` auf `html`; alle Größen in `rem`. `prefers-reduced-motion` schaltet Animationen ab.
+- `e2e/a11y.spec.ts` prüft mit axe (WCAG 2.1 A/AA, 0 Verstöße, keine deaktivierten Regeln) Start, Formular, Block-Ansicht (mit „+"-Liste), Laufpanel, Modul-Editor (Rohtext und Formular) und Einstellungen; dazu ein Tastatur-Durchgang ohne Maus. Der Audit dauert ca. 35 s, weil der Katalog alle Programme im PATH listet.
+
 ## E2E (Playwright)
 
 `npm run e2e` baut die GUI und startet `wts gui` auf freiem Port mit temporärem `XDG_CONFIG_HOME` (`e2e/server.ts`); Test: `e2e/smoke.spec.ts` (headless Chromium, 1400×900, Sprache de). Einmalig `npx playwright install chromium`. Screenshots bei Fehlschlag: `e2e-results/`. Benötigt `uv`, `bwrap` (Vorschau) und die Systembibliotheken von Chromium.

@@ -153,7 +153,7 @@ Bekannte Grenzen:
 - Wird `wts gui` mit SIGKILL beendet, bleibt die Weiterleitungsdatei mit dem Token liegen (0600, nur für den Nutzer lesbar, Token wertlos nach Ende des Servers).
 - XSS-Fläche der SPA: im Frontend gibt es kein `dangerouslySetInnerHTML` und kein `innerHTML` (per `grep` in `gui/src` geprüft); Tool-Ausgaben werden als Text gerendert. Ein XSS-Fehler hätte wegen des Tokens im Speicher der Seite die Rechte der API. Eine Content-Security-Policy ist **nicht umgesetzt**.
 - Fehlermeldungen können Texte des Betriebssystems und Pfade enthalten (z. B. `Workflow nicht schreibbar: …`, `Interner Fehler: …` bei einem abgestürzten Lauf in `runs.py:_run`), nur lokal sichtbar.
-- Hilfe-Abruf in der bwrap-Sandbox ist **geplant (Phase 5)**; heute läuft er auf dem Host (2.9).
+- Hilfe-Abruf läuft in der bwrap-Sandbox, sobald sie verfügbar ist (`catalog/fetch.py`); Tools unter `/home`, `/root`, `/tmp`, `/var/tmp`, `/run` (dort in der Sandbox verborgen) und Fälle ohne brauchbaren Sandbox-Text laufen zusätzlich auf dem Host (Denylist gilt, 2.9), `source=fallback` wird nie gecacht.
 - Ein Prozess desselben Nutzers kann den Port erreichen und die Token-Datei lesen; Schutz vor lokalen Angreifern mit Nutzerrechten gehört nicht zum Modell.
 
 ## 5. KI-Funktionen (geplant, Phase 6)

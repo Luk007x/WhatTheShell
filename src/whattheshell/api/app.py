@@ -84,7 +84,7 @@ def create_app(
     app.state.session = session
     app.state.catalog = catalog
     # raw catalog: no module overrides, the base of module scaffolds
-    app.state.raw_catalog = Catalog(catalog._cache_dir, sandbox=catalog.sandbox)
+    app.state.raw_catalog = Catalog(catalog.cache_dir, sandbox=catalog.sandbox)
     app.state.modules_watch = False
     app.state.registry = registry
     app.add_middleware(SecurityMiddleware, session=session)

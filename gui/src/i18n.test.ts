@@ -12,3 +12,8 @@ test("languages and params", () => {
   setLang("de");
   expect(t("catalog.title")).toBe("Katalog");
 });
+
+test("de and en have the same keys", async () => {
+  const { dicts } = await import("./i18n");
+  expect(Object.keys(dicts.en).sort()).toEqual(Object.keys(dicts.de).sort());
+});

@@ -6,7 +6,11 @@ import { Canvas, type Edit } from "./canvas/Canvas";
 import { FileMenu } from "./files/FileMenu";
 import { RunPanel } from "./run/RunPanel";
 import { CatalogPanel } from "./catalog/CatalogPanel";
-import { StepPanel } from "./detail/StepPanel";
+import { clearToolCache, StepPanel } from "./detail/StepPanel";
+import { ModulesView } from "./modules/ModulesView";
+import { Templates } from "./catalog/Templates";
+import { applyFontSize, loadAutoPreview, loadFontSize, saveAutoPreview, saveFontSize, Settings, type FontSize } from "./Settings";
+import { mergeTemplate } from "./model/templates";
 import { VariablesPanel } from "./detail/VariablesPanel";
 import { useDebounced } from "./hooks";
 import { getLang, setLang, t, type Lang } from "./i18n";
@@ -75,6 +79,11 @@ export function App() {
   const [toolError, setToolError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [safety, setSafety] = useState<Record<string, string>>({});
+  const [mode, setMode] = useState<"workflow" | "modules">("workflow");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [fontSize, setFontSize] = useState<FontSize>(loadFontSize);
+  const [autoPreview, setAutoPreview] = useState(loadAutoPreview);
+  const [refresh, setRefresh] = useState(0); // bumped when ToolInfos must be reloaded (language, module saved)
   const [view, setViewState] = useState<View>(loadView);
   const [outputOpen, setOutputOpen] = useState(true);
   const [fileId, setFileId] = useState<string | null>(null);
@@ -93,6 +102,7 @@ export function App() {
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
+  useEffect(() => { applyFontSize(fontSize); }, [fontSize]);
   const edit: Edit = useCallback((op, key) => dispatch({ type: "edit", op, key }), []);
   const onLoaded = useCallback((tools: ToolSummary[]) => {
     setSafety((m) => ({ ...m, ...Object.fromEntries(tools.flatMap((x) => (x.safety ? [[x.name, x.safety]] : []))) }));
@@ -111,7 +121,7 @@ export function App() {
     setToolError(null);
     getTool(catalogTool).then((x) => { if (!stale) setTool(x); }).catch((e: unknown) => { if (!stale) setToolError(msg(e)); });
     return () => { stale = true; };
-  }, [catalogTool]);
+  }, [catalogTool, refresh]);
 
   // validation, debounced; the backend is the authority
   const docKey = useDebounced(wf, 500);
@@ -142,7 +152,7 @@ export function App() {
     try { localStorage.setItem("wts.view", v); } catch { /* storage unavailable: the choice lasts for this session */ }
   };
   const newDoc = () => { setSelected(null); setFileId(null); setSavedJson(JSON.stringify(emptyWorkflow())); dispatch({ type: "load", doc: emptyWorkflow() }); };
-  const changeLang = (l: Lang) => { setLang(l); document.documentElement.lang = l; bump((n) => n + 1); };
+  const changeLang = (l: Lang) => { setLang(l); document.documentElement.lang = l; bump((n) => n + 1); setRefresh((n) => n + 1); };
   document.documentElement.lang = getLang();
 
   const hit = selected ? findStep(wf, selected) : undefined;
@@ -158,6 +168,7 @@ export function App() {
 
   return (
     <div className={`app${outputOpen ? "" : " output-closed"}`}>
+      <a className="skip" href="#main" onClick={(e) => { e.preventDefault(); document.getElementById("main")?.focus(); }}>{t("a11y.skip")}</a>
       <header>
         <h1>{t("app.name")}</h1>
         <FileMenu wf={wf} fileId={fileId} dirty={dirty}
@@ -175,23 +186,20 @@ export function App() {
         <span className="status" title={sandboxTip} role="status" data-testid="sandbox-status" data-available={sandbox?.available ?? "unknown"}>
           <span className={`dot ${sandboxClass}`} aria-hidden="true" /> {sandboxText}
         </span>
-        <label className="lang">
-          {t("lang.label")}{" "}
-          <select value={getLang()} onChange={(e) => changeLang(e.target.value === "en" ? "en" : "de")}>
-            <option value="de">Deutsch</option>
-            <option value="en">English</option>
-          </select>
-        </label>
+        <button aria-pressed={mode === "modules"} onClick={() => setMode(mode === "modules" ? "workflow" : "modules")}>{t("mod.button")}</button>
+        <button aria-label={t("settings.title")} title={t("settings.title")} onClick={() => setSettingsOpen(true)}>⚙</button>
       </header>
-      <main>
-        <CatalogPanel selected={catalogTool} onSelect={setCatalogTool} onLoaded={onLoaded} />
-        {view === "graph"
+      <main id="main" tabIndex={-1}>
+        <CatalogPanel selected={catalogTool} onSelect={setCatalogTool} onLoaded={onLoaded} reloadKey={refresh} />
+        {mode === "modules"
+          ? <ModulesView catalogTool={catalogTool} onChanged={() => { clearToolCache(); setRefresh((n) => n + 1); }} />
+          : view === "graph"
           ? <Canvas wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} />
           : <BlockView wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} />}
         <section className="panel" aria-labelledby="details-h">
           <h2 id="details-h">{t("details.title")}</h2>
           {selStep ? (
-            <StepPanel key={`${selStep.id}:${state.epoch}`} step={selStep} wf={wf} sandbox={sandbox} onRetest={retest}
+            <StepPanel key={`${selStep.id}:${state.epoch}:${refresh}`} autoPreview={autoPreview} step={selStep} wf={wf} sandbox={sandbox} onRetest={retest}
               update={(patch, key) => edit((w) => updateStep(w, selStep.id, patch), key ? `${selStep.id}:${key}` : undefined)}
               rename={(n) => {
                 const r = renameStep(wf, selStep.id, n);
@@ -212,6 +220,7 @@ export function App() {
                   {cmd.usage && <><h4>{t("details.usage")}</h4><pre>{cmd.usage}</pre></>}
                 </div>
               )}
+              <Templates tool={catalogTool} onInsert={(doc) => { edit((w) => mergeTemplate(w, doc)); setSelected(null); }} />
             </section>
           )}
         </section>
@@ -243,6 +252,9 @@ export function App() {
             onEvaluate={(id) => { const created = newId(wf, `${id}_pruefe`); edit((w) => evaluateOutput(w, id)); setSelected(created); }} />
         </div>
       </footer>
+      <Settings open={settingsOpen} onClose={() => setSettingsOpen(false)} lang={getLang()} onLang={changeLang}
+        fontSize={fontSize} onFontSize={(s) => { saveFontSize(s); setFontSize(s); }}
+        autoPreview={autoPreview} onAutoPreview={(on) => { saveAutoPreview(on); setAutoPreview(on); }} />
     </div>
   );
 }

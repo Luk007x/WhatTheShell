@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError, errMsg, getTool, postCommand, postPreview } from "../api";
 import { useDebounced } from "../hooks";
-import { t } from "../i18n";
+import { getLang, t } from "../i18n";
 import {
   argsFromForm, conditionOperator, conditionWith, fieldKind, firstSentence, linesOf, matchesQuery,
   OPERATORS, rawFromArg, sortOptions, type OperatorName, type RawValue, type Spec,
@@ -16,8 +16,10 @@ export type Update = (patch: Record<string, unknown>, key?: string) => void;
 const msg = errMsg;
 const ON_ERROR = ["abort", "continue", "retry", "fallback"] as const;
 const toolCache = new Map<string, Promise<ToolInfo>>();
+/** Forget cached ToolInfos (after a module was saved or deleted). */
+export const clearToolCache = (): void => toolCache.clear();
 function loadTool(tool: string, sub: string[]): Promise<ToolInfo> {
-  const key = `${tool}\u0000${sub.join("/")}`;
+  const key = `${getLang()}\u0000${tool}\u0000${sub.join("/")}`;
   let p = toolCache.get(key);
   if (!p) {
     p = getTool(tool, { sub });
@@ -92,8 +94,8 @@ function Field({ idPrefix, spec, value, onChange }: { idPrefix: string; spec: Sp
   );
 }
 
-function CommandForm({ step, wf, sandbox, onRetest, update }: {
-  step: CommandStep; wf: Workflow; sandbox: SandboxStatus | null; onRetest: () => void; update: Update;
+function CommandForm({ step, wf, sandbox, onRetest, update, autoPreview }: {
+  step: CommandStep; wf: Workflow; sandbox: SandboxStatus | null; onRetest: () => void; update: Update; autoPreview: boolean;
 }) {
   const sub = step.command ?? [];
   const [root, setRoot] = useState<ToolInfo | null>(null);
@@ -164,7 +166,7 @@ function CommandForm({ step, wf, sandbox, onRetest, update }: {
       </div>
       <StdinAndErrors step={step} wf={wf} update={update} />
       <CommandView step={step} />
-      <Preview step={step} info={info} sandbox={sandbox} onRetest={onRetest} update={update} />
+      <Preview step={step} info={info} sandbox={sandbox} onRetest={onRetest} update={update} autoPreview={autoPreview} />
     </>
   );
 }
@@ -273,7 +275,7 @@ function CommandView({ step }: { step: CommandStep }) {
 }
 
 /** F-12 to F-15: sandbox preview with example data. */
-function Preview({ step, info, sandbox, onRetest, update }: { step: CommandStep; info: ToolInfo | null; sandbox: SandboxStatus | null; onRetest: () => void; update: Update }) {
+function Preview({ step, info, sandbox, onRetest, update, autoPreview }: { step: CommandStep; info: ToolInfo | null; sandbox: SandboxStatus | null; onRetest: () => void; update: Update; autoPreview: boolean }) {
   const examples = info?.command.examples ?? [];
   const [example, setExample] = useState<number | null>(null);
   const [applied, setApplied] = useState(false);
@@ -295,7 +297,7 @@ function Preview({ step, info, sandbox, onRetest, update }: { step: CommandStep;
     postCommand(JSON.parse(debounced) as Parameters<typeof postCommand>[0]).then((r) => { if (!stale) setSafety(r.safety); }, () => { if (!stale) setSafety(null); });
     return () => { stale = true; };
   }, [debounced]);
-  const auto = sandbox?.available === true && safety === "safe" && example !== null;
+  const auto = autoPreview && sandbox?.available === true && safety === "safe" && example !== null;
   useEffect(() => { if (auto) run(debounced); }, [debounced, auto]); // eslint-disable-line -- run is stable in effect
 
   const unavailable = sandbox?.available === false || (err instanceof ApiError && err.status === 409);
@@ -418,7 +420,7 @@ function ControlForm({ step, wf, update }: { step: Exclude<Step, CommandStep>; w
 
 export function StepPanel(props: {
   step: Step; wf: Workflow; sandbox: SandboxStatus | null; onRetest: () => void;
-  update: Update; rename: (newId: string) => void; remove: () => void;
+  update: Update; rename: (newId: string) => void; remove: () => void; autoPreview: boolean;
 }) {
   const { step } = props;
   const [idDraft, setIdDraft] = useState(step.id);
@@ -429,7 +431,7 @@ export function StepPanel(props: {
       {idDraft !== step.id && <button onClick={() => props.rename(idDraft)}>{t("step.rename")}</button>}
       <Text id={`f-${step.id}-label`} label={t("step.label")} value={step.label ?? ""} onChange={(v) => props.update({ label: v || undefined }, "label")} />
       {isCommand(step) ? (
-        <CommandForm step={step} wf={props.wf} sandbox={props.sandbox} onRetest={props.onRetest} update={props.update} />
+        <CommandForm step={step} wf={props.wf} sandbox={props.sandbox} onRetest={props.onRetest} update={props.update} autoPreview={props.autoPreview} />
       ) : (
         <ControlForm step={step} wf={props.wf} update={props.update} />
       )}

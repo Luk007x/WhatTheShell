@@ -47,3 +47,15 @@ def test_inspect_probes_user_typed_subcommand(tmp_path: Path) -> None:
     make_tool(tmp_path / "bin", "probe", f'#!/bin/sh\necho "$@" >> {log}\necho "Usage: probe"\n')
     assert main(["inspect", "probe", "evil"]) == 0
     assert any(line.startswith("evil") for line in log.read_text().splitlines())
+
+
+def test_inspect_passes_sandbox_status(monkeypatch: pytest.MonkeyPatch) -> None:
+    from whattheshell import cli
+    from whattheshell.sandbox import SandboxStatus
+
+    status = SandboxStatus(False, "test", "", None)
+    monkeypatch.setattr(cli, "self_test", lambda: status)
+    assert cli._catalog().sandbox is status
+    assert cli._catalog(sandbox=False).sandbox is None
+    assert main(["inspect", "demo"]) == 0
+    assert main(["inspect", "demo", "--no-sandbox"]) == 0

@@ -14,6 +14,7 @@ def test_static_frontend_is_packaged() -> None:
     ]
     assert STATIC_GLOB in targets["wheel"]["artifacts"]
     assert STATIC_GLOB in targets["sdist"]["artifacts"]
+    assert {"gui/node_modules", "gui/tsconfig.tsbuildinfo"} <= set(targets["sdist"]["exclude"])
 
 
 def test_build_script_is_executable() -> None:

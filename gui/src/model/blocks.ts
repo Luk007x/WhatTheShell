@@ -7,11 +7,10 @@ import { childSeq, findStep, getSeq, newId, portsOf, type Port, type SeqPath, ty
 
 export interface Slot { port: Port; path: SeqPath; blocks: Block[] }
 export interface Block { step: Step; path: SeqPath; index: number; slots: Slot[] }
-export interface BlockTree { blocks: Block[] }
 /** Target for `moveStep`; no index = append at the end. */
 export interface Move { path: SeqPath; index?: number }
 
-export function toBlocks(wf: Workflow): BlockTree {
+export function toBlocks(wf: Workflow): Block[] {
   const build = (steps: Step[], path: SeqPath): Block[] =>
     steps.map((step, index) => ({
       step,
@@ -22,7 +21,7 @@ export function toBlocks(wf: Workflow): BlockTree {
         return { port, path: sub, blocks: build(childSeq(step, port) ?? [], sub) };
       }),
     }));
-  return { blocks: build(wf.steps, []) };
+  return build(wf.steps, []);
 }
 
 const stepName = (s: Step) => s.label ?? s.id;
@@ -64,6 +63,9 @@ export function placeOf(wf: Workflow, id: string): string {
   const hit = findStep(wf, id);
   return hit ? t("blocks.pos", { where: placeOfPath(wf, hit.path), n: hit.index + 1 }) : "";
 }
+
+/** New command step for a catalog tool. */
+export const commandStep = (wf: Workflow, tool: string): Step => ({ id: newId(wf, tool), tool, args: {} });
 
 export const CONTROL_KINDS = ["if", "foreach", "set", "wait", "message", "abort"] as const;
 export type ControlKind = (typeof CONTROL_KINDS)[number];

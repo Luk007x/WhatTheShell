@@ -17,6 +17,8 @@ from whattheshell.subproc import run_limited
 if TYPE_CHECKING:
     from whattheshell.sandbox import SandboxStatus
 
+# Paths the sandbox hides behind tmpfs: a tool living there is not executable inside.
+SANDBOX_HIDDEN = ("/home", "/root", "/tmp", "/var/tmp", "/run")  # noqa: S108
 NEVER_PROBE = frozenset({"shutdown", "reboot", "halt", "poweroff", "init", "telinit", "kexec"})
 
 
@@ -54,8 +56,9 @@ def fetch_help(
         subcommand: Subcommand words inserted before the help flag.
         timeout: Seconds per attempt; a timed-out attempt counts as failed.
         max_bytes: Output is cut off after this many bytes.
-        sandbox: If available, every attempt runs in bwrap with an empty workdir
-            (the tool lives under the read-only bound ``/``); else on the host.
+        sandbox: If available, the attempts run in bwrap with an empty workdir (the tool
+            lives under the read-only bound ``/``). Tools under `SANDBOX_HIDDEN` and
+            runs that yield no usable text there get a second pass on the host.
 
     Returns:
         The help text, or None if nothing usable came back, the tool (or its symlink
@@ -70,21 +73,30 @@ def fetch_help(
     ]
     if not subcommand and shutil.which("man"):
         attempts.append((["man", "-P", "cat", "--", base], "man"))
+    hidden = any(
+        Path(p).is_relative_to(prefix)
+        for p in (path, os.path.realpath(path))
+        for prefix in SANDBOX_HIDDEN
+    )
     with tempfile.TemporaryDirectory(prefix="wts-help-") as tmp:
-        return _first_help(attempts, timeout, max_bytes, sandbox, Path(tmp))
+        if sandbox is not None and sandbox.available and not hidden:
+            found = _first_help(attempts, timeout, max_bytes, Path(tmp))
+            if found is not None:
+                return found
+        return _first_help(attempts, timeout, max_bytes, None)
 
 
 def _first_help(
     attempts: list[tuple[list[str], Literal["help", "h", "man"]]],
     timeout: float,
     max_bytes: int,
-    sandbox: SandboxStatus | None,
-    workdir: Path,
+    workdir: Path | None,
 ) -> HelpText | None:
+    """First usable help of the attempts; in bwrap if ``workdir`` is given, else on the host."""
     from whattheshell.sandbox import run_sandboxed  # late: sandbox imports the catalog
 
     for argv, source in attempts:
-        if sandbox is not None and sandbox.available:
+        if workdir is not None:
             done = run_sandboxed(argv, workdir, timeout=timeout, max_bytes=max_bytes)
         else:
             done = run_limited(argv, timeout=timeout, max_bytes=max_bytes)

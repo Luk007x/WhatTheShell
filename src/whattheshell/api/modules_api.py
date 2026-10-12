@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Module files (user overrides of bundled ones) and workflow templates of modules."""
 
+import os
 import shutil
 import tempfile
 from pathlib import Path
@@ -10,7 +11,7 @@ from fastapi import APIRouter, Request, Response
 from pydantic import Field
 
 from whattheshell import bundled, paths
-from whattheshell.api.rest import SUB_WORD, _get_info, fail
+from whattheshell.api.rest import SUB_WORD, _get_info, _sandbox, fail
 from whattheshell.catalog import Catalog
 from whattheshell.models.common import StrictModel, ToolName
 from whattheshell.modules.loader import DocumentError, load_module_file, load_workflow_file
@@ -52,7 +53,9 @@ def _error_list(err: DocumentError) -> list[dict[str, Any]]:
 def get_module(tool: ToolName) -> dict[str, Any]:
     """Raw text and parsed document of a module; the user file wins over the bundled one."""
     candidates = (("user", _user_path(tool)), ("bundled", _bundled_path(tool)))
-    source, path = next(((s, p) for s, p in candidates if p.is_file()), (None, None))
+    source, path = next(
+        ((s, p) for s, p in candidates if p.is_symlink() or p.is_file()), (None, None)
+    )
     if path is None:
         raise fail(
             404,
@@ -98,10 +101,16 @@ def put_module(request: Request, tool: ToolName, body: RawBody) -> dict[str, str
     target = _user_path(tool)
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
-        # write beside the target and rename, so a crash never leaves a half-written module
-        partial = target.with_name(target.name + ".tmp")
-        partial.write_text(body.raw, encoding="utf-8")
-        partial.replace(target)
+        # private temp file (0600, O_EXCL) beside the target, then rename: no half-written
+        # module, and a planted symlink at a predictable name is never followed
+        handle, partial = tempfile.mkstemp(dir=target.parent, prefix=f".{tool}.", suffix=".tmp")
+        try:
+            with os.fdopen(handle, "w", encoding="utf-8") as stream:
+                stream.write(body.raw)
+            os.replace(partial, target)
+        except BaseException:
+            Path(partial).unlink(missing_ok=True)
+            raise
     except OSError as err:
         raise fail(
             500, "write", f"Modul nicht schreibbar: {err}. Prüfe Rechte auf {target.parent}."
@@ -115,7 +124,7 @@ def put_module(request: Request, tool: ToolName, body: RawBody) -> dict[str, str
 def delete_module(request: Request, tool: ToolName) -> Response:
     """Delete the user file; a bundled module without one cannot be deleted."""
     target = _user_path(tool)
-    if not target.is_file():
+    if not (target.is_symlink() or target.is_file()):
         if _bundled_path(tool).is_file():
             raise fail(403, "bundled", f"'{tool}' ist mitgeliefert und nicht löschbar.")
         raise fail(404, "module_not_found", f"Für '{tool}' gibt es kein Nutzermodul.")
@@ -131,6 +140,7 @@ def delete_module(request: Request, tool: ToolName) -> Response:
 @router.post("/scaffold")
 def scaffold(request: Request, body: ScaffoldBody) -> dict[str, str]:
     """Module skeleton from the raw catalog entry (no module overrides applied)."""
+    _sandbox(request)
     raw_catalog: Catalog = request.app.state.raw_catalog
     info = _get_info(request, body.tool, body.command, catalog=raw_catalog)
     return {"raw": scaffold_module(info)}

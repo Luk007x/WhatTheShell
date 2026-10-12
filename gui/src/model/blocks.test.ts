@@ -8,7 +8,7 @@ const flat = (bs: Block[]): Block[] => bs.flatMap((b) => [b, ...b.slots.flatMap(
 const ids = (bs: Block[]) => bs.map((b) => b.step.id);
 
 test("log_errors blocks: 4 root blocks (6 steps in total), if with named slots", () => {
-  const { blocks } = toBlocks(wf);
+  const blocks = toBlocks(wf);
   expect(ids(blocks)).toEqual(["finde", "suche", "zaehle", "pruefe"]);
   expect(ids(flat(blocks))).toEqual(allSteps(wf.steps).map((s) => s.id));
   const slots = blocks[3]?.slots ?? [];
@@ -18,12 +18,12 @@ test("log_errors blocks: 4 root blocks (6 steps in total), if with named slots",
 
 test("empty slots stay visible", () => {
   const empty = { ...wf, steps: [{ id: "a", kind: "foreach" as const, source: "x", body: [] }] };
-  expect(toBlocks(empty).blocks[0]?.slots).toEqual([{ port: "body", path: ["a", "body"], blocks: [] }]);
+  expect(toBlocks(empty)[0]?.slots).toEqual([{ port: "body", path: ["a", "body"], blocks: [] }]);
 });
 
 test("round trip through ops leaves the document unchanged", () => {
   let cur = wf;
-  for (const b of flat(toBlocks(wf).blocks)) cur = moveStep(cur, b.step.id, b.path, b.index).wf;
+  for (const b of flat(toBlocks(wf))) cur = moveStep(cur, b.step.id, b.path, b.index).wf;
   expect(cur).toEqual(wf);
 });
 

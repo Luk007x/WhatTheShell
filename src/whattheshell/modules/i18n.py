@@ -7,6 +7,7 @@ from whattheshell.models.catalog import CommandSpec
 from whattheshell.models.common import InputSpec, OptionSpec
 from whattheshell.models.module import FieldText
 
+TEXT_FIELDS = {"display_name", "summary", "description"}
 T = TypeVar("T", InputSpec, OptionSpec)
 
 
@@ -30,9 +31,7 @@ def translate_command(spec: CommandSpec, lang: str) -> CommandSpec:
         "subcommands": [translate_command(sub, lang) for sub in spec.subcommands]
     }
     if translation is not None:
-        update |= translation.model_dump(
-            exclude_none=True, include={"display_name", "summary", "description"}
-        )
+        update |= translation.model_dump(exclude_none=True, include=TEXT_FIELDS)
         update["options"] = _fields(spec.options, translation.options)
         update["inputs"] = _fields(spec.inputs, translation.inputs)
     return spec.model_copy(update=update)

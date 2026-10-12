@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { expect, test } from "vitest";
+import type { Workflow } from "../types/workflow";
 import { logErrors as wf } from "./fixture";
 import { addStep, findStep, getSeq, moveAfter, moveStep, newId, removeStep, renameStep, setLayout, stepIdAtErrorPath, updateStep, visibleSteps } from "./ops";
 
@@ -98,4 +99,14 @@ test("rename keeps escaped literal braces but renames after an escaped backslash
 test("error paths into on_error.steps resolve to the fallback step", () => {
   expect(stepIdAtErrorPath(withFallback, "steps[0].command.on_error.steps[0].message.text")).toBe("b");
   expect(stepIdAtErrorPath(withFallback, "steps[0].command.tool")).toBe("a");
+});
+
+test("moveStep inside a one-step fallback keeps on_error.action", () => {
+  const x = { id: "x", kind: "message" as const, text: "t" };
+  const w: Workflow = {
+    schema_version: 1, name: "n",
+    steps: [{ id: "a", tool: "ls", on_error: { action: "fallback", steps: [x] } }],
+  };
+  expect(moveStep(w, "x", ["a", "fallback"], 0).wf).toEqual(w);
+  expect(moveStep(w, "x", ["a", "fallback"]).wf).toEqual(w);
 });

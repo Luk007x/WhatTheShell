@@ -16,7 +16,7 @@ function loadFavorites(): string[] {
   }
 }
 
-export function CatalogPanel({ selected, onSelect, onLoaded }: { selected: string | null; onSelect: (name: string) => void; onLoaded?: (tools: ToolSummary[]) => void }) {
+export function CatalogPanel({ selected, onSelect, onLoaded, reloadKey = 0 }: { selected: string | null; onSelect: (name: string) => void; onLoaded?: (tools: ToolSummary[]) => void; reloadKey?: number }) {
   const [query, setQuery] = useState("");
   const [tools, setTools] = useState<ToolSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +30,7 @@ export function CatalogPanel({ selected, onSelect, onLoaded }: { selected: strin
         .catch((e: unknown) => { if (!stale) setError(e instanceof Error ? e.message : String(e)); });
     }, 150);
     return () => { stale = true; clearTimeout(timer); };
-  }, [query]); // eslint-disable-line -- onLoaded is a stable setter wrapper
+  }, [query, reloadKey]); // eslint-disable-line -- onLoaded is a stable setter wrapper
 
   const groups = useMemo(() => {
     const all = groupTools(tools ?? [], query);

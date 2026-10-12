@@ -6,9 +6,10 @@ import {
 } from "@xyflow/react";
 import { useEffect, useMemo, useState } from "react";
 import { t } from "../i18n";
+import { commandStep, CONTROL_KINDS, controlStep } from "../model/blocks";
 import { toGraph, type FlowEdge, type StepNode } from "../model/graph";
 import {
-  addStep, findStep, isCommand, moveAfter, moveStep, newId, portsOf, removeStep, setLayout, updateStep,
+  addStep, findStep, isCommand, moveAfter, moveStep, portsOf, removeStep, setLayout, updateStep,
   type OpResult, type Port, type Step,
 } from "../model/ops";
 import type { Workflow } from "../types/workflow";
@@ -26,8 +27,8 @@ function StepNodeView({ data, selected }: NodeProps<StepNode>) {
   const safety = data.safety ?? null;
   return (
     <div className={`node kind-${kind}${safety ? ` safety-${safety}` : ""}${selected ? " sel" : ""}`}>
-      <Handle type="target" position={Position.Top} id="in" aria-label={t("port.in")} />
-      {kind === "command" && <Handle type="target" position={Position.Left} id="stdin" aria-label={t("stream.stdin")} title={t("stream.stdin")} />}
+      <Handle type="target" position={Position.Top} id="in" />
+      {kind === "command" && <Handle type="target" position={Position.Left} id="stdin" title={t("stream.stdin")} />}
       <div className="node-title">{s.label ?? s.id}</div>
       <div className="node-sub">
         {subtitle(s)}
@@ -35,18 +36,18 @@ function StepNodeView({ data, selected }: NodeProps<StepNode>) {
       </div>
       {kind === "if" && (
         <>
-          <Handle type="source" position={Position.Right} id="then" style={{ top: "30%" }} title={t("port.then")} aria-label={t("port.then")} />
-          <Handle type="source" position={Position.Right} id="else" style={{ top: "65%" }} title={t("port.else")} aria-label={t("port.else")} />
+          <Handle type="source" position={Position.Right} id="then" style={{ top: "30%" }} title={t("port.then")} />
+          <Handle type="source" position={Position.Right} id="else" style={{ top: "65%" }} title={t("port.else")} />
         </>
       )}
-      {kind === "foreach" && <Handle type="source" position={Position.Right} id="body" title={t("port.body")} aria-label={t("port.body")} />}
+      {kind === "foreach" && <Handle type="source" position={Position.Right} id="body" title={t("port.body")} />}
       {kind === "command" && (
         <>
-          <Handle type="source" position={Position.Right} id="stdout" style={{ top: "30%" }} title={t("stream.stdout")} aria-label={t("stream.stdout")} />
-          <Handle type="source" position={Position.Right} id="fallback" style={{ top: "70%" }} title={t("port.fallback")} aria-label={t("port.fallback")} />
+          <Handle type="source" position={Position.Right} id="stdout" style={{ top: "30%" }} title={t("stream.stdout")} />
+          <Handle type="source" position={Position.Right} id="fallback" style={{ top: "70%" }} title={t("port.fallback")} />
         </>
       )}
-      <Handle type="source" position={Position.Bottom} id="next" aria-label={t("port.next")} title={t("port.next")} />
+      <Handle type="source" position={Position.Bottom} id="next" title={t("port.next")} />
     </div>
   );
 }
@@ -94,19 +95,6 @@ export function Canvas(props: {
   const targets = selHit ? portsOf(selHit.step).filter((p): p is Exclude<Port, "fallback"> => p !== "fallback") : [];
   const path = selected && targets.some((p) => p === target) ? [selected, target] : [];
   const add = (step: Step) => { edit((w) => addStep(w, step, path)); onSelect(step.id); };
-  const base = (kind: string) => ({ id: newId(wf, kind) });
-  const last = wf.steps[wf.steps.length - 1]?.id;
-  const src = last ? `${last}.stdout` : "";
-  const firstVar = Object.keys(wf.variables ?? {})[0] ?? "";
-  const controls: [string, () => Step][] = [
-    ["if", () => ({ ...base("if"), kind: "if", condition: { source: src, is_empty: false }, then: [] })],
-    ["foreach", () => ({ ...base("foreach"), kind: "foreach", source: src, body: [] })],
-    ["set", () => ({ ...base("set"), kind: "set", variable: firstVar, value: "" })],
-    ["wait", () => ({ ...base("wait"), kind: "wait", seconds: 1 })],
-    ["message", () => ({ ...base("message"), kind: "message", text: "" })],
-    ["abort", () => ({ ...base("abort"), kind: "abort" })],
-  ];
-
   return (
     <section className="panel canvas" aria-labelledby="canvas-h">
       <h2 id="canvas-h" className="sr-only">{t("canvas.title")}</h2>
@@ -123,11 +111,11 @@ export function Canvas(props: {
             </select>
           </label>
         )}
-        <button disabled={!catalogTool} onClick={() => catalogTool && add({ id: newId(wf, catalogTool), tool: catalogTool, args: {} })}>
+        <button disabled={!catalogTool} onClick={() => catalogTool && add(commandStep(wf, catalogTool))}>
           {catalogTool ? t("canvas.add.tool", { name: catalogTool }) : t("canvas.add.pick")}
         </button>
-        {controls.map(([k, make]) => (
-          <button key={k} onClick={() => add(make())}>{t(`kind.${k}`)}</button>
+        {CONTROL_KINDS.map((k) => (
+          <button key={k} onClick={() => add(controlStep(wf, k))}>{t(`kind.${k}`)}</button>
         ))}
         <button disabled={!selected} onClick={() => selected && edit((w) => removeStep(w, selected))}>{t("canvas.delete")}</button>
       </div>
