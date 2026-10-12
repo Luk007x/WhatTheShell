@@ -103,6 +103,8 @@ description: "…"
 variables:
   logdir: { type: path, default: "./logs", label: "Log-Ordner" }   # Schlüssel folgen dem id-Muster
   anzahl: { type: int }                                            # von `set` gesetzt, muss hier deklariert sein
+  stufe: { type: enum, choices: [debug, info], default: info }     # `choices` nur bei enum
+  tiefe: { type: int, min: 1, max: 5 }                             # `min`/`max` nur bei int/float
 steps:
   - id: finde                      # Pflicht, eindeutig im gesamten Workflow (auch in Teilfolgen)
     kind: command                  # Standard, darf entfallen wenn `tool` gesetzt ist
@@ -169,6 +171,7 @@ Ein literales `{{` (z. B. `docker --format '{{.Names}}'`) wird als `\{{` geschri
 ### Validierungsregeln (Pydantic-Validatoren)
 
 - Alle `id`s eindeutig im gesamten Baum, Muster `^[a-z][a-z0-9_]*$`. `var` und `item` sind reserviert, auch für `foreach.as`. `foreach.as` darf keine id überdecken.
+- `variables.*`: `choices` nur bei `type: enum`, `min`/`max` nur bei `int`/`float` (Modellfehler sonst); der Lauf prüft Wert gegen `choices` und Grenzen (`RunError` mit Hinweis).
 - Ein Dokument muss ein Objekt sein; Listen oder Skalare auf oberster Ebene sind ein Fehler mit Hinweis.
 - `tool` (Workflow und Modul) folgt `^[A-Za-z0-9][A-Za-z0-9._+-]*$`: kein führendes `-`, kein Pfad.
 - Regex-Felder (`condition.regex`, `expect.stdout_regex`) müssen kompilierbar sein.

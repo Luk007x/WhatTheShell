@@ -16,6 +16,7 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 # build_opener keeps the default ProxyHandler (HTTP_PROXY, HTTPS_PROXY, NO_PROXY)
 _OPENER = urllib.request.build_opener(_NoRedirect)
+MAX_ANSWER = 2 * 1024 * 1024
 
 
 def printable(text: str) -> str:
@@ -27,7 +28,8 @@ def post_json(url: str, body: dict[str, Any], headers: dict[str, str], timeout: 
     """POST `body` as JSON and return the decoded answer.
 
     Raises:
-        RuntimeError: HTTP error (status, first 200 chars of the body) or unreachable host.
+        RuntimeError: HTTP error (status, first 200 chars of the body), unreachable host,
+            answer over 2 MiB or not JSON.
     """
     request = urllib.request.Request(  # noqa: S310 (scheme comes from settings)
         url,
@@ -35,16 +37,33 @@ def post_json(url: str, body: dict[str, Any], headers: dict[str, str], timeout: 
         headers={"Content-Type": "application/json", **headers},
         method="POST",
     )
-    host = urlsplit(url).netloc
+    return _send(request, timeout)
+
+
+def get_json(url: str, headers: dict[str, str], timeout: float) -> Any:
+    """GET `url` and return the decoded JSON answer.
+
+    Raises:
+        RuntimeError: As `post_json`.
+    """
+    request = urllib.request.Request(url, headers=headers)  # noqa: S310 (scheme from settings)
+    return _send(request, timeout)
+
+
+def _send(request: urllib.request.Request, timeout: float) -> Any:
+    host = urlsplit(request.full_url).netloc
     try:
         with _OPENER.open(request, timeout=timeout) as response:
-            return json.load(response)
+            data = response.read(MAX_ANSWER + 1)
+        if len(data) > MAX_ANSWER:
+            raise RuntimeError(f"Antwort von {host} über 2 MiB")
+        return json.loads(data)
     except urllib.error.HTTPError as error:
         text = printable(error.read(200).decode(errors="replace"))
         raise RuntimeError(f"HTTP {error.code} von {host}: {text}") from None
     except ValueError:
         raise RuntimeError("Antwort ist kein gültiges JSON") from None
-    except (urllib.error.URLError, TimeoutError):
+    except OSError:  # URLError, timeout, connection reset while reading
         raise RuntimeError(
             f"Verbindung zu {host} fehlgeschlagen: läuft der lokale Server?"
         ) from None

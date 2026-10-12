@@ -44,15 +44,6 @@ packages = ["src/whattheshell"]
 # gebautes Frontend ist gitignored, gehört aber ins Wheel
 artifacts = ["src/whattheshell/api/static/**"]
 
-[tool.hatch.build.targets.wheel.force-include]
-"docs/MODULE_AUTHORING.md" = "whattheshell/bundled/docs/MODULE_AUTHORING.md"
-"docs/FORMATS.md" = "whattheshell/bundled/docs/FORMATS.md"
-
-[tool.hatch.build.targets.sdist.force-include]
-# the wheel is built from the sdist, so the sources must keep their path
-"docs/MODULE_AUTHORING.md" = "docs/MODULE_AUTHORING.md"
-"docs/FORMATS.md" = "docs/FORMATS.md"
-
 [tool.hatch.build.targets.sdist]
 artifacts = ["src/whattheshell/api/static/**"]
 exclude = ["gui/tsconfig.tsbuildinfo", "gui/node_modules", "gui/e2e-results", "gui/playwright-report"]

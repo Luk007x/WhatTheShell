@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { getLang } from "./i18n";
 import type {
-  CommandRequest, CommandResult, PreviewRequest, PreviewResult, RunAction, RunCreated, RunRequest,
+  CommandRequest, CommandResult, PreviewRequest, PreviewResult, RunAction, RunCreated, RunListItem, RunRequest, WorkflowRunRequest,
   RunState, SandboxStatus, Settings, AiBody, AiPreview, AiResult, AiTaskName, Status, ToolInfo, ToolSummary, ValidationResult, Workflow, WorkflowDoc, WorkflowListItem,
 } from "./types/api";
 
@@ -88,6 +88,8 @@ export const deleteWorkflow = (id: string) => api.del<void>(`/api/workflows/${en
 export const validateWorkflow = (document: Workflow) =>
   api.post<ValidationResult>("/api/workflows/validate", { document });
 export const createRun = (req: RunRequest) => api.post<RunCreated>("/api/runs", req);
+export const runWorkflowById = (id: string, req: WorkflowRunRequest) => api.post<RunCreated>(`/api/workflows/${enc(id)}/run`, req);
+export const listRuns = () => api.get<RunListItem[]>("/api/runs");
 export const startRun = (id: string) => api.post<void>(`/api/runs/${enc(id)}/start`);
 export const getRun = (id: string) => api.get<RunState>(`/api/runs/${enc(id)}`);
 export const controlRun = (id: string, action: RunAction) =>

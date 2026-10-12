@@ -2,6 +2,9 @@
 // WCAG 2.1 AA audit with axe over the main states, plus a mouse-free keyboard run.
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { startServer } from "./server";
 
 let server: Awaited<ReturnType<typeof startServer>>;
@@ -84,5 +87,24 @@ test.describe.serial("a11y", () => {
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toBeHidden();
     await expect(gear).toBeFocused();
+  });
+
+  test("run mode: library, form, recent runs", async () => {
+    const work = mkdtempSync(join(tmpdir(), "wts-a11y-")); // no logs: the run takes the else branch, no step confirmation
+    await page.getByRole("button", { name: "Modus Ausführen" }).click();
+    await page.getByRole("region", { name: "Bibliothek" }).getByRole("button", { name: /log_errors/ }).click();
+    const form = page.getByRole("region", { name: "Eingaben" });
+    await form.getByLabel("Log-Ordner").fill(work);
+    await form.getByLabel("Arbeitsordner", { exact: true }).fill(work);
+    await audit("run mode form");
+    await form.getByRole("button", { name: "Ausführen", exact: true }).click();
+    const dlg = page.getByRole("dialog", { name: "Workflow ausführen?" });
+    await expect(dlg.locator("pre.plan")).toContainText("grep");
+    await audit("run mode dialog");
+    await dlg.getByRole("button", { name: "Workflow ausführen" }).click();
+    await expect(page.getByTestId("runview-status")).toContainText(/Erfolgreich|Fehlgeschlagen/, { timeout: 20_000 });
+    await expect(form.getByRole("list", { name: "Letzte Läufe" }).getByRole("button")).toHaveCount(1);
+    await audit("run mode output and recent runs");
+    await page.getByRole("button", { name: "Erstellen", exact: true }).click();
   });
 });

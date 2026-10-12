@@ -38,3 +38,16 @@ def test_run_by_id(capsys: pytest.CaptureFixture[str]) -> None:
 
 def test_run_unknown_id_fails(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["run", "gibt-es-nicht", "--dry-run"]) == 3
+
+
+def test_run_by_id_names_the_source(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["run", "hallo", "--dry-run"]) == 0
+    assert "Quelle project:" in capsys.readouterr().err
+
+
+def test_existing_non_workflow_path_hints_at_id(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (tmp_path / "hallo").mkdir()
+    assert main(["run", "hallo", "--dry-run"]) == 3
+    assert "Vorrang vor der Workflow-id" in capsys.readouterr().err

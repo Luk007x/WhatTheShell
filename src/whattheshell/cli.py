@@ -327,8 +327,7 @@ def _ai_settings(args: argparse.Namespace, settings: Settings) -> int:
         print(f"api: {ai.api.kind} Modell '{ai.api.model}' Schlüsselquelle {source}")
         print(f"agent: {ai.agent.kind} Aufruf {ai.agent.command or 'Standard'}")
         print(f"Befehlsausgaben mitsenden: {'ja' if ai.send_outputs else 'nein'}")
-        print("Prüfung (ohne Netz):")
-        _print_check(check(settings, probe_network=False))
+        print("Prüfung der Quelle: `wts ai check`")
         return 0
     data = settings.model_dump(mode="json")
     if args.ai_command == "config":
@@ -849,14 +848,20 @@ def _workflows() -> int:
 
 def _run(args: argparse.Namespace) -> int:
     file: Path = args.file
-    if not file.exists():  # not a path: look it up in the library
-        entry = _workflow_index().get(str(file))
-        if entry is not None:
-            file = entry.path
+    entry = _workflow_index().get(str(file)) if len(file.parts) == 1 else None
+    if not file.exists() and entry is not None:  # not a path: use the library entry
+        file = entry.path
+        print(f"Quelle {entry.source}: {file}", file=sys.stderr)
     try:
         workflow = load_workflow_file(file)
     except DocumentError as err:
         print(err, file=sys.stderr)
+        if entry is not None and file == args.file:
+            print(
+                f"Hinweis: Der Pfad '{file}' hat Vorrang vor der Workflow-id gleichen Namens "
+                f"({entry.path}, Quelle {entry.source}). Pfad umbenennen, um die id zu nutzen.",
+                file=sys.stderr,
+            )
         return 3
     overrides = _parse_vars(args.var)
     if overrides is None:

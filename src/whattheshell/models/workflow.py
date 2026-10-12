@@ -215,11 +215,21 @@ class VariableSpec(_Model):
     label: str | None = None
     help: str | None = None
     required: bool = False
+    choices: list[str] = []
+    min: float | None = None
+    max: float | None = None
 
     @model_validator(mode="after")
-    def _secret_without_default(self) -> VariableSpec:
+    def _check_spec(self) -> VariableSpec:
         if self.type == ValueType.secret and self.default is not None:
             raise ValueError("Variable vom Typ secret darf keinen default haben")
+        if self.choices and self.type != ValueType.enum:
+            raise ValueError("choices ist nur bei type enum erlaubt")
+        if (self.min is not None or self.max is not None) and self.type not in (
+            ValueType.int,
+            ValueType.float,
+        ):
+            raise ValueError("min und max sind nur bei type int oder float erlaubt")
         return self
 
 

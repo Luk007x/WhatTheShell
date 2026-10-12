@@ -10,7 +10,7 @@ import { t } from "../i18n";
 import { Icon } from "../icons";
 import { Modal } from "../Modal";
 import { commandStep, CONTROL_KINDS, controlStep } from "../model/blocks";
-import { connectionKind, handlesOf, toGraph, type FlowEdge, type HandleSpec, type StepNode } from "../model/graph";
+import { connectionKind, connectionProblem, handlesOf, toGraph, type FlowEdge, type HandleSpec, type StepNode } from "../model/graph";
 import {
   addStep, findStep, isCommand, moveAfter, moveStep, portsOf, removeStep, setLayout, updateStep,
   type OpResult, type Port, type Step,
@@ -160,16 +160,23 @@ export function Canvas(props: {
   const onConnect = (c: Connection) => {
     const { source, target, sourceHandle: port } = c;
     const kind = connectionKind(port, c.targetHandle);
-    if (source === target || !port || !kind) { onNotice(t("connect.invalid")); return; }
+    const problem = connectionProblem(wf, c);
+    if (problem || !port || !kind) { onNotice(t(`connect.${problem ?? "kind"}`)); return; }
     onNotice(null);
     if (kind === "pipe") edit((w) => updateStep(w, target, { stdin: { pipe: source } }));
     else if (port === "next") edit((w) => moveAfter(w, target, source));
     else edit((w) => moveStep(w, target, [source, port], 0));
   };
   // a drop on a handle that does not fit never reaches onConnect: say why
-  const onConnectEnd: OnConnectEnd = (_, state) => { if (state.toHandle && !state.isValid) onNotice(t("connect.invalid")); };
+  const onConnectEnd: OnConnectEnd = (_, state) => {
+    const { fromHandle: from, toHandle: to } = state;
+    if (!from || !to || state.isValid) return;
+    const [a, b] = from.type === "source" ? [from, to] : [to, from]; // a drag may start at the target handle
+    const problem = connectionProblem(wf, { source: a.nodeId, sourceHandle: a.id, target: b.nodeId, targetHandle: b.id });
+    onNotice(t(`connect.${problem ?? "kind"}`));
+  };
 
-  const isValidConnection = (c: { sourceHandle?: string | null; targetHandle?: string | null }) => connectionKind(c.sourceHandle, c.targetHandle) !== null;
+  const isValidConnection = (c: { source: string; target: string; sourceHandle?: string | null; targetHandle?: string | null }) => connectionProblem(wf, c) === null;
 
   const selHit = selected ? findStep(wf, selected) : undefined;
   const targets = selHit ? portsOf(selHit.step).filter((p): p is Exclude<Port, "fallback"> => p !== "fallback") : [];

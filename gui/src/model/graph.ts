@@ -5,7 +5,7 @@
 import dagre from "@dagrejs/dagre";
 import { MarkerType, type Edge, type Node } from "@xyflow/react";
 import type { Workflow } from "../types/workflow";
-import { childSeq, isCommand, portsOf, type Port, type SeqPath, type Step } from "./ops";
+import { childSeq, isCommand, portsOf, visibleSteps, type Port, type SeqPath, type Step } from "./ops";
 
 export interface StepNodeData extends Record<string, unknown> {
   step: Step;
@@ -53,6 +53,18 @@ export function connectionKind(sourceHandle: string | null | undefined, targetHa
   if (sourceHandle === "stdout") return targetHandle === "stdin" ? "pipe" : null;
   const flowSources: (string | null | undefined)[] = ["next", "then", "else", "body", "fallback"];
   return flowSources.includes(sourceHandle) && targetHandle === "in" ? "flow" : null;
+}
+
+export type ConnectRefusal = "self" | "kind" | "backpipe";
+type Link = { source: string; target: string; sourceHandle?: string | null; targetHandle?: string | null };
+
+/** Why a drag between two handles is refused (checked before the drop), or null if it is fine. */
+export function connectionProblem(wf: Workflow, c: Link): ConnectRefusal | null {
+  if (c.source === c.target) return "self";
+  const kind = connectionKind(c.sourceHandle, c.targetHandle);
+  if (kind === null) return "kind";
+  if (kind === "pipe" && !visibleSteps(wf, c.target).includes(c.source)) return "backpipe"; // the target would read a step that has not run
+  return null;
 }
 
 export function toGraph(wf: Workflow): { nodes: StepNode[]; edges: FlowEdge[] } {

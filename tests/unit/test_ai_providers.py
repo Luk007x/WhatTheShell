@@ -319,3 +319,21 @@ def test_missing_login_file_is_not_an_error(bin_dir: Path, real_home: Path) -> N
     (real_home / ".claude/.credentials.json").unlink()
     _script(bin_dir, "claude", 'ls -A "$HOME/.claude"; echo end\n')
     assert AgentCliProvider("claude", [], 5).complete(PROMPT).strip() == "end"
+
+
+def test_answer_over_two_mib_refused(server: _Server) -> None:
+    server.reply = {"content": [{"type": "text", "text": "a" * (2 * 1024 * 1024)}]}
+    with pytest.raises(RuntimeError, match="über 2 MiB"):
+        AnthropicProvider(server.url, "m", 5, api_key=SECRET).complete(PROMPT)
+
+
+def test_resolve_key_keyring_backend_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake = types.ModuleType("keyring")
+
+    def locked(service: str, name: str) -> str:
+        raise OSError("D-Bus weg")
+
+    fake.get_password = locked  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "keyring", fake)
+    with pytest.raises(RuntimeError, match=r"Schlüsselbund nicht lesbar \(OSError\)"):
+        resolve_key(ApiSettings(key_source="keyring"))

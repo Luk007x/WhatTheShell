@@ -69,7 +69,7 @@ uv sync --all-extras          # Umgebung
 uv run ruff check . && uv run ruff format --check .
 uv run mypy src
 uv run pytest
-uv run wts --help             # CLI: tools, inspect, validate, scaffold, modules, sandbox, example, run, gui, ai, schema export
+uv run wts --help             # CLI: tools, inspect, validate, scaffold, modules, workflows, sandbox, example, run, gui, ai (check/status/…), schema export
 cd gui && npm ci && npm run build && npm run typecheck && npm test   # Frontend; npm run e2e = Playwright-Smoke gegen wts gui
 ```
 

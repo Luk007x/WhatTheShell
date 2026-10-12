@@ -344,3 +344,15 @@ textarea.rawyaml { width: 100%; font: 0.85rem/1.45 var(--mono); tab-size: 2; }
 .diff-meta { display: block; color: var(--muted); }
 
 @media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+/* ---------- Run view (mode "Ausführen") ---------- */
+.run-main { grid-template-columns: minmax(16rem, 24rem) minmax(0, 1fr); }
+.run-main > section + section { border-left: 1px solid var(--border); }
+.lib-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); margin-top: 0.125rem; }
+.lib-error { font-size: 0.78rem; overflow-wrap: anywhere; }
+.runform { max-width: 40rem; }
+.runform h3 { margin-top: 0; }
+.runform .tb-group { margin-bottom: var(--space-3); }
+.app-footer.run-footer { height: 40vh; max-height: none; }
+.run-footer .run { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.run-footer .run > .toolbar { padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--border); }
+.run-out { flex: 1; min-height: 0; overflow: auto; padding: var(--space-2) var(--space-4) var(--space-3); }

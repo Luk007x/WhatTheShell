@@ -20,9 +20,9 @@ from whattheshell.api.errors import error_response
 from whattheshell.api.runs import router as runs_router
 from whattheshell.api.security import SecurityMiddleware, Session
 from whattheshell.catalog import Catalog
-from whattheshell.modules.loader import WORKFLOW_SUFFIXES, DocumentError
+from whattheshell.modules.loader import MODULE_SUFFIXES, WORKFLOW_SUFFIXES, DocumentError
 from whattheshell.modules.registry import ModuleRegistry
-from whattheshell.modules.watch import watch_dirs, watch_modules
+from whattheshell.modules.watch import watch_dirs
 from whattheshell.settings import Settings, load_settings
 from whattheshell.workflows import WorkflowIndex
 
@@ -48,44 +48,40 @@ def _validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
 
 
 def _watch(app: FastAPI, stop: threading.Event) -> None:
-    """Thread body: hot-reload module files; a failing watcher is logged, never fatal."""
+    """Thread body: hot-reload module and workflow files; a failing watcher is logged only."""
     registry: ModuleRegistry = app.state.registry
-
-    def started(_: object) -> None:
-        app.state.modules_watch = True
-
-    try:
-        watch_modules(registry, stop, on_start=started)
-    except Exception:
-        logger.exception(
-            "Modul-Überwachung beendet. Änderungen an Modulen brauchen einen Neustart."
-        )
-    app.state.modules_watch = False
-
-
-def _watch_workflows(app: FastAPI, stop: threading.Event) -> None:
-    """Thread body: hot-reload workflow files; a failing watcher is logged, never fatal."""
     index: WorkflowIndex = app.state.workflows
 
     def started(_: object) -> None:
-        app.state.workflows_watch = True
+        app.state.modules_watch = app.state.workflows_watch = True
+
+    def changed(paths: set[Path]) -> None:
+        for path in paths:
+            if path.name.endswith(MODULE_SUFFIXES):
+                registry.reload(path)
+        if any(p.name.endswith(WORKFLOW_SUFFIXES) for p in paths):
+            index.scan()
 
     try:
-        watch_dirs(index.dirs, WORKFLOW_SUFFIXES, lambda _: index.scan(), stop, started)
+        watch_dirs(
+            [*registry.dirs, *index.dirs],
+            (*MODULE_SUFFIXES, *WORKFLOW_SUFFIXES),
+            changed,
+            stop,
+            started,
+            floors=[Path.cwd(), paths.config_dir()],
+        )
     except Exception:
         logger.exception(
-            "Workflow-Überwachung beendet. Änderungen an Workflows brauchen einen Neustart."
+            "Überwachung beendet. Änderungen an Modulen und Workflows brauchen einen Neustart."
         )
-    app.state.workflows_watch = False
+    app.state.modules_watch = app.state.workflows_watch = False
 
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     stop = threading.Event()
     threading.Thread(target=_watch, args=(app, stop), daemon=True, name="wts-modules-watch").start()
-    threading.Thread(
-        target=_watch_workflows, args=(app, stop), daemon=True, name="wts-workflows-watch"
-    ).start()
     try:
         yield
     finally:

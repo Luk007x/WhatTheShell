@@ -44,6 +44,18 @@ def _index(request: Request) -> WorkflowIndex:
     return index
 
 
+def _refuse_if_shadowed(request: Request, workflow_id: str) -> None:
+    """A project file wins over the user folder: writing there would change nothing visible."""
+    entry = _index(request).get(workflow_id)
+    if entry is not None and entry.source == "project":
+        raise fail(
+            409,
+            "shadowed",
+            f"'{workflow_id}' wird von der Projektdatei {entry.path} (Quelle project) überdeckt. "
+            "Dort von Hand ändern oder entfernen.",
+        )
+
+
 def _find(request: Request, workflow_id: str) -> WorkflowEntry:
     """Winning entry of an existing workflow."""
     entry = _index(request).get(_check_id(workflow_id))
@@ -75,6 +87,7 @@ def list_workflows(request: Request) -> list[dict[str, Any]]:
             "steps": e.steps,
             "error": e.error,
             "shadows": e.shadows,
+            "writable": e.source != "project",
         }
         for e in sorted(_index(request).all(), key=lambda e: e.id)
     ]
@@ -101,6 +114,7 @@ def get_workflow(workflow_id: str, request: Request) -> dict[str, Any]:
 def put_workflow(workflow_id: str, body: DocumentBody, request: Request) -> dict[str, str]:
     """Validate and write the user file; other sources stay untouched (copy semantics)."""
     _check_id(workflow_id)
+    _refuse_if_shadowed(request, workflow_id)
     workflow = _validate(body.document)
     yaml = YAML(typ="safe")
     yaml.default_flow_style = False
@@ -124,6 +138,7 @@ def put_workflow(workflow_id: str, body: DocumentBody, request: Request) -> dict
 def delete_workflow(workflow_id: str, request: Request) -> Response:
     """Delete the user file; bundled and project files cannot be deleted here."""
     _check_id(workflow_id)
+    _refuse_if_shadowed(request, workflow_id)
     target = user_dir("workflow") / f"{workflow_id}{SUFFIX}"
     if not target.is_file():
         entry = _index(request).get(workflow_id)

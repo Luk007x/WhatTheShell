@@ -6,6 +6,7 @@ import { Canvas, type Edit } from "./canvas/Canvas";
 import { AiContext } from "./ai/AiDialog";
 import { FileMenu } from "./files/FileMenu";
 import { RunPanel } from "./run/RunPanel";
+import { RunView } from "./run/RunView";
 import { CatalogPanel } from "./catalog/CatalogPanel";
 import { clearToolCache, StepPanel } from "./detail/StepPanel";
 import { ModulesView } from "./modules/ModulesView";
@@ -15,7 +16,7 @@ import { mergeTemplate } from "./model/templates";
 import { VariablesPanel } from "./detail/VariablesPanel";
 import { useDebounced } from "./hooks";
 import { Icon } from "./icons";
-import { Resizer } from "./Resizer";
+import { clampCol, COL_MIN, colMax, Resizer } from "./Resizer";
 import { getLang, setLang, t, type Lang } from "./i18n";
 import { captureOutput, evaluateOutput, findStep, newId, removeStep, renameStep, setVariables, stepIdAtErrorPath, updateStep, type OpResult } from "./model/ops";
 import type { SandboxStatus, ToolInfo, ToolSummary } from "./types/api";
@@ -30,8 +31,14 @@ const loadView = (): View => {
 const emptyWorkflow = (): Workflow => ({ schema_version: 1, name: "", steps: [] });
 
 /** Modes of the mode bar; a new mode is one entry here plus one case in `center`. */
-const MODES = ["build", "modules"] as const;
+const MODES = ["build", "run", "modules"] as const;
 type Mode = (typeof MODES)[number];
+/** Accessible names that differ from the visible label: "Ausführen" alone would clash with the editor's run button. */
+const MODE_ARIA: Partial<Record<Mode, string>> = { run: "mode.run.aria" };
+const isMode = (x: unknown): x is Mode => MODES.some((m) => m === x);
+const loadMode = (): Mode => {
+  try { const m = localStorage.getItem("wts.mode"); return isMode(m) ? m : "build"; } catch { return "build"; }
+};
 
 /** Widths of the side columns in px (the middle takes the rest), kept in localStorage. */
 type Cols = { catalog: number; details: number };
@@ -39,8 +46,10 @@ const COLS_KEY = "wts.cols";
 const loadCols = (): Cols => {
   try {
     const raw: unknown = JSON.parse(localStorage.getItem(COLS_KEY) ?? "null");
-    if (raw && typeof raw === "object" && "catalog" in raw && "details" in raw && typeof raw.catalog === "number" && typeof raw.details === "number") {
-      return { catalog: raw.catalog, details: raw.details };
+    if (raw && typeof raw === "object" && "catalog" in raw && "details" in raw && typeof raw.catalog === "number" && typeof raw.details === "number"
+      && Number.isFinite(raw.catalog) && Number.isFinite(raw.details)) {
+      const max = colMax();
+      return { catalog: clampCol(raw.catalog, COL_MIN.catalog, max), details: clampCol(raw.details, COL_MIN.details, max) };
     }
   } catch { /* unreadable: defaults */ }
   return { catalog: 256, details: 360 };
@@ -100,7 +109,7 @@ export function App() {
   const [selected, setSelected] = useState<string | null>(null);
   const [safety, setSafety] = useState<Record<string, string>>({});
   const [category, setCategory] = useState<Record<string, string>>({});
-  const [mode, setMode] = useState<Mode>("build");
+  const [mode, setModeState] = useState<Mode>(loadMode);
   const [notice, setNotice] = useState<string | null>(null);
   const [cols, setColsState] = useState<Cols>(loadCols);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -182,6 +191,14 @@ export function App() {
     setViewState(v);
     try { localStorage.setItem("wts.view", v); } catch { /* storage unavailable: the choice lasts for this session */ }
   };
+  const setMode = (m: Mode) => {
+    setModeState(m);
+    try { localStorage.setItem("wts.mode", m); } catch { /* storage unavailable: the mode lasts for this session */ }
+  };
+  const loadDoc = (doc: Workflow, id: string) => {
+    dispatch({ type: "load", doc }); setSavedJson(JSON.stringify(doc)); setFileId(id); setSelected(null);
+    if (mode === "run") setMode("build");
+  };
   const newDoc = () => { setSelected(null); setFileId(null); setSavedJson(JSON.stringify(emptyWorkflow())); dispatch({ type: "load", doc: emptyWorkflow() }); };
   const changeLang = (l: Lang) => { setLang(l); document.documentElement.lang = l; bump((n) => n + 1); setRefresh((n) => n + 1); };
   document.documentElement.lang = getLang();
@@ -201,13 +218,15 @@ export function App() {
     switch (mode) {
       case "modules":
         return <ModulesView catalogTool={catalogTool} onChanged={() => { clearToolCache(); setRefresh((n) => n + 1); }} />;
+      case "run":
+        return null; // RunView replaces the whole editor grid
       case "build":
         return view === "graph"
           ? <Canvas wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} categoryOf={categoryOf} onNotice={setNotice} />
           : <BlockView wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} categoryOf={categoryOf} />;
     }
   })();
-  const maxCol = Math.max(320, Math.round(window.innerWidth * 0.4));
+  const maxCol = colMax();
 
   return (
     <AiContext.Provider value={{ enabled: aiEnabled, openSettings: () => setSettingsOpen(true) }}>
@@ -218,8 +237,8 @@ export function App() {
       <header className="app-header">
         <h1 className="brand">{t("app.name")}</h1>
         <FileMenu wf={wf} fileId={fileId} dirty={dirty}
-          onLoad={(doc, id) => { dispatch({ type: "load", doc }); setSavedJson(JSON.stringify(doc)); setFileId(id); setSelected(null); }}
-          onSaved={(id) => { setFileId(id); setSavedJson(JSON.stringify(wf)); }}
+          onLoad={loadDoc}
+          onSaved={(id) => { setFileId(id); setSavedJson(JSON.stringify(wf)); setNotice(t("file.saved.run", { id })); }}
           onDeleted={(id) => { if (id === fileId) setFileId(null); }}
           onNew={newDoc}
           onDraft={(doc) => { dispatch({ type: "load", doc }); setSavedJson(JSON.stringify(emptyWorkflow())); setFileId(null); setSelected(null); }} />
@@ -237,7 +256,9 @@ export function App() {
       {/* Modusleiste: one button per mode, view switch of the build mode */}
       <nav className="modebar">
         <div role="group" aria-label={t("mode.label")} className="segmented">
-          {MODES.map((m) => <button key={m} aria-pressed={mode === m} onClick={() => setMode(m)}>{t(`mode.${m}`)}</button>)}
+          {MODES.map((m) => (
+            <button key={m} aria-pressed={mode === m} aria-label={MODE_ARIA[m] && t(MODE_ARIA[m])} onClick={() => setMode(m)}>{t(`mode.${m}`)}</button>
+          ))}
         </div>
         {mode === "build" && (
           <div role="group" aria-label={t("view.label")} className="segmented">
@@ -248,13 +269,16 @@ export function App() {
         )}
       </nav>
 
+      {/* Ausführen: library | form, output below; replaces the editor grid and footer, stays mounted (hidden) in other modes */}
+      <RunView active={mode === "run"} onOpenInEditor={(doc, id) => { if (!dirty || window.confirm(t("file.discard"))) loadDoc(doc, id); }} />
+
       {/* Hauptgrid: catalog | center | details */}
-      <main id="main" tabIndex={-1} className="app-main"
+      {mode !== "run" && <main id="main" tabIndex={-1} className="app-main"
         style={{ gridTemplateColumns: `minmax(12rem, ${cols.catalog}px) auto minmax(18rem, 1fr) auto minmax(16rem, ${cols.details}px)` }}>
         <CatalogPanel selected={catalogTool} onSelect={setCatalogTool} onLoaded={onLoaded} reloadKey={refresh} />
-        <Resizer label={t("layout.catalog")} value={cols.catalog} min={192} max={maxCol} onChange={(catalog) => setCols({ ...cols, catalog })} />
+        <Resizer label={t("layout.catalog")} value={cols.catalog} min={COL_MIN.catalog} max={maxCol} onChange={(catalog) => setCols({ ...cols, catalog })} />
         {center}
-        <Resizer label={t("layout.details")} value={cols.details} min={256} max={maxCol} invert onChange={(details) => setCols({ ...cols, details })} />
+        <Resizer label={t("layout.details")} value={cols.details} min={COL_MIN.details} max={maxCol} invert onChange={(details) => setCols({ ...cols, details })} />
         <section className="panel" aria-labelledby="details-h">
           <div className="panel__header"><h2 id="details-h">{t("details.title")}</h2></div>
           <div className="panel__body">
@@ -285,10 +309,11 @@ export function App() {
           )}
           </div>
         </section>
-      </main>
+      </main>}
 
       {/* Fuss: status line, validation errors, run panel */}
-      <footer className="app-footer">
+      {/* kept mounted in the run mode so a running editor run survives the switch */}
+      <footer className="app-footer" hidden={mode === "run"}>
         <div className="statusbar">
           <p className="statusline" role="status">
             <span className={`dot ${validation === "checking" ? "caution" : typeof validation === "string" || !validation.ok ? "dangerous" : "safe"}`} aria-hidden="true" />

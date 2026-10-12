@@ -6,6 +6,7 @@ import { t } from "../i18n";
 import { parseRaw } from "../modules/moduleForm";
 import { FILE_ID_PATTERN, slugify } from "../model/files";
 import { Modal } from "../Modal";
+import { Library } from "./Library";
 import type { WorkflowListItem } from "../types/api";
 import type { Workflow } from "../types/workflow";
 
@@ -62,16 +63,8 @@ export function FileMenu({ wf, fileId, dirty, onLoad, onSaved, onDeleted, onNew,
 
       <Modal open={mode === "open"} title={t("file.open")} onCancel={() => setMode(null)}>
         {err && <p role="alert" className="error">{err.message}</p>}
-        {list.length === 0 && <p>{t("file.none")}</p>}
-        <ul className="filelist">
-          {list.map((x) => (
-            <li key={`${x.source}:${x.id}`}>
-              <button className="filelist__item" onClick={() => load(x)}>{x.name} <small className="muted">{x.id} · {t(`file.source.${x.source}`)}</small></button>
-              {x.source === "user" && <button className="btn--danger btn--sm" aria-label={`${t("file.delete")} ${x.name}`} onClick={() => remove(x)}>{t("file.delete")}</button>}
-            </li>
-          ))}
-        </ul>
-        <div className="actions"><button data-autofocus onClick={() => setMode(null)}>{t("run.cancel")}</button></div>
+        <Library items={list} onPick={load} onRemove={remove} />
+        <div className="actions"><button onClick={() => setMode(null)}>{t("run.cancel")}</button></div>
       </Modal>
 
       <Modal open={mode === "draft"} title={t("ai.draft")} onCancel={() => setMode(null)}>

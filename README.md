@@ -16,9 +16,10 @@ wts modules [--watch]            # geladene Module, Hot-Reload
 wts sandbox                      # bwrap-Selbsttest mit Installationshinweis
 wts example grep                 # Modul-Beispiele in der Sandbox ausführen
 wts run workflow.yaml --dry-run  # Plan mit Gefahrenklassen, nichts wird ausgeführt
-wts run workflow.yaml            # Ausführen mit Bestätigung für caution/dangerous
+wts workflows                    # Bibliothek: mitgeliefert, ~/.config/whattheshell/workflows, ./.whattheshell/workflows
+wts run workflow.yaml|ID         # Ausführen mit Bestätigung für caution/dangerous
 wts gui                          # Web-Oberfläche auf 127.0.0.1 mit Sitzungstoken
-wts ai status                    # KI-Funktionen (standardmäßig aus): enable, config set, improve-module, examples, draft-workflow, diagnose
+wts ai status                    # KI-Funktionen (standardmäßig aus): enable, check, config set, improve-module, examples, draft-workflow, diagnose
 ```
 
 Voraussetzungen: Linux, Python ≥ 3.11, `bubblewrap` (`bwrap`) für Vorschau und Beispiele.

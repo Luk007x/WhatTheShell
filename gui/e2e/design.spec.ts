@@ -8,8 +8,9 @@ let page: Page;
 const shot = (name: string) => page.screenshot({ path: `e2e-results/design-${name}.png` });
 
 /** The grid areas must not overlap and must stay inside the viewport. */
-async function noOverlap(label: string) {
-  const sel = [".app-header", ".modebar", ".app-main > section:nth-of-type(1)", ".app-main > section:nth-of-type(2)", ".app-main > section:nth-of-type(3)", ".app-footer"];
+async function noOverlap(label: string, sections = 3) {
+  const areas = Array.from({ length: sections }, (_, i) => `.app-main:visible > section:nth-of-type(${i + 1})`);
+  const sel = [".app-header", ".modebar", ...areas, ".app-footer:visible"];
   const boxes = await Promise.all(sel.map(async (s) => ({ s, b: await page.locator(s).first().boundingBox() })));
   const vp = page.viewportSize() ?? { width: 0, height: 0 };
   for (const { s, b } of boxes) {
@@ -26,8 +27,8 @@ async function noOverlap(label: string) {
       expect(ix > 1 && iy > 1, `${label}: ${a} overlaps ${c}`).toBe(false);
     }
   }
-  // buttons of the header and the canvas toolbar must not overlap each other
-  for (const bar of [".app-header", ".panel.canvas > .toolbar"]) {
+  // buttons of the header and the canvas / run toolbars must not overlap each other
+  for (const bar of [".app-header", ".panel.canvas > .toolbar", ".run-footer .toolbar", ".runform .tb-group"]) {
     const rects = await page.locator(`${bar} button:visible`).evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as { x: number; y: number; width: number; height: number }));
     for (const [i, p] of rects.entries()) {
       for (const q of rects.slice(i + 1)) {
@@ -108,5 +109,16 @@ test.describe.serial("design", () => {
     await noOverlap("dark");
     await shot("dark");
     await page.emulateMedia({ colorScheme: "light" });
+  });
+
+  test("run view", async () => {
+    await page.getByRole("button", { name: "Modus Ausführen" }).click();
+    await page.getByRole("region", { name: "Bibliothek" }).getByRole("button", { name: /log_errors/ }).click();
+    await expect(page.getByRole("region", { name: "Eingaben" }).getByLabel("Log-Ordner")).toBeVisible();
+    await page.getByRole("region", { name: "Eingaben" }).getByRole("button", { name: "Trockenlauf" }).click();
+    await expect(page.getByTestId("runview-plan")).toContainText("grep");
+    await noOverlap("run view", 2);
+    await shot("runview");
+    await page.getByRole("button", { name: "Erstellen", exact: true }).click();
   });
 });

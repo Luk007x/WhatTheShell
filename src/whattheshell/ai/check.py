@@ -4,7 +4,8 @@
 Provider, network and process code is imported only after the ``ai.enabled`` gate.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from whattheshell.settings import AgentSettings, ApiSettings, LocalSettings, Settings
@@ -66,6 +67,10 @@ def check(settings: Settings, *, probe_network: bool = True) -> CheckResult:
             items = _check_api(ai.api, probe_network)
         case "agent":
             items = _check_agent(ai.agent)
+    from .providers.http import printable  # lazy: gate first
+
+    # details carry foreign text (server errors, model ids, program output): no terminal escapes
+    items = [replace(item, detail=printable(item.detail)) for item in items]
     return CheckResult(all(item.ok for item in items), ai.provider, items)
 
 
@@ -163,6 +168,13 @@ def _check_agent(agent: AgentSettings) -> list[CheckItem]:
             CheckItem("Programm", False, f"`{program}` nicht im PATH", f"Installieren: `{install}`")
         ]
     items = [CheckItem("Programm", True, path)]
+    if Path(program).name != agent.kind:  # status commands of another program are unknown
+        unchecked = "nicht geprüft (eigene Aufrufzeile)"
+        return [
+            *items,
+            CheckItem("Version", True, unchecked),
+            CheckItem("Anmeldung", True, unchecked),
+        ]
     try:
         with isolated_env(agent.kind) as (env, work):
             version = run_limited(
@@ -175,16 +187,16 @@ def _check_agent(agent: AgentSettings) -> list[CheckItem]:
                 env=env, cwd=str(work),
             )  # fmt: skip
     except OSError as err:
-        return [*items, CheckItem("Anmeldung", False, f"Temp-HOME nicht anlegbar: {err}")]
+        detail = f"Anmeldedatei nicht kopierbar: {err}"
+        hint = f"Rechte von ~/{CREDENTIALS[agent.kind]} prüfen"
+        return [*items, CheckItem("Anmeldung", False, detail, hint)]
     if version is None or version.timed_out or version.exit_code != 0:
         items.append(
             CheckItem("Version", False, _failure(version), f"Neu installieren: `{install}`")
         )
     else:
-        from .providers.http import printable
-
         first = version.stdout.decode(errors="replace").strip().splitlines()[:1]
-        items.append(CheckItem("Version", True, printable(first[0][:80]) if first else "?"))
+        items.append(CheckItem("Version", True, first[0][:80] if first else "?"))
     if auth is None or auth.timed_out or auth.exit_code != 0:
         detail = f"nicht angemeldet ({_failure(auth)}; geprüft mit ~/{CREDENTIALS[agent.kind]})"
         items.append(CheckItem("Anmeldung", False, detail, f"Anmelden: `{login}`"))

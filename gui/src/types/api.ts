@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Response types of docs/API.md. Spec types are reused from the generated module schema types.
 import type { Example, InputSpec, OptionSpec, Safety } from "./module";
-import type { Workflow } from "./workflow";
+import type { VariableSpec, Workflow } from "./workflow";
 
-export type { Example, InputSpec, OptionSpec, Safety, Workflow };
+export type { Example, InputSpec, OptionSpec, Safety, VariableSpec, Workflow };
 
 // Mirrors models/catalog.py CommandSpec (not part of the JSON schemas).
 export interface CommandSpec {
@@ -87,11 +87,21 @@ export interface PreviewResult {
   timed_out: boolean;
 }
 
+export type WorkflowSource = "bundled" | "user" | "project";
+
+/** Library index entry of `GET /api/workflows`. */
 export interface WorkflowListItem {
   id: string;
   name: string;
+  description: string | null;
+  source: WorkflowSource;
   path: string;
-  source: "bundled" | "user";
+  variables: Record<string, VariableSpec>;
+  steps: number;
+  error: string | null;
+  shadows: WorkflowSource[];
+  /** false when a project file wins: PUT/DELETE answer 409 `shadowed`. */
+  writable: boolean;
 }
 
 export interface WorkflowDoc {
@@ -108,9 +118,22 @@ export interface ValidationResult {
 
 export interface RunRequest {
   document: Workflow;
-  variables: Record<string, unknown>;
+  variables: Record<string, string>;
   cwd: string | null;
   dry_run: boolean;
+}
+
+/** Body of `POST /api/workflows/{id}/run`: the document comes from the library index. */
+export type WorkflowRunRequest = Omit<RunRequest, "document">;
+
+/** Entry of `GET /api/runs` (newest first). */
+export interface RunListItem {
+  run_id: string;
+  status: "created" | "running" | "success" | "failed" | "aborted";
+  workflow_name: string;
+  started: string | null;
+  finished: string | null;
+  exit_code: number | null;
 }
 
 export interface RunCreated {

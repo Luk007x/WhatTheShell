@@ -532,3 +532,22 @@ def test_type_error_message_has_no_value(tmp_path: Path) -> None:
     with pytest.raises(RunError, match="Variable 'pw'") as caught:
         runner.prepare(wf, {"pw": "s3cret-value"})
     assert "s3cret" not in str(caught.value)
+
+
+@pytest.mark.parametrize(
+    ("spec", "value", "message"),
+    [
+        ({"type": "enum", "choices": ["a", "b"]}, "c", "keine erlaubte Auswahl"),
+        ({"type": "int", "min": 2}, "1", "kleiner als das Minimum"),
+        ({"type": "float", "max": 1.5}, "2", "größer als das Maximum"),
+    ],
+)
+def test_choices_and_bounds_rejected(
+    tmp_path: Path, spec: dict[str, Any], value: str, message: str
+) -> None:
+    wf = make_workflow([echo("a", "x")], {"v": spec})
+    runner, _ = make_runner(tmp_path)
+    with pytest.raises(RunError, match=message):
+        runner.prepare(wf, {"v": value})
+    ok = {"enum": "a", "int": "2", "float": "1.5"}[spec["type"]]
+    runner.prepare(wf, {"v": ok})

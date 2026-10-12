@@ -23,7 +23,7 @@ def models_server() -> Iterator[str]:
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
-            body = {"data": [{"id": "llama3:latest"}, {"id": "qwen2.5:7b"}]}
+            body = {"data": [{"id": "llama3:latest"}, {"id": "qwen2.5:7b"}, {"id": "x\x1b[31m"}]}
             self.send_response(200 if self.path == "/v1/models" else 404)
             self.end_headers()
             self.wfile.write(json.dumps(body).encode())
@@ -61,6 +61,7 @@ def test_local_model_with_tag_and_missing(models_server: str) -> None:
     result = check(_settings(local={"base_url": models_server, "model": "mistral"}))
     ok, detail, hint = _items(result)["Modell verfügbar"]
     assert not result.ok and not ok and "qwen2.5:7b" in detail and hint.endswith("pull mistral`")
+    assert "\x1b" not in detail and "x [31m" in detail  # foreign ids made printable
 
 
 def test_local_unreachable_and_without_network() -> None:
@@ -133,3 +134,36 @@ def test_agent_timeout_is_an_item(bin_dir: Path, monkeypatch: pytest.MonkeyPatch
     _script(bin_dir, "claude", "sleep 5\n")
     items = _items(check(_settings(provider="agent")))
     assert not items["Version"][0] and "Zeitlimit" in items["Anmeldung"][1]
+
+
+def test_keyring_error_is_an_item(monkeypatch: pytest.MonkeyPatch) -> None:
+    import types
+
+    fake = types.ModuleType("keyring")
+
+    def broken(service: str, name: str) -> str:
+        raise RuntimeError("kaputt")
+
+    fake.get_password = broken  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "keyring", fake)
+    api = {"kind": "anthropic", "model": "m", "key_source": "keyring"}
+    ok, detail, _ = _items(check(_settings(provider="api", api=api)))["Schlüssel"]
+    assert not ok and "Schlüsselbund nicht lesbar" in detail
+
+
+def test_custom_command_skips_status(bin_dir: Path) -> None:
+    _script(bin_dir, "mytool", "exit 9\n")
+    result = check(_settings(provider="agent", agent={"command": ["mytool", "-p"]}))
+    items = _items(result)
+    assert result.ok and items["Anmeldung"][1] == "nicht geprüft (eigene Aufrufzeile)"
+    assert items["Version"][1] == "nicht geprüft (eigene Aufrufzeile)"
+
+
+def test_unreadable_login_file(bin_dir: Path, tmp_path: Path) -> None:
+    _script(bin_dir, "claude", "exit 0\n")
+    login = tmp_path / "home/.claude/.credentials.json"
+    login.parent.mkdir(parents=True)
+    login.write_text("{}")
+    login.chmod(0)
+    ok, detail, hint = _items(check(_settings(provider="agent")))["Anmeldung"]
+    assert not ok and "Anmeldedatei nicht kopierbar" in detail and ".credentials.json" in hint

@@ -10,6 +10,9 @@ export type ValueType = "string" | "int" | "float" | "bool" | "path" | "enum" | 
 export type Label = string | null;
 export type Help = string | null;
 export type Required = boolean;
+export type Choices = string[];
+export type Min = number | null;
+export type Max = number | null;
 export type Id = string;
 export type Label1 = string | null;
 export type Kind = "command";
@@ -97,6 +100,9 @@ export interface VariableSpec {
   label?: Label;
   help?: Help;
   required?: Required;
+  choices?: Choices;
+  min?: Min;
+  max?: Max;
 }
 /**
  * Runs an external program.

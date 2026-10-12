@@ -36,7 +36,8 @@ Regeln:
 - Kopf: schema_version: 1, tool: TOOL, override_mode: merge; Optionen werden nach id \
 zusammengeführt, angegebene Felder überschreiben.
 - Alle Texte (display_name, summary, label, help, group) auf Deutsch, kurz, für Einsteiger; \
-i18n.en mit englischen Texten.
+englisch in i18n: {{en: {{display_name, summary, options: {{id: {{label, help}}}}, \
+inputs: {{id: {{label, help}}}}}}}}.
 - ids nur aus der inspect-JSON; keine erfundenen ids, Optionen oder Felder.
 - inputs ersetzen die Katalog-Eingaben vollständig (Reihenfolge = Argumentreihenfolge); \
 before_options: true, wenn ein Argument vor den Optionen stehen muss (z. B. start bei find).
@@ -45,7 +46,8 @@ before_options: true, wenn ein Argument vor den Optionen stehen muss (z. B. star
 überschreibt, wirkt auf System/Rechte); löschende oder überschreibende Optionen anheben, im \
 Zweifel höher.
 - 2-3 Beispiele: title, fixtures (path relativ ohne .., content), args (Schlüssel = ids), \
-expect; klein, deterministisch, ohne Netz, nichts außerhalb des Arbeitsordners.
+expect (nur exit_code, stdout_contains, stderr_contains, stdout_regex); klein, \
+deterministisch, ohne Netz, nichts außerhalb des Arbeitsordners.
 - Keine type: secret mit default; output.exit_codes nur, wenn die Hilfe sie nennt."""
 
 _WORKFLOW_SYSTEM = f"""Rolle: Du entwirfst einen WhatTheShell-Workflow aus einer Beschreibung.
@@ -55,10 +57,12 @@ Eingaben:
 {_ONLY_YAML}
 Felder:
 - Kopf: schema_version: 1, name, description, variables (Schlüssel = id: {{type, default, \
-label}}), steps.
+label}}), steps; type: string|int|float|bool|path|enum|secret, enum mit choices, Zahlen \
+optional min/max, secret ohne default.
 - Jeder Schritt: id (eindeutig, ^[a-z][a-z0-9_]*$, nicht var/item), kind.
-- command: tool, args (Schlüssel = ids des Moduls), extra_args, stdin ({{pipe: id}} | \
-{{text}} | {{file}}), ok_exit_codes, on_error ({{action: abort|continue|retry|fallback}}).
+- command: tool, command (Subbefehl-Pfad, z. B. ["commit"] bei git), args (Schlüssel = ids \
+des Moduls), extra_args, stdin ({{pipe: id}} | {{text}} | {{file}}), ok_exit_codes, on_error \
+({{action: abort|continue}}, retry nur mit retries: n, fallback nur mit steps: [...]).
 - if: condition ({{source, ein Operator wie eq, contains, is_empty, number_gt}}), then, else.
 - foreach: source, as, body. set: variable, value. wait: seconds. message: text. abort: text.
 - Templates nur {{{{ var.name }}}}, {{{{ schritt_id.stdout }}}} (auch stderr, exit_code, \

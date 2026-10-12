@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { expect, test } from "vitest";
 import { logErrors as wf } from "./fixture";
-import { connectionKind, handlesOf, toGraph } from "./graph";
+import { connectionKind, connectionProblem, handlesOf, toGraph } from "./graph";
 
 test("log_errors graph", () => {
   const { nodes, edges } = toGraph(wf);
@@ -59,4 +59,12 @@ test("edges carry kind, arrow and port", () => {
   expect(flowEdge?.data).toEqual({ kind: "flow", port: "then" });
   expect(flowEdge?.markerEnd).toBeDefined();
   expect(edges.find((x) => x.data?.kind === "pipe")?.className).toBe("edge-pipe");
+});
+
+test("connectionProblem: self, wrong ports, backward pipe", () => {
+  expect(connectionProblem(wf, { source: "suche", target: "suche", sourceHandle: "stdout", targetHandle: "stdin" })).toBe("self");
+  expect(connectionProblem(wf, { source: "suche", target: "zaehle", sourceHandle: "stdout", targetHandle: "in" })).toBe("kind");
+  expect(connectionProblem(wf, { source: "zaehle", target: "suche", sourceHandle: "stdout", targetHandle: "stdin" })).toBe("backpipe");
+  expect(connectionProblem(wf, { source: "finde", target: "zaehle", sourceHandle: "stdout", targetHandle: "stdin" })).toBeNull();
+  expect(connectionProblem(wf, { source: "zaehle", target: "finde", sourceHandle: "next", targetHandle: "in" })).toBeNull();
 });

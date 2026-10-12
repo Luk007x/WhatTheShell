@@ -1,14 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """OpenAI-compatible chat completions over urllib (local servers and OpenAI)."""
 
-import json
-import urllib.error
-import urllib.request
-from urllib.parse import urlsplit
-
 from whattheshell.ai.protocol import Prompt
 
-from .http import _OPENER, post_json
+from .http import get_json, post_json
 
 
 class OpenAICompatProvider:
@@ -42,23 +37,13 @@ class OpenAICompatProvider:
             raise RuntimeError("Unerwartete Antwortform des Servers") from None
 
     def list_models(self) -> list[str]:
-        """GET ``{base_url}/models`` (same opener: no redirects, proxies), return ``data[].id``.
+        """GET ``{base_url}/models``, return ``data[].id``.
 
         Raises:
             RuntimeError: HTTP error, unreachable host, or unexpected answer.
         """
-        request = urllib.request.Request(  # noqa: S310 (scheme comes from settings)
-            self._base + "/models", headers=self._headers
-        )
-        host = urlsplit(self._base).netloc
-        # ponytail: own GET beside http.post_json; merge both into http.get_json when touched
+        answer = get_json(self._base + "/models", self._headers, self._timeout)
         try:
-            with _OPENER.open(request, timeout=self._timeout) as response:
-                answer = json.load(response)
             return [str(model["id"]) for model in answer["data"]]
-        except urllib.error.HTTPError as error:
-            raise RuntimeError(f"HTTP {error.code} von {host}") from None
-        except OSError:  # URLError, timeout, connection reset
-            raise RuntimeError(f"{host} nicht erreichbar") from None
-        except (ValueError, KeyError, TypeError):
-            raise RuntimeError(f"Unerwartete Antwortform von {host}/models") from None
+        except (KeyError, TypeError):
+            raise RuntimeError("Unerwartete Antwortform von /models") from None

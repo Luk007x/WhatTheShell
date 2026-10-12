@@ -49,6 +49,7 @@ from whattheshell.models.workflow import (
     MessageStep,
     SetStep,
     Step,
+    VariableSpec,
     WaitStep,
     Workflow,
     iter_steps,
@@ -160,12 +161,12 @@ def _text(value: object) -> str:
     return str(value)
 
 
-def _check_type(name: str, kind: ValueType, value: str) -> None:
+def _check_type(name: str, spec: VariableSpec, value: str) -> None:
+    kind = spec.type
     try:
+        number = float(value) if kind in (ValueType.int, ValueType.float) else None
         if kind is ValueType.int:
             int(value)
-        elif kind is ValueType.float:
-            float(value)
         elif kind is ValueType.bool and value not in ("true", "false"):
             raise ValueError
     except ValueError:
@@ -173,6 +174,16 @@ def _check_type(name: str, kind: ValueType, value: str) -> None:
         raise RunError(
             f"Variable '{name}': Wert passt nicht zu Typ {kind.value}{hint}. Wert korrigieren."
         ) from None
+    if kind is ValueType.enum and spec.choices and value not in spec.choices:
+        raise RunError(
+            f"Variable '{name}': '{value}' ist keine erlaubte Auswahl "
+            f"({', '.join(spec.choices)}). Einen dieser Werte angeben."
+        )
+    if number is not None:
+        if spec.min is not None and number < spec.min:
+            raise RunError(f"Variable '{name}': {value} ist kleiner als das Minimum {spec.min:g}.")
+        if spec.max is not None and number > spec.max:
+            raise RunError(f"Variable '{name}': {value} ist größer als das Maximum {spec.max:g}.")
 
 
 def env_blocked(key: str) -> bool:
@@ -318,7 +329,7 @@ class Runner:
                 )
             else:
                 continue
-            _check_type(name, spec.type, variables[name])
+            _check_type(name, spec, variables[name])
         specs: dict[str, ToolInfo] = {}
         verdicts: dict[str, Verdict] = {}
         for step in iter_steps(workflow.steps):

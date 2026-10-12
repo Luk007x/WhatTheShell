@@ -2,6 +2,7 @@
 """Load and validate one module or workflow file."""
 
 import json
+import stat
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -104,10 +105,13 @@ def load_document(path: Path, model: type[T], *, show_input: bool = True) -> T:
 
 def _load(path: Path, model: type[T], show_input: bool) -> T:
     try:
-        size = path.stat().st_size
-        if size > MAX_DOCUMENT_BYTES:
-            raise DocumentError(path, None, f"Datei zu groß ({size} Bytes, Grenze 1 MiB)")
-        text = path.read_text(encoding="utf-8")
+        if not stat.S_ISREG(path.stat().st_mode):  # follows symlinks; FIFO/device would hang
+            raise DocumentError(path, None, "Keine reguläre Datei")
+        with path.open("rb") as handle:
+            data = handle.read(MAX_DOCUMENT_BYTES + 1)
+        if len(data) > MAX_DOCUMENT_BYTES:
+            raise DocumentError(path, None, "Datei zu groß (Grenze 1 MiB)")
+        text = data.decode("utf-8")
     except (OSError, UnicodeDecodeError) as err:
         raise DocumentError(path, None, f"Datei nicht lesbar: {err}") from err
 

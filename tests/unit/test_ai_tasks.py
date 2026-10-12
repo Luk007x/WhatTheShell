@@ -21,11 +21,12 @@ def test_improve_module_prompt_has_rules_not_doc() -> None:
     rules = (
         "beginnend mit `schema_version: 1`",
         "keine Markdown-Zäune",
-        "i18n.en",
         "ids nur aus der inspect-JSON",
         "before_options",
         "dangerous",
         "ohne Netz",
+        "stdout_regex",
+        "inputs: {id: {label, help}}",
     )
     for rule in rules:
         assert rule in prompt.system, rule
@@ -40,6 +41,8 @@ def test_examples_and_workflow_prompts() -> None:
     prompt = tasks.draft_workflow("zähle Fehler", "grep: patterns")
     assert "zähle Fehler" in prompt.user and "grep: patterns" in prompt.user
     assert "{{ var.name }}" in prompt.system and "foreach: source, as, body" in prompt.system
+    for field in ('["commit"]', "retries: n", "steps: [...]", "choices", "min/max"):
+        assert field in prompt.system, field
     assert "Grundentscheidung" not in prompt.system  # FORMATS section 4 only as field list
 
 

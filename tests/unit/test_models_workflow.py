@@ -273,3 +273,18 @@ def test_subcommand_words_are_restricted(word: str) -> None:
     with pytest.raises(ValidationError):
         Workflow.model_validate(wf({**A, "command": [word]}))
     Workflow.model_validate(wf({**A, "command": ["commit", "sub-cmd"]}))
+
+
+@pytest.mark.parametrize(
+    "spec",
+    [
+        {"type": "string", "choices": ["a"]},
+        {"type": "string", "min": 1},
+        {"type": "enum", "max": 2},
+    ],
+)
+def test_variable_choices_and_bounds_need_matching_type(spec: dict[str, Any]) -> None:
+    with pytest.raises(ValidationError):
+        Workflow.model_validate(wf(A, variables={"v": spec}))
+    Workflow.model_validate(wf(A, variables={"v": {"type": "enum", "choices": ["a"]}}))
+    Workflow.model_validate(wf(A, variables={"v": {"type": "int", "min": 1, "max": 3}}))

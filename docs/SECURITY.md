@@ -184,6 +184,9 @@ Bekannte Grenzen und Restrisiken:
 
 Ebenfalls geplant (Phase 7): eingebettetes Terminal (F-36). Vor der Umsetzung ist ein eigener Sicherheitsabschnitt zu schreiben und freizugeben.
 
+
+- HTTP-Antworten der Provider werden auf 2 MiB begrenzt (`ai/providers/http.py`: `_send`, `get_json`, `post_json`); größere Antworten werden mit Fehler abgewiesen.
+
 ## 6. Meldung von Sicherheitsproblemen
 
 Sicherheitsprobleme bitte als GitHub-Issue mit dem Label `security` melden, bis es eine eigene Adresse gibt. Keine Zugangsdaten, Secrets oder ausnutzbaren Details öffentlich posten, die Beschreibung der Art des Problems genügt, Details dann auf Nachfrage. Eine Antwortfrist ist nicht zugesagt (Ein-Personen-Projekt).

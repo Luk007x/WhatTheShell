@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import io
 import json
+import socket
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -67,8 +69,22 @@ def test_check_and_status_summary(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["ai", "check", "--no-network"]) == 0
     out = capsys.readouterr().out
     assert "Modell eingetragen: llama3" in out and "KI-Quelle 'local': bereit" in out
+
+
+def test_status_starts_no_process_and_opens_no_connection(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _enable()
+    assert main(["ai", "config", "set", "provider", "agent"]) == 0
+
+    def forbidden(*args: object, **kwargs: object) -> None:
+        raise AssertionError("Prozess oder Verbindung bei `wts ai status`")
+
+    monkeypatch.setattr(subprocess, "Popen", forbidden)
+    monkeypatch.setattr(socket, "socket", forbidden)
+    monkeypatch.setattr(socket, "create_connection", forbidden)
     assert main(["ai", "status"]) == 0
-    assert "Prüfung (ohne Netz):" in capsys.readouterr().out
+    assert "wts ai check" in capsys.readouterr().out
 
 
 def test_improve_module_prompt_for_wc_is_short(fake: FakeProvider) -> None:

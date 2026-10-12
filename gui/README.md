@@ -36,7 +36,16 @@ Start the backend first (`uv run wts gui --no-browser`), then open `http://local
 6. **Vorschau**: Beispiel wählen, „Beispiel ausführen" (nur in der Sandbox; bei sicheren Befehlen mit Beispiel automatisch).
 7. **Trockenlauf**: zeigt den Plan, führt nichts aus.
 8. **Ausführen**: Dialog mit Plan, höchster Sicherheitsklasse, Arbeitsordner und Variablen-Überschreibungen; danach Live-Ausgabe pro Schritt, Pause, Einzelschritt, Abbrechen. Gefährliche Schritte fragen einzeln nach. Bei beendeten Schritten: „Als Variable übernehmen" und „Hier auswerten".
-9. **Speichern**: Kopfzeile „Speichern" / „Speichern unter" (id wird aus dem Namen vorgeschlagen), „Öffnen" listet mitgelieferte und eigene Workflows. Ungespeicherte Änderungen sind markiert.
+9. **Speichern**: Kopfzeile „Speichern" / „Speichern unter" (id wird aus dem Namen vorgeschlagen), „Öffnen" zeigt die Workflow-Bibliothek (Suche, Quellen-Badges). Gespeichert wird in den Nutzerordner; der Workflow erscheint damit sofort im Modus „Ausführen". Ungespeicherte Änderungen sind markiert.
+
+## Ausführen
+
+Modus „Ausführen" (Modusleiste; der zuletzt gewählte Modus steht in `localStorage("wts.mode")`, Standard „Erstellen") führt fertige Workflows aus, ohne den Editor:
+
+- **Bibliothek** (links): `GET /api/workflows`, gruppiert nach mitgeliefert / eigene / Projekt (`~/.config/whattheshell/workflows`, `.whattheshell/workflows` im Startordner), mit Suche, Schrittzahl, Quellen-Badge und Hinweis „überdeckt: …". Projektdateien sind als „hier nicht änderbar" markiert (Speichern/Löschen derselben id antwortet 409 mit Hinweis). Kaputte Dateien sind ausgegraut und zeigen `Pfad:Zeile: Meldung`. Der Server beobachtet die Ordner; die Liste lädt beim Moduswechsel, bei Fensterfokus und über „Aktualisieren" neu.
+- **Eingaben** (rechts): ein Feld je Variable (Text, Zahl mit `min`/`max`, Auswahl aus `choices` bei `enum`, Checkbox, Passwort für `secret`, Pfad mit Hinweis), Pflichtfelder mit `*`, Defaults vorbelegt, dazu der Arbeitsordner. Werte werden je Workflow in `localStorage("wts.runvalues.<id>")` gemerkt, Secrets nie.
+- **Trockenlauf** zeigt den Plan unten. **Ausführen** prüft die Eingaben, holt den Plan und zeigt den Bestätigungsdialog (Plan, höchste Sicherheitsklasse, Arbeitsordner); erst „Workflow ausführen" startet den Lauf. Live-Ausgabe, Schritt-Bestätigungen, Pause, Einzelschritt und Abbrechen kommen aus denselben Hooks wie im Editor (`useRun`, `usePlanThenRun` in `src/run/useRun.ts`). Weicht der Plan der echten Anfrage vom bestätigten ab, startet nichts; der Dialog zeigt den neuen Plan zur erneuten Bestätigung. Die Ansicht bleibt beim Moduswechsel gemountet: ein laufender Lauf behält seine Verbindung, Schritt-Bestätigungen erscheinen auch im Editor.
+- Nach dem Ende: „Erneut ausführen" und „Im Editor öffnen" (fragt bei ungespeicherten Änderungen nach). **Letzte Läufe** (`GET /api/runs`) zeigt Status, Startzeit und Exitcode; ein Klick lädt den Verlauf schreibgeschützt in die Ausgabe.
 
 ## Wie Daten fließen
 
@@ -57,7 +66,7 @@ Ablaufkanten sind durchgezogen mit Pfeil, Datenkanten gestrichelt in zweiter Far
 
 ## Oberfläche
 
-Grid: Kopfzeile (Datei, Rückgängig, Sandbox, Einstellungen) / Modusleiste (Erstellen, Module; Graph/Blöcke) / Katalog | Mitte | Details / Fuss (Statuszeile, Ausgabe). Die Spaltenbreiten lassen sich an den Trennern ziehen oder per Tastatur ändern (Trenner fokussieren, ←/→, Umschalt für große Schritte, Pos1/Ende), gespeichert in `localStorage("wts.cols")`. Design-Tokens (Abstände, Farben hell/dunkel per `prefers-color-scheme`, Radien, Schatten) stehen am Anfang von `src/app.css`; Icons in `src/icons.tsx`. `e2e/design.spec.ts` prüft bei 1280×720 (auch Schrift „groß" und dunkel), dass sich Bereiche und Knöpfe nicht überlappen, und legt `e2e-results/design-*.png` ab.
+Grid: Kopfzeile (Datei, Rückgängig, Sandbox, Einstellungen) / Modusleiste (Erstellen, Ausführen, Module; Graph/Blöcke) / Katalog | Mitte | Details / Fuss (Statuszeile, Ausgabe). Die Spaltenbreiten lassen sich an den Trennern ziehen oder per Tastatur ändern (Trenner fokussieren, ←/→, Umschalt für große Schritte, Pos1/Ende), gespeichert in `localStorage("wts.cols")`. Design-Tokens (Abstände, Farben hell/dunkel per `prefers-color-scheme`, Radien, Schatten) stehen am Anfang von `src/app.css`; Icons in `src/icons.tsx`. `e2e/design.spec.ts` prüft bei 1280×720 (auch Schrift „groß" und dunkel), dass sich Bereiche und Knöpfe nicht überlappen, und legt `e2e-results/design-*.png` ab.
 
 ## Ansichten
 
@@ -74,4 +83,4 @@ Block-Ansicht: verschachtelte Karten, Slots „dann / sonst / für jede Zeile / 
 
 ## E2E (Playwright)
 
-`npm run e2e` baut die GUI und startet `wts gui` auf freiem Port mit temporärem `XDG_CONFIG_HOME` (`e2e/server.ts`); Test: `e2e/smoke.spec.ts` (headless Chromium, 1400×900, Sprache de). Einmalig `npx playwright install chromium`. Screenshots bei Fehlschlag: `e2e-results/`. Benötigt `uv`, `bwrap` (Vorschau) und die Systembibliotheken von Chromium.
+`npm run e2e` baut die GUI und startet `wts gui` auf freiem Port mit temporärem `XDG_CONFIG_HOME` (`e2e/server.ts`); Tests: `e2e/smoke.spec.ts`, `e2e/run.spec.ts` (Modus „Ausführen"), `e2e/design.spec.ts`, `e2e/a11y.spec.ts`, `e2e/ai.spec.ts` (headless Chromium, 1400×900, Sprache de). Einmalig `npx playwright install chromium`. Screenshots bei Fehlschlag: `e2e-results/`. Benötigt `uv`, `bwrap` (Vorschau) und die Systembibliotheken von Chromium.

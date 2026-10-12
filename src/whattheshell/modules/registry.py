@@ -36,7 +36,12 @@ class ModuleRegistry:
             for priority, directory in enumerate(self.dirs):
                 if not directory.is_dir():
                     continue
-                for path in sorted(directory.iterdir()):
+                try:
+                    files = sorted(directory.iterdir())
+                except OSError as err:
+                    errors.append(DocumentError(directory, None, f"Ordner nicht lesbar: {err}"))
+                    continue
+                for path in files:
                     if path.name.endswith(MODULE_SUFFIXES):
                         self._add(path, priority, modules, errors)
             self.modules, self.errors = modules, errors

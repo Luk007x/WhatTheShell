@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Index of workflow files in the search directories (bundled < user < project)."""
 
+import re
 import threading
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
@@ -10,6 +11,7 @@ from whattheshell.models.workflow import VariableSpec
 from whattheshell.modules.loader import WORKFLOW_SUFFIXES, DocumentError, load_workflow_file
 
 SOURCES = ("bundled", "user", "project")
+ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 
 
 @dataclass(frozen=True)
@@ -41,7 +43,16 @@ class WorkflowIndex:
         for source, directory in zip(SOURCES, self.dirs, strict=False):
             if not directory.is_dir():
                 continue
-            for path in sorted(directory.iterdir()):
+            try:
+                files = sorted(directory.iterdir())
+            except OSError as err:
+                entry = WorkflowEntry(
+                    directory.name, directory.name, None, directory, source,
+                    error=f"{directory}: Ordner nicht lesbar: {err}",
+                )  # fmt: skip
+                entries[f"{source}:{directory}"] = entry
+                continue
+            for path in files:
                 suffix = next((s for s in WORKFLOW_SUFFIXES if path.name.endswith(s)), None)
                 if suffix is None:
                     continue
@@ -70,6 +81,11 @@ class WorkflowIndex:
 
 
 def _entry(path: Path, workflow_id: str, source: str) -> WorkflowEntry:
+    if not ID_PATTERN.fullmatch(workflow_id):
+        return WorkflowEntry(
+            workflow_id, workflow_id, None, path, source,
+            error=f"{path}: Dateiname entspricht nicht dem Muster {ID_PATTERN.pattern}",
+        )  # fmt: skip
     try:
         workflow = load_workflow_file(path)
     except DocumentError as err:

@@ -51,3 +51,24 @@ def test_workflow_dirs_order(tmp_path: Path, monkeypatch) -> None:  # type: igno
     assert dirs[1] == tmp_path / "whattheshell" / "workflows"
     assert dirs[2] == tmp_path / "proj" / ".whattheshell" / "workflows"
     assert len(paths.workflow_dirs(None)) == 2
+
+
+def test_bad_id_and_unreadable_dir(tmp_path: Path) -> None:
+    import os
+
+    write(tmp_path / "ok", "Gross.workflow.yaml")
+    write(tmp_path / "ok", "gut.workflow.yaml")
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    index = WorkflowIndex([tmp_path / "ok", locked])
+    if os.geteuid() != 0:
+        locked.chmod(0)
+    try:
+        index.scan()
+    finally:
+        locked.chmod(0o700)
+    bad = index.get("Gross")
+    assert bad is not None and bad.error and "Muster" in bad.error
+    assert index.get("gut") is not None
+    if os.geteuid() != 0:
+        assert any(e.error and "nicht lesbar" in e.error for e in index.all())

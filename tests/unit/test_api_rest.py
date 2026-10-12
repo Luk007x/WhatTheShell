@@ -281,3 +281,24 @@ def test_broken_workflow_is_listed_with_error(client: TestClient, tmp_path: Path
     client.put("/api/workflows/anderer", json={"document": WORKFLOW})  # reload rescans
     entry = next(w for w in client.get("/api/workflows").json() if w["id"] == "kaputt")
     assert "kaputt.workflow.yaml" in entry["error"]
+
+
+def test_project_file_makes_put_and_delete_conflict(client: TestClient, tmp_path: Path) -> None:
+    index = client.app.state.workflows  # type: ignore[attr-defined]
+    folder = tmp_path / "proj/.whattheshell/workflows"
+    folder.mkdir(parents=True)
+    (folder / "pflicht.workflow.yaml").write_text(
+        "schema_version: 1\nname: P\nsteps:\n  - { id: a, tool: wc }\n"
+    )
+    index.dirs[:] = [*index.dirs[:2], folder.resolve()]  # bundled, user, project
+    index.scan()
+    listed = {w["id"]: w for w in client.get("/api/workflows").json()}
+    assert listed["pflicht"]["source"] == "project" and listed["pflicht"]["writable"] is False
+    assert listed["log_errors"]["writable"] is True
+    for response in (
+        client.put("/api/workflows/pflicht", json={"document": WORKFLOW}),
+        client.delete("/api/workflows/pflicht"),
+    ):
+        assert response.status_code == 409
+        body = response.json()
+        assert body["error"] == "shadowed" and str(folder) in body["message"]

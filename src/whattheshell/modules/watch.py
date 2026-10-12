@@ -11,8 +11,14 @@ from whattheshell.modules.loader import MODULE_SUFFIXES
 from whattheshell.modules.registry import ModuleRegistry
 
 
-def _existing_ancestor(directory: Path) -> Path:
+def _existing_ancestor(directory: Path, floors: Sequence[Path]) -> Path | None:
+    """Nearest existing ancestor; None if that would lie above the parent of a `floors` entry
+    that `directory` is under (a missing ``.whattheshell`` must not widen the watch to ``/``).
+    """
+    limit = next((f.parent for f in floors if directory.is_relative_to(f)), None)
     while not directory.exists():
+        if directory == limit or directory == directory.parent:
+            return None
         directory = directory.parent
     return directory
 
@@ -23,6 +29,7 @@ def watch_dirs(
     on_change: Callable[[set[Path]], None],
     stop: threading.Event,
     on_start: Callable[[list[tuple[Path, Path]]], None] | None = None,
+    floors: Sequence[Path] = (),
 ) -> None:
     """Call ``on_change`` with changed files ending in ``suffixes`` until ``stop`` is set.
 
@@ -35,8 +42,10 @@ def watch_dirs(
         on_change: Called after each batch with the changed files.
         stop: Setting this event ends the watch.
         on_start: Called once with (directory, watched path) pairs.
+        floors: Roots (e.g. cwd, config dir); the watch of a missing directory under one of
+            them never climbs above that root's parent. Directories that would are skipped.
     """
-    pairs = [(d, _existing_ancestor(d)) for d in dirs]
+    pairs = [(d, a) for d in dirs if (a := _existing_ancestor(d, floors)) is not None]
     if not pairs:
         return
     if on_start is not None:

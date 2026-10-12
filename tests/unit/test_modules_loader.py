@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import json
+import os
 from pathlib import Path
 
 import pytest
 
 from whattheshell.modules.loader import DocumentError, load_module_file, load_workflow_file
+from whattheshell.modules.registry import ModuleRegistry
 
 VALID = "schema_version: 1\ntool: grep\nsummary: S\n"
 
@@ -101,3 +103,27 @@ def test_too_big(tmp_path: Path) -> None:
     path = write(tmp_path, VALID + "#" * 1_048_577)
     with pytest.raises(DocumentError, match="zu groß"):
         load_module_file(path)
+
+
+def test_special_files_are_errors_not_hangs(tmp_path: Path) -> None:
+    link = tmp_path / "evil.module.yaml"
+    link.symlink_to("/dev/zero")
+    with pytest.raises(DocumentError, match="regulär"):
+        load_module_file(link)
+    fifo = tmp_path / "pipe.module.yaml"
+    os.mkfifo(fifo)
+    with pytest.raises(DocumentError, match="regulär"):
+        load_module_file(fifo)
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores permissions")
+def test_unreadable_dir_is_an_error_entry(tmp_path: Path) -> None:
+    folder = tmp_path / "locked"
+    folder.mkdir()
+    folder.chmod(0)
+    try:
+        registry = ModuleRegistry([folder, tmp_path])
+        registry.scan()
+        assert any("nicht lesbar" in e.message for e in registry.errors)
+    finally:
+        folder.chmod(0o700)

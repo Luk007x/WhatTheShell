@@ -5,7 +5,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from whattheshell.modules.registry import ModuleRegistry
-from whattheshell.modules.watch import watch_modules
+from whattheshell.modules.watch import watch_dirs, watch_modules
 
 
 def wait_for(condition: Callable[[], bool]) -> bool:
@@ -56,3 +56,17 @@ def test_watch_reload(tmp_path: Path) -> None:
     stop.set()
     thread.join(timeout=5)
     assert not thread.is_alive()
+
+
+def test_missing_dir_never_climbs_above_cwd(tmp_path: Path) -> None:
+    cwd = tmp_path / "proj"
+    cwd.mkdir()
+    inside = cwd / ".whattheshell" / "workflows"
+    outside = tmp_path / "gone" / "deeper" / "workflows"
+    floors = [cwd, tmp_path / "gone"]
+    started: list[list[tuple[Path, Path]]] = []
+    stop = threading.Event()
+    stop.set()
+    watch_dirs([inside, outside], (".x",), lambda _: None, stop, started.append, floors=floors)
+    # `gone` exists nowhere, its parent `tmp_path` does: watched there, but never above it
+    assert started == [[(inside, cwd), (outside, tmp_path)]]

@@ -17,16 +17,5 @@ def test_static_frontend_is_packaged() -> None:
     assert {"gui/node_modules", "gui/tsconfig.tsbuildinfo"} <= set(targets["sdist"]["exclude"])
 
 
-def test_docs_are_force_included() -> None:
-    targets = tomllib.loads((ROOT / "pyproject.toml").read_text())["tool"]["hatch"]["build"][
-        "targets"
-    ]
-    for name in ("MODULE_AUTHORING.md", "FORMATS.md"):
-        assert (
-            targets["wheel"]["force-include"][f"docs/{name}"] == f"whattheshell/bundled/docs/{name}"
-        )
-        assert targets["sdist"]["force-include"][f"docs/{name}"] == f"docs/{name}"
-
-
 def test_build_script_is_executable() -> None:
     assert os.access(ROOT / "scripts" / "build_wheel.sh", os.X_OK)

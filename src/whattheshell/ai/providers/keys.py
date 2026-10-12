@@ -1,9 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """API key lookup; the key is never logged or put into an error message."""
 
+import logging
 import os
 
 from whattheshell.settings import ApiSettings
+
+logger = logging.getLogger(__name__)
 
 
 def resolve_key(api: ApiSettings) -> str:
@@ -26,7 +29,14 @@ def resolve_key(api: ApiSettings) -> str:
         raise RuntimeError(
             "Schlüsselbund-Unterstützung nicht installiert: `pipx inject whattheshell keyring`"
         ) from None
-    key: str | None = keyring.get_password("whattheshell", api.key_env)
+    try:
+        key: str | None = keyring.get_password("whattheshell", api.key_env)
+    except Exception as err:  # any backend error (locked, no D-Bus, …); message may be unsafe
+        logger.warning("Schlüsselbund-Fehler: %s", type(err).__name__)
+        raise RuntimeError(
+            f"Schlüsselbund nicht lesbar ({type(err).__name__}): entsperren oder "
+            "key_source auf env stellen"
+        ) from None
     if key is None:
         raise RuntimeError(
             f"Kein Schlüssel '{api.key_env}' im Schlüsselbund (Dienst 'whattheshell') gefunden"
