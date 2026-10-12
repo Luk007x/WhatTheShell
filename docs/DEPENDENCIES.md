@@ -20,6 +20,7 @@ Lizenzen aus den Paket-Metadaten (importlib.metadata). Alle permissiv (MIT, BSD,
 | mypy (dev) | 2.4.0 | MIT | ja | Typprüfung |
 | httpx (dev) | 0.28.1 | BSD-3-Clause | ja | `TestClient` der API-Tests |
 | httpcore, certifi (dev, via httpx) | 1.0.9, 2026.7.22 | BSD-3-Clause, MPL-2.0 | ja (nicht ausgeliefert) | Transitiv |
+| keyring (optional, nicht installiert) | >=25 | MIT | ja | Extra `keyring`: API-Schlüssel im Systemschlüsselbund (`key_source: keyring`) |
 | hatchling (Build) | 1.32.4 | MIT | ja | Build-Backend (nur Paketbau) |
 
 ## Frontend (`gui/`, nur Build-Zeit; das gebaute Bundle liegt im Wheel)

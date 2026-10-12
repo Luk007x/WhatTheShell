@@ -156,16 +156,30 @@ Bekannte Grenzen:
 - Hilfe-Abruf läuft in der bwrap-Sandbox, sobald sie verfügbar ist (`catalog/fetch.py`); Tools unter `/home`, `/root`, `/tmp`, `/var/tmp`, `/run` (dort in der Sandbox verborgen) und Fälle ohne brauchbaren Sandbox-Text laufen zusätzlich auf dem Host (Denylist gilt, 2.9), `source=fallback` wird nie gecacht.
 - Ein Prozess desselben Nutzers kann den Port erreichen und die Token-Datei lesen; Schutz vor lokalen Angreifern mit Nutzerrechten gehört nicht zum Modell.
 
-## 5. KI-Funktionen (geplant, Phase 6)
+## 5. KI-Funktionen (umgesetzt, Phase 6)
 
-**Nicht umgesetzt**; Kurzfassung von F-30:
+Entscheidung D-011; Anforderungen F-27 bis F-31 (Projektauftrag 6.6, Kurzfassung F-30). Tests: `test_ai_gate.py`, `test_ai_providers.py`, `test_ai_tasks.py`, `test_api_ai.py`, `test_cli_ai.py`, `test_settings.py`, `test_api_settings.py`.
 
-- Standard: aus (F-27). Solange aus, kein KI-Codepfad, keine Netzverbindung, keine Fremdprozesse.
-- KI liefert ausschließlich **Dateien** (Modul/Workflow); sie werden gegen das Schema validiert und als **Diff zur Freigabe** gezeigt.
-- Nie automatische Ausführung von KI-Ergebnissen; sie gelten als untrusted (2.6).
-- Vor dem Senden zeigt die App, welche Daten gehen. Befehlsausgaben nur auf ausdrücklichen Wunsch, Secrets maskiert (2.8).
-- API-Keys aus Umgebungsvariable oder Schlüsselbund, nie im Klartext in Dateien.
-- Agenten-CLIs laufen mit eingeschränktem Arbeitsverzeichnis und Schreibzugriff nur auf den Modul-/Workflow-Ordner.
+| Regel | Umsetzung | Nachweis |
+|---|---|---|
+| Standard aus, Gate ohne Provider-Import (F-27) | `settings.py`: `ai.enabled` ist standardmäßig aus. `ai/__init__.py` importiert weder Provider noch `urllib`, `socket` oder `subprocess`; `require_enabled` ist der erste Schritt jedes Einstiegs (`cli.py` bei jeder Aufgabe, `api/ai_api.py:_gate` als Router-Abhängigkeit, 403), `ai/protocol.py:make_provider` importiert `ai.providers` erst danach. | `test_ai_gate.py`: `socket.socket`, `socket.create_connection` und `subprocess.Popen` werden auf Fehler gepatcht; bei ausgeschaltetem Schalter bleibt `whattheshell.ai.providers` aus `sys.modules`. Auch die Einstellungsbefehle brauchen weder Netz noch Prozess noch Provider. |
+| Schlüssel nie in Dateien | `settings.py:ApiSettings`: Feldnamen mit „key“ außer `key_env`/`key_source` werden abgelehnt; `key_env` muss ein Variablenname sein. `ai/providers/keys.py:resolve_key` liest nur Umgebung oder Schlüsselbund (optionales Extra `keyring`, lazy import); Fehlermeldungen nennen den Namen, nie den Wert. Maskierung in Vorschau-Folgen, Fehlern und Antworten: `ai/tasks.py:known_keys` und `sanitize` (Secrets maskieren, Steuerzeichen entfernen), genutzt in `cli.py` und `api/ai_api.py`. | `test_settings.py`, `test_ai_providers.py` (`test_resolve_key_env`, `test_resolve_key_keyring`), `test_ai_tasks.py:test_sanitize_and_known_keys` |
+| Datenvorschau vor dem Senden | `cli.py:_preview_text` zeigt System- und Nutzertext **vollständig** mit Längen; gesendet wird erst nach Bestätigung (`--yes`, sonst Rückfrage; ohne Terminal und ohne `--yes` Abbruch); `--preview-file` schreibt die Vorschau nach 0600. Web: zweiphasig (Vorschau, dann Senden) in `api/ai_api.py`. | `test_cli_ai.py`, `test_api_ai.py` |
+| Befehlsausgaben nur auf Wunsch | `ai/tasks.py:diagnose`: ohne `include_output` gehen nur Befehl, Exit-Code, Dauer und Status, keine Ausgabezeile; mit Wunsch gekürzt (`_clip`). Auslöser: `--include-output`, `include_output` in der API oder die Einstellung `ai.send_outputs`. | `test_ai_tasks.py`, `test_api_ai.py` |
+| Ergebnisse nur als Dateien, nichts wird ausgeführt | `ai/tasks.py:extract_yaml` zieht das YAML aus der Antwort; `modules/store.py:validate_module_text` und `validate_workflow_text` prüfen mit dem normalen Lader (`load_document`, Limits aus Abschnitt 3). Die Antwort wird nie ausgeführt; `diagnose` liefert reinen Text. | `test_ai_tasks.py`, `test_modules_loader.py` |
+| Diff und getrennte Freigabe | `ai/approve.py:propose` erzeugt den Diff; `lowered_safety` setzt eine Warnung „ACHTUNG: Sicherheitsklasse … gesenkt“ vor den Diff, wenn ein Modul Befehl oder Option niedriger einstuft. CLI: `--yes` erlaubt das **Senden**, `--apply` das **Schreiben**; ohne `--apply` steht „Nichts gespeichert“. Web: `POST /api/ai/apply` validiert erneut. | `test_ai_tasks.py:test_lowered_safety_warning`, `test_cli_ai.py`, `test_api_ai.py` |
+| Schreiben nur in den Nutzerordner | `ai/approve.py:apply` lehnt Vorschläge mit Validierungsfehlern, Art `text` und fehlendem Ziel ab; `target_path` verlangt ein Ziel direkt im Nutzerordner (kein Unterordner, kein fremdes Verzeichnis); `modules/store.py:user_path` erlaubt nur einfache Dateinamen mit passender Endung; `write_user_file` schreibt atomar mit 0600 (`atomic_write` ersetzt einen Symlink am Ziel, folgt ihm nicht). | `test_ai_tasks.py:test_apply_writes_only_allowed`, `test_apply_refuses_errors_text_and_symlink` |
+| HTTP-Anbieter (lokal, API) | Nur Stdlib (`urllib.request`, `ai/providers/http.py:post_json`): keine Weiterleitung (`_NoRedirect`, ein 3xx wird zum Fehler), TLS-Standard, Proxy aus der Umgebung, Timeout. Fehlertexte des Servers: höchstens 200 Zeichen, Steuerzeichen ersetzt (`printable`). | `test_ai_providers.py:test_http_errors_and_redirect_refused` |
+| Agenten-CLIs (F-28) | `ai/providers/agent_cli.py:AgentCliProvider`: argv-Liste, Prompt über stdin, leeres Temp-Verzeichnis als `cwd`, Umgebung `sanitized_env()` plus Schlüsselvariable des Agenten und Proxy-Variablen, `run_limited` mit Timeout und 2-MiB-Limit. Claude: `--tools ""`, `--permission-mode dontAsk`, `--no-session-persistence`, `--strict-mcp-config`, `--setting-sources ""`, `--disable-slash-commands`. Codex: `exec --sandbox read-only --skip-git-repo-check --ephemeral -c mcp_servers={}`, Antwort aus `last.txt`. Die Aufrufzeile ist in `settings.yaml` (`ai.agent.command`) überschreibbar. | `test_ai_providers.py` (`test_agent_gets_proxy_but_no_other_env`, `test_agent_output_limits_and_control_chars`, `test_agent_failures`) mit Attrappen-Programmen |
+
+Bekannte Grenzen und Restrisiken:
+
+- Ein Schlüssel aus dem **Schlüsselbund** wird nicht maskiert: `known_keys` kennt nur Umgebungsvariablen. Er steht nur dann in einer Fehlermeldung, wenn der Anbieter ihn zurückspiegelt.
+- Prompt-Injection über Hilfetexte, Moduldateien oder mitgesendete Ausgaben kann den Vorschlag beeinflussen. Wirkung nur auf Dateivorschläge oder Text, die der Nutzer im Diff sieht und freigeben muss; ausgeführt wird nichts. Wer den Diff ungelesen mit `--apply` übernimmt, übernimmt das Risiko (Module können eine Klasse senken; die Warnung erscheint, die Tool-Listen in `classify.py` bleiben, siehe 2.2).
+- `--setting-sources ""` für Claude Code wurde nicht mit einem echten Aufruf getestet (nur `--help` und Doku, D-011); die Codex-Flags stützen sich nur auf die Dokumentation, Codex ist lokal nicht installiert.
+- Restrisiko Codex: `--sandbox read-only` lässt Lesezugriff auf die ganze Platte; ein injizierter Prompt könnte Daten an den Anbieter senden, die die Datenvorschau nicht zeigt.
+- Restrisiko Agenten-CLIs allgemein: Konfiguration des Nutzerkontos (Plugins, Login-Daten) wirkt weiter. Empfehlung: Agenten-CLIs nur mit Konten ohne sensible Zusatzkonfiguration nutzen.
+- Die Datenvorschau zeigt, was **WhatTheShell** sendet; was ein Agent-Programm selbst nachlädt oder an den Anbieter schickt, zeigt sie nicht.
 
 Ebenfalls geplant (Phase 7): eingebettetes Terminal (F-36). Vor der Umsetzung ist ein eigener Sicherheitsabschnitt zu schreiben und freizugeben.
 

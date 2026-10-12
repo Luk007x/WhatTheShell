@@ -41,6 +41,13 @@ Verbindlicher Vertrag zwischen `src/whattheshell/api/` und `gui/`. Nur `127.0.0.
 | `GET /api/runs/{id}` | – | `{status, events: [...]}` (Verlauf, max 10 000 Events) |
 | `POST /api/runs/{id}/control` | `{action: "abort"|"pause"|"resume"|"step"}` | 204 |
 | `POST /api/runs/{id}/confirm` | `{step_id, ok: bool}` | 204 (Antwort auf `confirm_request`) |
+| `GET /api/settings` | – | Settings-Dokument (siehe unten) plus schreibgeschütztes `key_status: "set"|"missing"` (ist die Umgebungsvariable `ai.api.key_env` gesetzt; der Wert wird nie ausgegeben) |
+| `PUT /api/settings` | Settings-Dokument (ohne `key_status`) | Validierung wie `Settings` (unbekannte oder Schlüsselfelder → 422 `validation`, ohne Eingabewerte), schreibt atomar (0600), lädt die Einstellungen neu; Antwort wie `GET`. `ai.enabled` wird nur hier oder mit `wts ai enable` true |
+| `POST /api/ai/improve-module` | `{tool, send: bool=false}` | siehe Abschnitt „KI-Endpunkte“ |
+| `POST /api/ai/examples` | `{tool, send}` | dito |
+| `POST /api/ai/draft-workflow` | `{description, name?, send}` | dito (`name` = Dateiname ohne Endung, Muster `^[A-Za-z0-9][A-Za-z0-9_-]*$`) |
+| `POST /api/ai/diagnose` | `{step: StepResult-JSON, include_output: bool=false, send}` | dito, `kind: "text"` |
+| `POST /api/ai/apply` | `{kind: "module"|"workflow", raw, target_name}` | `{path}`; validiert erneut, schreibt nur in den Nutzerordner, Module: Registry neu geladen. Fehler → 422 `validation` |
 
 Laufzeit-`cwd` eines Laufs: Anfragewert oder `config_dir()/runs/<run_id>`; wird angelegt.
 
@@ -64,3 +71,26 @@ Client → Server: `{type: "confirm", step_id, ok}` und `{type: "control", actio
 
 - Kanonisches Modell ist das Workflow-Dokument (Schema `schemas/workflow.schema.json`). Der Graph wird daraus abgeleitet, nie umgekehrt gespeichert; nur `layout.nodes` wird aus der Ansicht zurückgeschrieben.
 - TypeScript-Typen werden aus `schemas/*.json` generiert (`gui/src/types/`), nicht per Hand gepflegt.
+
+## Einstellungen (Phase 6)
+
+Datei `~/.config/whattheshell/settings.yaml` (Modus 0600, `schema_version: 1`), Modell `whattheshell.settings.Settings`. Sie enthält **nie Schlüssel**: `key_env` ist nur der Name einer Umgebungsvariable (Werte wie `sk-…` oder länger als 64 Zeichen werden abgelehnt), Felder mit `key` im Namen sind verboten.
+
+| Feld | Standard |
+|---|---|
+| `ai.enabled` | `false` (F-27: aus = kein KI-Code-Pfad, kein Netzwerk, keine Fremdprozesse) |
+| `ai.provider` | `local` (`local`, `api`, `agent`) |
+| `ai.local` | `base_url: http://127.0.0.1:11434/v1`, `model: ""`, `timeout: 120` |
+| `ai.api` | `kind: anthropic` (`anthropic`, `openai`), `base_url: null`, `model: ""`, `key_env: ANTHROPIC_API_KEY`, `key_source: env` (`env`, `keyring`), `timeout: 120` |
+| `ai.agent` | `kind: claude` (`claude`, `codex`), `command: []` (leer = Standardaufruf), `timeout: 300` |
+| `ai.send_outputs` | `false` (Befehlsausgaben nur auf Wunsch mitsenden, F-30) |
+
+Jeder KI-Einstieg ruft zuerst `ai.require_enabled(settings)` (wirft `AiDisabled`).
+
+## KI-Endpunkte (`/api/ai/*`)
+
+- Jeder Aufruf prüft zuerst `ai.enabled`: aus → 403 `{"error": "ai_disabled", message}`, noch vor der Body-Prüfung und bevor `ai.providers` importiert wird.
+- Zweiphasig (F-30). `send: false` (Standard): `{"prompt": {"system", "user"}, "chars": n}`, nichts wird gesendet. `send: true`: `{"kind": "module"|"workflow"|"text", "raw", "errors": [str], "diff", "target": str|null, "valid": bool}`. Der Prompt ist in beiden Fällen um den Wert von `ai.api.key_env` maskiert. Nichts wird gespeichert oder ausgeführt; `raw` ist unvertraut und wird erst mit `apply` übernommen.
+- `diagnose` ohne `include_output` entfernt `stdout`/`stderr` aus dem Schritt vor dem Prompt-Bau; `ai.send_outputs: true` erzwingt sie.
+- `improve-module`/`examples`: Grundlage ist die Nutzerdatei (`target` = `<tool>.module.yaml`), sonst ein Gerüst aus dem rohen Katalog. Antwort mit anderem `tool:` → `valid: false`.
+- Fehler: Anbieter nicht erreichbar oder fehlgeschlagen → 502 `ai_provider`; höchstens 2 Anbieteraufrufe gleichzeitig, Wartezeit über 15 s → 429 `busy`. Das Zeitlimit des Aufrufs selbst kommt aus `ai.<anbieter>.timeout`.

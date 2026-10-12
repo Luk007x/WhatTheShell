@@ -2,7 +2,7 @@
 import { getLang } from "./i18n";
 import type {
   CommandRequest, CommandResult, PreviewRequest, PreviewResult, RunAction, RunCreated, RunRequest,
-  RunState, SandboxStatus, Status, ToolInfo, ToolSummary, ValidationResult, Workflow, WorkflowDoc, WorkflowListItem,
+  RunState, SandboxStatus, Settings, AiBody, AiPreview, AiResult, AiTaskName, Status, ToolInfo, ToolSummary, ValidationResult, Workflow, WorkflowDoc, WorkflowListItem,
 } from "./types/api";
 
 export const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
@@ -33,13 +33,14 @@ export function initToken(): string | null {
 
 export const hasToken = (): boolean => token !== null;
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   const headers: Record<string, string> = { "X-WTS-Token": token ?? "" };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   const res = await fetch(path, {
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
+    signal,
   });
   if (res.status === 204) return undefined as T; // no body, callers declare void
   const text = await res.text();
@@ -59,7 +60,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 export const api = {
   get: <T>(path: string) => request<T>("GET", path),
-  post: <T>(path: string, body?: unknown) => request<T>("POST", path, body ?? {}),
+  post: <T>(path: string, body?: unknown, signal?: AbortSignal) => request<T>("POST", path, body ?? {}, signal),
   put: <T>(path: string, body?: unknown) => request<T>("PUT", path, body ?? {}),
   del: <T>(path: string) => request<T>("DELETE", path),
 };
@@ -119,3 +120,13 @@ export const putModule = (tool: string, raw: string) => api.put<{ tool: string; 
 export const deleteModule = (tool: string) => api.del<void>(`/api/modules/${enc(tool)}`);
 export const scaffoldModule = (tool: string) => api.post<{ raw: string }>("/api/modules/scaffold", { tool, command: [] });
 export const getTemplates = (tool: string) => api.get<TemplateEntry[]>(`/api/templates/${enc(tool)}`);
+
+export const getSettings = () => api.get<Settings>("/api/settings");
+export const putSettings = ({ key_status: _readOnly, ...doc }: Settings) => api.put<Settings>("/api/settings", doc);
+export function aiTask(task: AiTaskName, body: AiBody & { send: false }, signal?: AbortSignal): Promise<AiPreview>;
+export function aiTask(task: AiTaskName, body: AiBody & { send: true }, signal?: AbortSignal): Promise<AiResult>;
+export function aiTask(task: AiTaskName, body: AiBody & { send: boolean }, signal?: AbortSignal): Promise<AiPreview | AiResult> {
+  return api.post<AiPreview | AiResult>(`/api/ai/${task}`, body, signal);
+}
+export const aiApply = (kind: "module" | "workflow", raw: string, targetName: string) =>
+  api.post<{ path: string }>("/api/ai/apply", { kind, raw, target_name: targetName });

@@ -1,9 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Module files (user overrides of bundled ones) and workflow templates of modules."""
 
-import os
 import shutil
-import tempfile
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -17,6 +15,7 @@ from whattheshell.models.common import StrictModel, ToolName
 from whattheshell.modules.loader import DocumentError, load_module_file, load_workflow_file
 from whattheshell.modules.registry import ModuleRegistry
 from whattheshell.modules.scaffold import scaffold_module
+from whattheshell.modules.store import load_module_text, write_user_file
 
 router = APIRouter(prefix="/api/modules")
 templates_router = APIRouter(prefix="/api/templates")
@@ -85,35 +84,23 @@ def get_module(tool: ToolName) -> dict[str, Any]:
 @router.put("/{tool}")
 def put_module(request: Request, tool: ToolName, body: RawBody) -> dict[str, str]:
     """Validate the text and write the user file (a bundled module stays untouched)."""
-    with tempfile.TemporaryDirectory(prefix="wts-module-") as tmp:
-        probe = Path(tmp) / f"{tool}{SUFFIX}"
-        probe.write_text(body.raw, encoding="utf-8")
-        try:
-            module = load_module_file(probe)
-        except DocumentError as err:
-            raise fail(422, "validation", "Modul ist ungültig.", errors=_error_list(err)) from err
+    try:
+        module = load_module_text(body.raw)
+    except DocumentError as err:
+        raise fail(422, "validation", "Modul ist ungültig.", errors=_error_list(err)) from err
     if module.tool != tool:
         raise fail(
             422,
             "tool_mismatch",
             f"Das Modul beschreibt '{module.tool}', nicht '{tool}'. Passe 'tool:' an.",
         )
-    target = _user_path(tool)
     try:
-        target.parent.mkdir(parents=True, exist_ok=True)
-        # private temp file (0600, O_EXCL) beside the target, then rename: no half-written
-        # module, and a planted symlink at a predictable name is never followed
-        handle, partial = tempfile.mkstemp(dir=target.parent, prefix=f".{tool}.", suffix=".tmp")
-        try:
-            with os.fdopen(handle, "w", encoding="utf-8") as stream:
-                stream.write(body.raw)
-            os.replace(partial, target)
-        except BaseException:
-            Path(partial).unlink(missing_ok=True)
-            raise
+        target = write_user_file("module", f"{tool}{SUFFIX}", body.raw)
     except OSError as err:
         raise fail(
-            500, "write", f"Modul nicht schreibbar: {err}. Prüfe Rechte auf {target.parent}."
+            500,
+            "write",
+            f"Modul nicht schreibbar: {err}. Prüfe Rechte auf {_user_path(tool).parent}.",
         ) from err
     registry: ModuleRegistry = request.app.state.registry
     registry.reload(target)

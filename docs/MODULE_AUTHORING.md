@@ -249,6 +249,8 @@ Die CLI-Zeile für den Agenten:
 wts validate ~/.config/whattheshell/modules/TOOL.module.yaml && wts inspect TOOL
 ```
 
+Oder die eingebaute KI-Funktion (F-31; `--yes` bestätigt nur das Senden, `--apply` speichert): `wts ai improve-module grep --yes --apply`
+
 ## 9. Checkliste vor dem Teilen
 
 1. `wts validate` meldet keine Fehler und keine Warnungen.

@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+"""``GET/PUT /api/settings``: the settings document plus the state of the key variable."""
+
+import os
+from typing import Any
+
+from fastapi import APIRouter, Request
+
+from whattheshell import paths
+from whattheshell.api.rest import fail
+from whattheshell.settings import Settings, save_settings
+
+router = APIRouter(prefix="/api/settings")
+
+
+def _view(settings: Settings) -> dict[str, Any]:
+    """The document plus ``key_status``; the key value itself is never read into the answer."""
+    key_set = bool(os.environ.get(settings.ai.api.key_env))
+    return {**settings.model_dump(mode="json"), "key_status": "set" if key_set else "missing"}
+
+
+@router.get("")
+def get_settings(request: Request) -> dict[str, Any]:
+    """Current settings (as loaded at start or last saved)."""
+    return _view(request.app.state.settings)
+
+
+@router.put("")
+def put_settings(request: Request, body: Settings) -> dict[str, Any]:
+    """Validate (422 on errors or key fields), save atomically, reload ``app.state.settings``."""
+    try:
+        save_settings(body)
+    except OSError as err:
+        raise fail(
+            500,
+            "write",
+            f"Einstellungen nicht schreibbar: {err}. Prüfe Rechte auf {paths.config_dir()}.",
+        ) from err
+    request.app.state.settings = body
+    return _view(body)

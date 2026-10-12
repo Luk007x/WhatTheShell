@@ -57,6 +57,7 @@ def test_put_get_delete_roundtrip(client: TestClient, tmp_path: Path) -> None:
     done = client.put("/api/modules/demo", json={"raw": MODULE})
     assert done.json() == {"tool": "demo", "path": str(user_file(tmp_path, "demo"))}
     assert user_file(tmp_path, "demo").read_text() == MODULE
+    assert user_file(tmp_path, "demo").stat().st_mode & 0o777 == 0o600
     assert not list(user_file(tmp_path, "demo").parent.glob("*.tmp"))
     assert client.get("/api/tools/demo").json()["command"]["display_name"] == "Demo"
     assert client.get("/api/modules/demo").json()["source"] == "user"

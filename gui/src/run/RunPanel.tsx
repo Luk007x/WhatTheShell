@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { ApiError, confirmRun, errMsg, controlRun, createRun, getRun, startRun, wsUrl } from "../api";
+import { AiDialog, useAi } from "../ai/AiDialog";
+import { stepFromEvents, stripOutputs, type Step } from "../ai/aiFlow";
 import { useDebounced } from "../hooks";
 import { t } from "../i18n";
 import { Modal } from "../Modal";
@@ -44,6 +46,8 @@ export function RunPanel({ wf, onCapture, onEvaluate, onSelectStep }: {
   const [cwd, setCwd] = useState("");
   const [prep, setPrep] = useState<RunCreated | null>(null);
   const [prepError, setPrepError] = useState<unknown>(null);
+  const { enabled: aiOn } = useAi();
+  const [diag, setDiag] = useState<Step | null>(null);
   const ws = useRef<WebSocket | null>(null);
   const viewRef = useRef(view);
   viewRef.current = view;
@@ -129,6 +133,10 @@ export function RunPanel({ wf, onCapture, onEvaluate, onSelectStep }: {
     getRun(runId).then((r) => { dispatch({ kind: "reset", events: r.events }); setLost(false); }, setError);
   };
 
+  const diagnose = (stepId: string) => {
+    if (runId) getRun(runId).then((r) => setDiag(stepFromEvents(r.events, stepId)), setError);
+  };
+
   const vars = Object.entries(wf.variables ?? {});
   return (
     <section aria-label={t("output.title")} className="run">
@@ -167,10 +175,14 @@ export function RunPanel({ wf, onCapture, onEvaluate, onSelectStep }: {
               {t("prev.exit")}: {b.finish.exit_code ?? "-"} · {t("prev.duration")}: {b.finish.duration?.toFixed(2) ?? "-"} s
               {" "}<button onClick={() => onCapture(b.id)}>{t("run.capture")}</button>{" "}
               <button onClick={() => onEvaluate(b.id)}>{t("run.evaluate")}</button>
+              {aiOn && !b.finish.ok && <>{" "}<button onClick={() => diagnose(b.id)}>{t("ai.diagnose")}</button></>}
             </p>
           )}
         </details>
       ))}
+
+      {diag && <AiDialog task="diagnose" title={t("ai.diagnose")} diagnose onClose={() => setDiag(null)}
+        build={(include) => ({ step: stripOutputs(diag, include), include_output: include })} />}
 
       <Modal open={dialog} title={t("run.dialog")} onCancel={() => setDialog(false)}>
         {prepError !== null && <Problem error={prepError} />}

@@ -113,3 +113,10 @@ header button { border-color: var(--line); padding: 0.125rem 0.5rem; }
 .skip:focus { top: 0.5rem; }
 main:focus { outline: none; }
 @media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+
+/* AI dialog */
+.ai-pre { max-height: 14rem; overflow: auto; white-space: pre-wrap; border: 1px solid var(--line); padding: 0.25rem; }
+.diff-add { display: block; background: #e6f4ea; color: #0b5d1e; }
+.diff-del { display: block; background: #fce8e6; color: #a50e0e; }
+.diff-meta { display: block; color: #5f6368; }
+.linkbtn { background: none; border: none; color: var(--accent); text-decoration: underline; cursor: pointer; padding: 0; }

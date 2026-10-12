@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
-import { errMsg, getStatus, getTool, hasToken, postSelftest, validateWorkflow } from "./api";
+import { errMsg, getSettings, getStatus, getTool, hasToken, postSelftest, validateWorkflow } from "./api";
 import { BlockView } from "./blocks/BlockView";
 import { Canvas, type Edit } from "./canvas/Canvas";
+import { AiContext } from "./ai/AiDialog";
 import { FileMenu } from "./files/FileMenu";
 import { RunPanel } from "./run/RunPanel";
 import { CatalogPanel } from "./catalog/CatalogPanel";
@@ -83,6 +84,7 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [fontSize, setFontSize] = useState<FontSize>(loadFontSize);
   const [autoPreview, setAutoPreview] = useState(loadAutoPreview);
+  const [aiEnabled, setAiEnabled] = useState(false);
   const [refresh, setRefresh] = useState(0); // bumped when ToolInfos must be reloaded (language, module saved)
   const [view, setViewState] = useState<View>(loadView);
   const [outputOpen, setOutputOpen] = useState(true);
@@ -111,6 +113,7 @@ export function App() {
 
   useEffect(() => {
     if (!token) return;
+    getSettings().then((x) => setAiEnabled(x.ai.enabled), () => undefined); // without settings the AI stays off
     getStatus().then((s) => setSandbox(s.sandbox)).catch((e: unknown) => setStatusError(msg(e)));
   }, [token]);
 
@@ -167,6 +170,7 @@ export function App() {
   const cmd = tool?.command;
 
   return (
+    <AiContext.Provider value={{ enabled: aiEnabled, openSettings: () => setSettingsOpen(true) }}>
     <div className={`app${outputOpen ? "" : " output-closed"}`}>
       <a className="skip" href="#main" onClick={(e) => { e.preventDefault(); document.getElementById("main")?.focus(); }}>{t("a11y.skip")}</a>
       <header>
@@ -175,7 +179,8 @@ export function App() {
           onLoad={(doc, id) => { dispatch({ type: "load", doc }); setSavedJson(JSON.stringify(doc)); setFileId(id); setSelected(null); }}
           onSaved={(id) => { setFileId(id); setSavedJson(JSON.stringify(wf)); }}
           onDeleted={(id) => { if (id === fileId) setFileId(null); }}
-          onNew={newDoc} />
+          onNew={newDoc}
+          onDraft={(doc) => { dispatch({ type: "load", doc }); setSavedJson(JSON.stringify(emptyWorkflow())); setFileId(null); setSelected(null); }} />
         <button disabled={state.past.length === 0} onClick={() => dispatch({ type: "undo" })}>{t("history.undo")}</button>
         <button disabled={state.future.length === 0} onClick={() => dispatch({ type: "redo" })}>{t("history.redo")}</button>
         <div role="group" aria-label={t("view.label")} className="viewswitch">
@@ -252,9 +257,10 @@ export function App() {
             onEvaluate={(id) => { const created = newId(wf, `${id}_pruefe`); edit((w) => evaluateOutput(w, id)); setSelected(created); }} />
         </div>
       </footer>
-      <Settings open={settingsOpen} onClose={() => setSettingsOpen(false)} lang={getLang()} onLang={changeLang}
+      <Settings open={settingsOpen} onClose={() => setSettingsOpen(false)} onAiChanged={setAiEnabled} lang={getLang()} onLang={changeLang}
         fontSize={fontSize} onFontSize={(s) => { saveFontSize(s); setFontSize(s); }}
         autoPreview={autoPreview} onAutoPreview={(on) => { saveAutoPreview(on); setAutoPreview(on); }} />
     </div>
+    </AiContext.Provider>
   );
 }

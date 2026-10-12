@@ -78,12 +78,14 @@ def _line_of(doc: Any, loc: tuple[int | str, ...]) -> int | None:
     return line
 
 
-def load_document(path: Path, model: type[T]) -> T:
+def load_document(path: Path, model: type[T], *, show_input: bool = True) -> T:
     """Read, migrate and validate a YAML or JSON document against a model.
 
     Args:
         path: File to read; JSON if it ends in ``.json``, else YAML.
         model: Pydantic model the document must satisfy.
+        show_input: Append the offending input to schema errors; False for data that may hold
+            secrets.
 
     Returns:
         The validated model instance.
@@ -93,14 +95,14 @@ def load_document(path: Path, model: type[T]) -> T:
             schema violation (with line where known).
     """
     try:
-        return _load(path, model)
+        return _load(path, model, show_input)
     except RecursionError as err:
         raise DocumentError(path, None, "Dokument zu tief verschachtelt") from err
     except MemoryError as err:
         raise DocumentError(path, None, "Speichergrenze überschritten") from err
 
 
-def _load(path: Path, model: type[T]) -> T:
+def _load(path: Path, model: type[T], show_input: bool) -> T:
     try:
         size = path.stat().st_size
         if size > MAX_DOCUMENT_BYTES:
@@ -134,7 +136,9 @@ def _load(path: Path, model: type[T]) -> T:
     except ValidationError as err:
         first = err.errors()[0]["loc"] if err.errors() else ()
         raise DocumentError(
-            path, _line_of(migrated, first), "\n" + format_validation_error(err)
+            path,
+            _line_of(migrated, first),
+            "\n" + format_validation_error(err, show_input=show_input),
         ) from err
 
 

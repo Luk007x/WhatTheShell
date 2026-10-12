@@ -2,7 +2,9 @@
 // Module editor: raw YAML is the source of truth, the form patches the parsed document (F-25).
 import { useEffect, useState, type KeyboardEvent, type MutableRefObject } from "react";
 import { ApiError, deleteModule, errMsg, putModule } from "../api";
+import { AiDialog, useAi } from "../ai/AiDialog";
 import { t } from "../i18n";
+import type { AiTaskName } from "../types/api";
 import { flagsToText, parseRaw, setField, setRowField, str, textToFlags, toRaw, exampleTitles, validRows, type Doc, type RowList } from "./moduleForm";
 
 export interface EditorInit { tool: string; raw: string; source: "user" | "bundled" | null }
@@ -76,6 +78,8 @@ export function ModuleEditor({ init, categories, onSaved, onDeleted, dirtyRef }:
   const [tabError, setTabError] = useState<string | null>(null);
   const [problems, setProblems] = useState<Problem[]>([]);
   const [saved, setSaved] = useState(false);
+  const { enabled: aiOn } = useAi();
+  const [aiTask, setAiTask] = useState<AiTaskName | null>(null);
   const parsed = parseRaw(raw);
 
   const edit = (v: string) => { setRaw(v); setSaved(false); };
@@ -135,7 +139,17 @@ export function ModuleEditor({ init, categories, onSaved, onDeleted, dirtyRef }:
         <button onClick={save}>{t("file.save")}</button>
         <button onClick={download}>{t("mod.export")}</button>
         <button disabled={source !== "user"} onClick={remove}>{t("file.delete")}</button>
+        {aiOn ? (
+          <>
+            <button onClick={() => setAiTask("improve-module")}>{t("ai.improve")}</button>
+            <button onClick={() => setAiTask("examples")}>{t("ai.examples")}</button>
+          </>
+        ) : <span className="muted" title={t("ai.off.hint")} tabIndex={0}>{t("ai.off")}</span>}
       </div>
+      {aiTask && (
+        <AiDialog task={aiTask} title={t(aiTask === "examples" ? "ai.examples" : "ai.improve")} build={() => ({ tool: base })} onClose={() => setAiTask(null)}
+          onApplied={(r) => { setRaw(r.raw); setClean(r.raw); setSource("user"); setSaved(true); onSaved(tool); }} />
+      )}
       {tabError && <p role="alert" className="error">{tabError}</p>}
       {saved && <p role="status" className="hint">{t("mod.saved")}</p>}
       {problems.length > 0 && (

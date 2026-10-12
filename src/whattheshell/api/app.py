@@ -15,13 +15,15 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from whattheshell import APP_NAME
-from whattheshell.api import modules_api, rest, workflows
+from whattheshell.api import ai_api, modules_api, rest, settings_api, workflows
 from whattheshell.api.errors import error_response
 from whattheshell.api.runs import router as runs_router
 from whattheshell.api.security import SecurityMiddleware, Session
 from whattheshell.catalog import Catalog
+from whattheshell.modules.loader import DocumentError
 from whattheshell.modules.registry import ModuleRegistry
 from whattheshell.modules.watch import watch_modules
+from whattheshell.settings import Settings, load_settings
 
 STATIC_DIR = Path(__file__).parent / "static"
 logger = logging.getLogger(__name__)
@@ -85,6 +87,11 @@ def create_app(
     app.state.catalog = catalog
     # raw catalog: no module overrides, the base of module scaffolds
     app.state.raw_catalog = Catalog(catalog.cache_dir, sandbox=catalog.sandbox)
+    try:
+        app.state.settings = load_settings()
+    except DocumentError as err:  # a broken file must not stop the GUI; AI stays off
+        logger.warning("Einstellungen nicht lesbar, KI bleibt aus: %s", err)
+        app.state.settings = Settings()
     app.state.modules_watch = False
     app.state.registry = registry
     app.add_middleware(SecurityMiddleware, session=session)
@@ -95,6 +102,8 @@ def create_app(
     app.include_router(modules_api.templates_router)
     app.include_router(workflows.router)
     app.include_router(runs_router)
+    app.include_router(settings_api.router)
+    app.include_router(ai_api.router)
     root = STATIC_DIR if static_dir is None else static_dir
     if (root / "index.html").is_file():
         app.mount("/", StaticFiles(directory=root, html=True))

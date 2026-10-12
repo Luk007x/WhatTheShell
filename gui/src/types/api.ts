@@ -129,3 +129,32 @@ export interface RunState {
 }
 
 export type RunAction = "abort" | "pause" | "resume" | "step";
+
+// Mirrors whattheshell.settings.Settings (docs/API.md "Einstellungen"); `key_status` is read-only, sent by GET only.
+export interface Settings {
+  schema_version: number;
+  ai: {
+    enabled: boolean;
+    provider: "local" | "api" | "agent";
+    local: { base_url: string; model: string; timeout: number };
+    api: { kind: "anthropic" | "openai"; base_url: string | null; model: string; key_env: string; key_source: "env" | "keyring"; timeout: number };
+    agent: { kind: "claude" | "codex"; command: string[]; timeout: number };
+    send_outputs: boolean;
+  };
+  key_status?: "set" | "missing";
+}
+
+export type AiTaskName = "improve-module" | "examples" | "draft-workflow" | "diagnose";
+export type AiBody =
+  | { tool: string }
+  | { description: string; name?: string }
+  | { step: Record<string, unknown>; include_output: boolean };
+export interface AiPreview { prompt: { system: string; user: string }; chars: number }
+export interface AiResult {
+  kind: "module" | "workflow" | "text";
+  raw: string;
+  errors: string[];
+  diff: string;
+  target: string | null;
+  valid: boolean;
+}

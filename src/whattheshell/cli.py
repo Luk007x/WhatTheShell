@@ -7,16 +7,22 @@ import dataclasses
 import html
 import json
 import os
+import re
 import socket
 import sys
 import threading
 import webbrowser
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import ValidationError
 
 from whattheshell import APP_NAME, __version__, paths
+from whattheshell.ai import AiDisabled, require_enabled
+from whattheshell.ai import tasks as ai_tasks
+from whattheshell.ai.approve import apply, propose, target_path
+from whattheshell.ai.docs import read_doc
+from whattheshell.ai.protocol import Prompt, make_provider
 from whattheshell.catalog import Catalog, ToolNotFound
 from whattheshell.engine import (
     ConfirmRequest,
@@ -49,8 +55,16 @@ from whattheshell.modules.loader import (
 )
 from whattheshell.modules.registry import ModuleRegistry
 from whattheshell.modules.scaffold import scaffold_module
+from whattheshell.modules.store import (
+    atomic_write,
+    registry_module_text,
+    user_dir,
+    validate_module_text,
+    validate_workflow_text,
+)
 from whattheshell.modules.watch import watch_modules
 from whattheshell.sandbox import ExampleResult, run_example, self_test
+from whattheshell.settings import Settings, load_settings, save_settings
 
 
 def _registry() -> ModuleRegistry:
@@ -160,6 +174,40 @@ def main(argv: list[str] | None = None) -> int:
     gui = commands.add_parser("gui", help="Oberfläche starten (nur 127.0.0.1, mit Sitzungstoken)")
     gui.add_argument("--port", type=int, default=0, help="Port (Standard: freier Port)")
     gui.add_argument("--no-browser", action="store_true", help="Browser nicht öffnen")
+    ai = commands.add_parser("ai", help="Optionale KI-Funktionen (standardmäßig aus)")
+    ai_commands = ai.add_subparsers(dest="ai_command", required=True)
+    ai_commands.add_parser("enable", help="KI-Funktionen einschalten")
+    ai_commands.add_parser("disable", help="KI-Funktionen ausschalten")
+    ai_commands.add_parser("status", help="Einstellungen zeigen (ohne Schlüssel)")
+    ai_config = ai_commands.add_parser("config", help="Einstellung ändern")
+    ai_config_set = ai_config.add_subparsers(dest="config_command", required=True).add_parser(
+        "set", help="z. B. `provider agent`, `agent.kind codex`, `api.model NAME`"
+    )
+    ai_config_set.add_argument("path", help="Punktpfad unterhalb von ai")
+    ai_config_set.add_argument("value", help="Wert (JSON oder Text)")
+    improve = ai_commands.add_parser("improve-module", help="Modul verbessern oder neu schreiben")
+    improve.add_argument("tool")
+    improve.add_argument("--out", type=Path, help="Dateiname im Modulordner des Benutzers")
+    examples = ai_commands.add_parser("examples", help="Beispiele und fixtures ergänzen")
+    examples.add_argument("tool")
+    draft = ai_commands.add_parser("draft-workflow", help="Workflow aus einer Beschreibung")
+    draft.add_argument("description")
+    draft.add_argument("--name", help="Dateiname (ohne Endung) im Workflow-Ordner")
+    diagnose = ai_commands.add_parser("diagnose", help="Fehlgeschlagenen Schritt erklären")
+    diagnose.add_argument("run_json", type=Path, help="Ausgabe von `wts run --json`")
+    diagnose.add_argument("step_id")
+    diagnose.add_argument(
+        "--include-output", action="store_true", help="stdout/stderr mitsenden (gekürzt)"
+    )
+    for task in (improve, examples, draft, diagnose):
+        task.add_argument("--yes", "-y", action="store_true", help="Senden bestätigen")
+        task.add_argument(
+            "--preview-file", type=Path, help="Datenvorschau in diese Datei (0600) statt stdout"
+        )
+    for task in (improve, examples, draft):
+        task.add_argument(
+            "--apply", action="store_true", help="Ergebnis ohne Rückfrage in den Benutzerordner"
+        )
     args = parser.parse_args(argv)
     try:
         return _dispatch(parser, args)
@@ -220,6 +268,8 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
         return _example(args)
     if args.command == "gui":
         return _gui(args)
+    if args.command == "ai":
+        return _ai(args)
     if args.command == "schema":
         try:
             written = export_schemas(args.out)
@@ -234,6 +284,275 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
             print(f"geschrieben: {path}")
         return 0
     parser.print_help()
+    return 0
+
+
+def _ai(args: argparse.Namespace) -> int:
+    try:
+        settings = load_settings()
+    except DocumentError as err:
+        print(f"{err}\nEinstellungsdatei korrigieren oder löschen.", file=sys.stderr)
+        return 1
+    try:
+        if args.ai_command in ("enable", "disable", "status", "config"):
+            return _ai_settings(args, settings)
+        require_enabled(settings)  # first thing for every task: no catalog, file or network access
+        return _ai_task(args, settings)
+    except AiDisabled as err:
+        print(err, file=sys.stderr)
+        return 2
+
+
+def _ai_settings(args: argparse.Namespace, settings: Settings) -> int:
+    if args.ai_command == "status":
+        ai = settings.ai
+        key = ai.api.key_env
+        source = (
+            f"ENV {key} ({'gesetzt' if os.environ.get(key) else 'nicht gesetzt'})"
+            if ai.api.key_source == "env"
+            else "Schlüsselbund"
+        )
+        print(f"KI: {'an' if ai.enabled else 'aus'}, Anbieter: {ai.provider}")
+        print(f"local: {ai.local.base_url} Modell '{ai.local.model}'")
+        print(f"api: {ai.api.kind} Modell '{ai.api.model}' Schlüsselquelle {source}")
+        print(f"agent: {ai.agent.kind} Aufruf {ai.agent.command or 'Standard'}")
+        print(f"Befehlsausgaben mitsenden: {'ja' if ai.send_outputs else 'nein'}")
+        return 0
+    data = settings.model_dump(mode="json")
+    if args.ai_command == "config":
+        node = data["ai"]
+        *parents, leaf = args.path.split(".")
+        for part in parents:
+            node = node.get(part) if isinstance(node, dict) else None
+        if not isinstance(node, dict) or leaf not in node:
+            print(
+                f"Unbekannter Pfad '{args.path}'. Gültig sind z. B. provider, send_outputs, "
+                "local.model, api.model, api.key_env, agent.kind. "
+                "Schlüssel gehören nie in Dateien.",
+                file=sys.stderr,
+            )
+            return 1
+        try:
+            node[leaf] = json.loads(args.value)
+        except json.JSONDecodeError:
+            node[leaf] = args.value
+    else:
+        data["ai"]["enabled"] = args.ai_command == "enable"
+    try:
+        settings = Settings.model_validate(data)
+        save_settings(settings)
+    except ValidationError as err:  # no input values in the message: it may be a key
+        for item in err.errors():
+            where = ".".join(str(p) for p in item["loc"])
+            print(f"Ungültiger Wert für {where}: {item['msg']}", file=sys.stderr)
+        return 1
+    except OSError as err:
+        print(f"Einstellungen nicht schreibbar: {err}. Prüfe Rechte auf {paths.config_dir()}.")
+        return 1
+    print(f"KI: {'an' if settings.ai.enabled else 'aus'} ({args.ai_command})")
+    return 0
+
+
+def _preview_text(prompt: Prompt, provider: str) -> str:
+    def part(title: str, text: str) -> str:
+        return f"--- {title} ({len(text.splitlines())} Zeilen, {len(text)} Zeichen) ---\n{text}"
+
+    total = len(prompt.system) + len(prompt.user)
+    return "\n".join(
+        [
+            f"== Datenvorschau: Das wird an den Anbieter '{provider}' gesendet ==",
+            f"Gesamtlänge: {total} Zeichen",
+            part("System", prompt.system),
+            part("Nutzer", prompt.user),
+            "== Ende der Datenvorschau ==",
+        ]
+    )
+
+
+def _confirm(question: str, *, yes: bool) -> bool | None:
+    """True/False for the answer, None when a question is needed but there is no terminal."""
+    if yes:
+        return True
+    if not sys.stdin.isatty():
+        return None
+    return _ask(question)
+
+
+def _read_text(path: Path) -> str | None:
+    return path.read_text(encoding="utf-8") if path.is_file() else None
+
+
+def _ai_prompt(
+    args: argparse.Namespace, settings: Settings, registry: ModuleRegistry
+) -> tuple[Prompt, Literal["module", "workflow", "text"], Path | None, str | None]:
+    """Build the prompt; returns it with the kind, the target file and the current text."""
+    command = args.ai_command
+    if command == "diagnose":
+        step = json.loads(args.run_json.read_text(encoding="utf-8"))["results"][args.step_id]
+        include = args.include_output or settings.ai.send_outputs
+        return ai_tasks.diagnose(step, include), "text", None, None
+    if command == "draft-workflow":
+        target = Path(f"{args.name}.workflow.yaml") if args.name else None
+        if target is not None:
+            target_path("workflow", target)  # reject bad names before anything is sent
+        hint = "\n".join(
+            f"{m.module.tool}: " + ", ".join(f.id for f in (*m.module.inputs, *m.module.options))
+            for m in registry.all()
+        )
+        formats = read_doc("FORMATS.md", "## 4.", "## 5.")
+        return ai_tasks.draft_workflow(args.description, hint, formats), "workflow", target, None
+    target = args.out if command == "improve-module" and args.out else None
+    target = target or Path(f"{args.tool}.module.yaml")
+    existing = target_path("module", target)  # target check before any read
+    info = _catalog(registry).get(args.tool, probe_unknown=True)
+    current = _read_text(existing)
+    if current is None:  # no user file: the effective (e.g. bundled) module is the baseline
+        current = registry_module_text(args.tool, registry)
+    inspect_json = info.model_dump_json(indent=2)
+    if command == "improve-module":
+        prompt = ai_tasks.improve_module(
+            args.tool,
+            current_raw=current,
+            inspect_json=inspect_json,
+            authoring_doc=read_doc("MODULE_AUTHORING.md"),
+        )
+    else:
+        prompt = ai_tasks.generate_examples(
+            args.tool, current or scaffold_module(info), inspect_json
+        )
+    return prompt, "module", target, current
+
+
+def _ai_task(args: argparse.Namespace, settings: Settings) -> int:
+    try:
+        prompt, kind, target, current = _ai_prompt(args, settings, _registry())
+    except ToolNotFound as err:
+        print(err, file=sys.stderr)
+        return 1
+    except ValueError as err:
+        if args.ai_command != "diagnose":
+            print(f"Ungültiges Ziel: {err}", file=sys.stderr)
+            return 1
+        print(
+            f"RUN.json ungültig: {err}. Erwartet ist die Ausgabe von `wts run --json`.",
+            file=sys.stderr,
+        )
+        return 1
+    except (OSError, ValidationError, KeyError, TypeError) as err:
+        print(
+            f"Eingabe nicht lesbar: {err!r}. Prüfe Tool, Dateipfad und Schritt-ID "
+            "(RUN.json stammt von `wts run --json`).",
+            file=sys.stderr,
+        )
+        return 1
+
+    secrets = ai_tasks.known_keys(settings.ai.api.key_env)
+    prompt = Prompt(
+        mask_text(prompt.system, secrets), mask_text(prompt.user, secrets), prompt.max_tokens
+    )
+    preview = _preview_text(prompt, settings.ai.provider)
+    if args.preview_file:
+        try:
+            atomic_write(args.preview_file, preview + "\n", 0o600)
+        except OSError as err:
+            print(f"Vorschau nicht schreibbar: {err}. Anderen Pfad wählen.", file=sys.stderr)
+            return 1
+        print(f"Datenvorschau geschrieben: {args.preview_file}")
+    else:
+        print(preview)
+    sent = _confirm("Senden? [j/N] ", yes=args.yes)
+    if sent is None:
+        print("Bestätigung nötig, aber kein Terminal: mit --yes bestätigen.", file=sys.stderr)
+        return 2
+    if not sent:
+        print("Abgebrochen, nichts gesendet.", file=sys.stderr)
+        return 2
+    try:
+        answer = make_provider(settings).complete(prompt)
+    except ImportError as err:
+        print(
+            f"KI-Anbieter nicht verfügbar: {ai_tasks.sanitize(str(err), secrets)}", file=sys.stderr
+        )
+        return 1
+    except (RuntimeError, OSError) as err:
+        print(
+            f"Anbieter fehlgeschlagen: {ai_tasks.sanitize(str(err), secrets)}. "
+            "Prüfe Einstellungen mit `wts ai status`.",
+            file=sys.stderr,
+        )
+        return 1
+    if kind == "text":
+        print(ai_tasks.sanitize(answer, secrets))  # untrusted: no key echo, no terminal escapes
+        return 0
+    return _ai_approve(args, kind, target, current, ai_tasks.extract_yaml(answer), secrets)
+
+
+def _free_workflow_target(args: argparse.Namespace, name: str) -> Path:
+    """Target of a draft: `--name`, else a free name derived from the workflow name."""
+    if args.name:
+        return Path(f"{args.name}.workflow.yaml")
+    stem = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "workflow"
+    candidate = Path(f"{stem}.workflow.yaml")
+    number = 2
+    while (user_dir("workflow") / candidate).exists() or (
+        user_dir("workflow") / candidate
+    ).is_symlink():
+        candidate = Path(f"{stem}_{number}.workflow.yaml")
+        number += 1
+    if candidate.name != f"{stem}.workflow.yaml":
+        print(
+            f"{stem}.workflow.yaml existiert bereits und bleibt unberührt; Vorschlag als "
+            f"{candidate.name}. Zum Überschreiben --name {stem} angeben."
+        )
+    return candidate
+
+
+def _ai_approve(
+    args: argparse.Namespace,
+    kind: Literal["module", "workflow"],
+    target: Path | None,
+    current: str | None,
+    raw: str,
+    secrets: list[str],
+) -> int:
+    try:
+        if kind == "module":
+            module, errors = validate_module_text(raw)
+            if module is not None and module.tool != args.tool:
+                errors.append(f"tool ist '{module.tool}', erwartet '{args.tool}'")
+        else:
+            workflow, errors = validate_workflow_text(raw)
+            if workflow is not None:
+                target = _free_workflow_target(args, workflow.name)
+                current = _read_text(target_path("workflow", target))  # diff against the real file
+    except (ValueError, OSError) as err:
+        print(f"Ziel nicht nutzbar: {err}", file=sys.stderr)
+        return 1
+    approval = propose(kind, target, current, raw, errors)
+    if errors:
+        print("Die Antwort besteht die Schema-Prüfung nicht, nichts gespeichert:", file=sys.stderr)
+        for line in errors:
+            print(f"  {ai_tasks.sanitize(line, secrets)}", file=sys.stderr)
+        return 1
+    if current is None:
+        print(ai_tasks.sanitize(raw, secrets))
+    elif approval.diff:
+        print(ai_tasks.sanitize(approval.diff, secrets))
+    else:
+        print("Keine Änderung.")
+        return 0
+    if not args.apply:
+        if not sys.stdin.isatty():
+            print("Nichts gespeichert. Mit --apply übernehmen.", file=sys.stderr)
+            return 0
+        if not _ask("Übernehmen? [j/N] "):
+            print("Nicht übernommen.", file=sys.stderr)
+            return 2
+    try:
+        print(f"geschrieben: {apply(approval)}")
+    except (ValueError, OSError) as err:
+        print(f"Nicht gespeichert: {err}", file=sys.stderr)
+        return 1
     return 0
 
 

@@ -3,7 +3,7 @@
 Ein Linux-Programm mit grafischer Oberfläche, in dem man Kommandozeilen-Tools wie Bausteine
 zu Workflows zusammenklickt, ausführt und die Ausgaben auswertet.
 
-**Status:** Phase 3 abgeschlossen (Kern per CLI nutzbar, noch keine GUI). Phasenplan in `PROJEKTAUFTRAG.md`.
+**Status:** Phasen 0 bis 6 umgesetzt (CLI, Web-GUI mit Knoten-Graph und Block-Ansicht, Modul-Editor, optionale KI-Funktionen). Phasenplan in `PROJEKTAUFTRAG.md`.
 
 ## Was geht schon (CLI)
 
@@ -17,6 +17,8 @@ wts sandbox                      # bwrap-Selbsttest mit Installationshinweis
 wts example grep                 # Modul-Beispiele in der Sandbox ausführen
 wts run workflow.yaml --dry-run  # Plan mit Gefahrenklassen, nichts wird ausgeführt
 wts run workflow.yaml            # Ausführen mit Bestätigung für caution/dangerous
+wts gui                          # Web-Oberfläche auf 127.0.0.1 mit Sitzungstoken
+wts ai status                    # KI-Funktionen (standardmäßig aus): enable, config set, improve-module, examples, draft-workflow, diagnose
 ```
 
 Voraussetzungen: Linux, Python ≥ 3.11, `bubblewrap` (`bwrap`) für Vorschau und Beispiele.
