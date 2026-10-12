@@ -3,3 +3,7 @@ schemas/
 uv.lock
 graphify-out/
 tests/corpus/
+gui/node_modules/
+gui/e2e-results/
+gui/playwright-report/
+gui/package-lock.json
