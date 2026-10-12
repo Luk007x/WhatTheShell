@@ -5,6 +5,7 @@ import { AiDialog, useAi } from "../ai/AiDialog";
 import { stepFromEvents, stripOutputs, type Step } from "../ai/aiFlow";
 import { useDebounced } from "../hooks";
 import { t } from "../i18n";
+import { Icon } from "../icons";
 import { Modal } from "../Modal";
 import { initialRun, reduceEvents, type RunView } from "../model/run";
 import type { RunCreated, RunEvent } from "../types/api";
@@ -143,10 +144,10 @@ export function RunPanel({ wf, onCapture, onEvaluate, onSelectStep }: {
       <div className="toolbar">
         <h2>{t("output.title")}</h2>
         <button onClick={trockenlauf} disabled={running}>{t("run.dry")}</button>
-        <button onClick={() => { setPrep(null); setPrepError(null); setDialog(true); }} disabled={running}>{t("run.execute")}</button>
-        <button onClick={() => control(paused ? "resume" : "pause")} disabled={!running}>{paused ? t("run.resume") : t("run.pause")}</button>
-        <button onClick={() => control("step")} disabled={!running}>{t("run.step")}</button>
-        <button onClick={() => control("abort")} disabled={!running}>{t("run.abort")}</button>
+        <button className="btn--primary" onClick={() => { setPrep(null); setPrepError(null); setDialog(true); }} disabled={running}><Icon name="play" filled />{t("run.execute")}</button>
+        <button onClick={() => control(paused ? "resume" : "pause")} disabled={!running}><Icon name={paused ? "play" : "pause"} />{paused ? t("run.resume") : t("run.pause")}</button>
+        <button onClick={() => control("step")} disabled={!running}><Icon name="redo" />{t("run.step")}</button>
+        <button className="btn--danger" onClick={() => control("abort")} disabled={!running}><Icon name="stop" />{t("run.abort")}</button>
         <span role="status" className="runstatus" data-testid="run-status">
           {t(`run.status.${view.status}`)}{view.message ? `: ${view.message}` : ""}{view.exitCode !== null && finishedStatus(view) ? ` (${t("prev.exit")} ${view.exitCode})` : ""}
         </span>
@@ -160,22 +161,22 @@ export function RunPanel({ wf, onCapture, onEvaluate, onSelectStep }: {
           <summary>
             <strong>{b.id}</strong>{" "}
             <code>{b.command}</code>{" "}
-            <span className={`dot ${b.safety}`} aria-hidden="true" /> {t(`safety.${b.safety}`)}
-            {b.finish && <strong> · {b.finish.ok ? t("run.ok") : t("run.failed")}</strong>}
-            {b.skipped !== undefined && <strong> · {t("run.skipped")}</strong>}
+            <span className={`badge badge--${b.safety}`}>{t(`safety.${b.safety}`)}</span>
+            {b.finish && <span className={`badge badge--${b.finish.ok ? "safe" : "dangerous"}`}>{b.finish.ok ? t("run.ok") : t("run.failed")}</span>}
+            {b.skipped !== undefined && <span className="badge">{t("run.skipped")}</span>}
           </summary>
-          <p><button onClick={() => onSelectStep(b.id)}>{t("run.select")}</button></p>
+          <p><button className="btn--sm" onClick={() => onSelectStep(b.id)}>{t("run.select")}</button></p>
           {b.lines.map((l, i) => (
             <pre key={i} className={l.stream} aria-label={t(`stream.${l.stream}`)}>{l.stream === "stderr" && <strong>{t("stream.stderr")}: </strong>}{l.text}</pre>
           ))}
           {b.messages.map((m, i) => <p key={i} role="note">{m}</p>)}
           {b.skipped !== undefined && <p className="muted">{b.skipped}</p>}
           {b.finish && (
-            <p>
-              {t("prev.exit")}: {b.finish.exit_code ?? "-"} · {t("prev.duration")}: {b.finish.duration?.toFixed(2) ?? "-"} s
-              {" "}<button onClick={() => onCapture(b.id)}>{t("run.capture")}</button>{" "}
-              <button onClick={() => onEvaluate(b.id)}>{t("run.evaluate")}</button>
-              {aiOn && !b.finish.ok && <>{" "}<button onClick={() => diagnose(b.id)}>{t("ai.diagnose")}</button></>}
+            <p className="run-finish">
+              <span>{t("prev.exit")}: {b.finish.exit_code ?? "-"} · {t("prev.duration")}: {b.finish.duration?.toFixed(2) ?? "-"} s</span>
+              <button className="btn--sm" onClick={() => onCapture(b.id)}>{t("run.capture")}</button>
+              <button className="btn--sm" onClick={() => onEvaluate(b.id)}>{t("run.evaluate")}</button>
+              {aiOn && !b.finish.ok && <button className="btn--sm" onClick={() => diagnose(b.id)}>{t("ai.diagnose")}</button>}
             </p>
           )}
         </details>
@@ -189,7 +190,7 @@ export function RunPanel({ wf, onCapture, onEvaluate, onSelectStep }: {
         {prep && (
           <>
             <pre className="plan">{prep.plan}</pre>
-            <p>{t("run.maxsafety")}: <span className={`dot ${prep.max_safety}`} aria-hidden="true" /> <strong>{t(`safety.${prep.max_safety}`)}</strong></p>
+            <p>{t("run.maxsafety")}: <span className={`badge badge--${prep.max_safety}`}>{t(`safety.${prep.max_safety}`)}</span></p>
             <p>{t("run.cwd.effective")}: <code>{prep.cwd ?? t("run.cwd.server")}</code></p>
           </>
         )}
@@ -205,7 +206,7 @@ export function RunPanel({ wf, onCapture, onEvaluate, onSelectStep }: {
         </div>
         <div className="actions">
           <button data-autofocus onClick={() => setDialog(false)}>{t("run.cancel")}</button>
-          <button onClick={() => void execute()} disabled={prep === null}>{t("run.confirm")}</button>
+          <button className="btn--primary" onClick={() => void execute()} disabled={prep === null}>{t("run.confirm")}</button>
         </div>
       </Modal>
 
@@ -213,11 +214,11 @@ export function RunPanel({ wf, onCapture, onEvaluate, onSelectStep }: {
         {view.confirm && (
           <>
             <code className="cmd">{view.confirm.command}</code>
-            <p><span className={`dot ${view.confirm.safety}`} aria-hidden="true" /> {t("cmd.safety")}: <strong>{t(`safety.${view.confirm.safety}`)}</strong></p>
+            <p>{t("cmd.safety")}: <span className={`badge badge--${view.confirm.safety}`}>{t(`safety.${view.confirm.safety}`)}</span></p>
             {view.confirm.reasons.length > 0 && <ul>{view.confirm.reasons.map((r) => <li key={r}>{r}</li>)}</ul>}
             <div className="actions">
               <button data-autofocus onClick={() => answer(false)}>{t("run.reject")}</button>
-              <button onClick={() => answer(true)}>{t("run.accept")}</button>
+              <button className={view.confirm.safety === "dangerous" ? "btn--danger" : "btn--primary"} onClick={() => answer(true)}>{t("run.accept")}</button>
             </div>
           </>
         )}

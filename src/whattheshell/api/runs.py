@@ -8,6 +8,7 @@ import logging
 import secrets
 import threading
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -106,6 +107,10 @@ class RunInfo:
     controller: Controller
     cwd: Path
     make_cwd: bool
+    workflow_name: str = ""
+    started: datetime | None = None
+    finished: datetime | None = None
+    exit_code: int | None = None
     status: Literal["created", "running", "success", "failed", "aborted"] = "created"
     events: list[dict[str, Any]] = field(default_factory=list)
     pending: dict[str, _Pending] = field(default_factory=dict)
@@ -205,6 +210,8 @@ class RunInfo:
             logger.exception("Lauf %s abgestürzt", self.run_id)
             status, message, exit_code = "failed", f"Interner Fehler: {err}", 1
         self.status = status
+        self.finished = datetime.now().astimezone()
+        self.exit_code = exit_code
         self.publish(
             {"type": "finished", "status": status, "message": message, "exit_code": exit_code}
         )
@@ -220,6 +227,7 @@ class RunInfo:
             if self.make_cwd:
                 self.cwd.mkdir(parents=True, exist_ok=True)
             self.status = "running"
+            self.started = datetime.now().astimezone()
         threading.Thread(target=self._run, daemon=True).start()
         return True
 
@@ -263,7 +271,9 @@ class RunManager:
             cwd=cwd,
         )
         prepared = runner.prepare(workflow, variables)
-        info = RunInfo(run_id, runner, prepared, controller, cwd, make_cwd)
+        info = RunInfo(
+            run_id, runner, prepared, controller, cwd, make_cwd, workflow_name=workflow.name
+        )
         holder.append(info)
         max_safety = summarize(list(prepared.verdicts.items()))
         body = {
@@ -288,6 +298,12 @@ class RunManager:
             for old in doomed:
                 del self._runs[old.run_id]
 
+    def recent(self) -> list[RunInfo]:
+        """Started runs, newest first."""
+        with self._lock:
+            runs = [r for r in self._runs.values() if r.started is not None]
+        return sorted(runs, key=lambda r: r.started or datetime.min, reverse=True)
+
     def start(self, info: RunInfo) -> Literal["started", "already", "busy"]:
         """Start `info` unless it ran before or too many runs are active."""
         with self._lock:
@@ -310,28 +326,53 @@ def _unknown(run_id: str) -> Response:
     return error_response(404, "not_found", f"Lauf '{run_id}' unbekannt")
 
 
-@router.post("/api/runs")
-def create_run(body: RunBody, request: Request) -> Response:
+def create_run_response(
+    app: FastAPI,
+    document: dict[str, Any],
+    variables: dict[str, str],
+    cwd_text: str | None,
+    dry_run: bool,
+) -> Response:
     """Validate, prepare and plan a run; with `dry_run` nothing is kept or created."""
-    cwd = Path(body.cwd) if body.cwd else None
+    cwd = Path(cwd_text) if cwd_text else None
     if cwd is not None:
         if not cwd.is_absolute() or not cwd.is_dir():
-            message = f"cwd '{body.cwd}' muss ein existierender absoluter Ordner sein"
+            message = f"cwd '{cwd_text}' muss ein existierender absoluter Ordner sein"
             return error_response(
                 422, "invalid_cwd", message, [{"path": "cwd", "message": message}]
             )
         cwd = cwd.resolve()
     try:
-        info, answer = _manager(request.app).create(
-            body.document, body.variables, cwd, request.app.state.catalog
-        )
+        info, answer = _manager(app).create(document, variables, cwd, app.state.catalog)
     except ValidationError as err:
         return error_response(422, "validation", "Workflow ungültig", validation_errors(err))
     except RunError as err:
         return error_response(422, "run", str(err), [{"path": "", "message": str(err)}])
-    if not body.dry_run:
-        _manager(request.app).add(info)
+    if not dry_run:
+        _manager(app).add(info)
     return JSONResponse(answer)
+
+
+@router.post("/api/runs")
+def create_run(body: RunBody, request: Request) -> Response:
+    """Validate, prepare and plan a run; with `dry_run` nothing is kept or created."""
+    return create_run_response(request.app, body.document, body.variables, body.cwd, body.dry_run)
+
+
+@router.get("/api/runs")
+def list_runs(request: Request) -> list[dict[str, Any]]:
+    """The last started runs (at most 50), newest first."""
+    return [
+        {
+            "run_id": r.run_id,
+            "status": r.status,
+            "workflow_name": r.workflow_name,
+            "started": r.started.isoformat() if r.started else None,
+            "finished": r.finished.isoformat() if r.finished else None,
+            "exit_code": r.exit_code,
+        }
+        for r in _manager(request.app).recent()[:MAX_FINISHED_RUNS]
+    ]
 
 
 @router.post("/api/runs/{run_id}/start", status_code=202)

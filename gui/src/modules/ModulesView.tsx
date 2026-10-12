@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, errMsg, getModule, listModules, listTools, scaffoldModule, type ModuleList } from "../api";
 import { t } from "../i18n";
+import { Icon } from "../icons";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { ModuleEditor, type EditorInit } from "./ModuleEditor";
 import { parseRaw } from "./moduleForm";
@@ -48,16 +49,16 @@ export function ModulesView({ catalogTool, onChanged }: { catalogTool: string | 
 
   return (
     <section className="panel canvas modules" aria-labelledby="canvas-h">
-      <h2 id="canvas-h">{t("mod.title")}</h2>
+      <div className="panel__header"><h2 id="canvas-h">{t("mod.title")}</h2></div>
       {error && <p role="alert" className="error">{error}</p>}
       <div className="toolbar">
-        <label>{t("mod.newtool")} <input value={newTool} onChange={(e) => setNewTool(e.target.value)} /></label>
-        <button onClick={scaffold}>{t("mod.scaffold")}</button>
+        <label className="tb-field">{t("mod.newtool")} <input value={newTool} onChange={(e) => setNewTool(e.target.value)} /></label>
+        <button onClick={scaffold}><Icon name="plus" />{t("mod.scaffold")}</button>
         <label className="filebtn">{t("mod.import")} <input type="file" accept=".yaml,.yml" onChange={(e) => { importFile(e.target.files?.[0]); e.target.value = ""; }} /></label>
       </div>
       {missing && <p role="status" className="hint">{t("mod.missing", { tool: missing })}</p>}
       <div className="modules-body">
-        <div>
+        <div className="modules-list">
           <h3>{t("mod.paths")}</h3>
           <ul>{list?.search_paths.map((s) => <li key={s.dir}><code>{s.dir}</code> ({s.exists ? t("mod.count", { n: s.count }) : t("mod.nodir")})</li>)}</ul>
           <h3>{t("mod.list")}</h3>

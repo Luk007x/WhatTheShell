@@ -104,6 +104,7 @@ def status(request: Request) -> dict[str, Any]:
         "config_dir": str(paths.config_dir()),
         "workflows_dir": str(paths.config_dir() / "workflows"),
         "modules_watch": request.app.state.modules_watch,
+        "workflows_watch": request.app.state.workflows_watch,
     }
 
 

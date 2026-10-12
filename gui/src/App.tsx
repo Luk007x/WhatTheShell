@@ -14,6 +14,8 @@ import { applyFontSize, loadAutoPreview, loadFontSize, saveAutoPreview, saveFont
 import { mergeTemplate } from "./model/templates";
 import { VariablesPanel } from "./detail/VariablesPanel";
 import { useDebounced } from "./hooks";
+import { Icon } from "./icons";
+import { Resizer } from "./Resizer";
 import { getLang, setLang, t, type Lang } from "./i18n";
 import { captureOutput, evaluateOutput, findStep, newId, removeStep, renameStep, setVariables, stepIdAtErrorPath, updateStep, type OpResult } from "./model/ops";
 import type { SandboxStatus, ToolInfo, ToolSummary } from "./types/api";
@@ -26,6 +28,23 @@ const loadView = (): View => {
   try { return localStorage.getItem("wts.view") === "blocks" ? "blocks" : "graph"; } catch { return "graph"; }
 };
 const emptyWorkflow = (): Workflow => ({ schema_version: 1, name: "", steps: [] });
+
+/** Modes of the mode bar; a new mode is one entry here plus one case in `center`. */
+const MODES = ["build", "modules"] as const;
+type Mode = (typeof MODES)[number];
+
+/** Widths of the side columns in px (the middle takes the rest), kept in localStorage. */
+type Cols = { catalog: number; details: number };
+const COLS_KEY = "wts.cols";
+const loadCols = (): Cols => {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(COLS_KEY) ?? "null");
+    if (raw && typeof raw === "object" && "catalog" in raw && "details" in raw && typeof raw.catalog === "number" && typeof raw.details === "number") {
+      return { catalog: raw.catalog, details: raw.details };
+    }
+  } catch { /* unreadable: defaults */ }
+  return { catalog: 256, details: 360 };
+};
 
 interface State {
   doc: Workflow;
@@ -80,7 +99,10 @@ export function App() {
   const [toolError, setToolError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [safety, setSafety] = useState<Record<string, string>>({});
-  const [mode, setMode] = useState<"workflow" | "modules">("workflow");
+  const [category, setCategory] = useState<Record<string, string>>({});
+  const [mode, setMode] = useState<Mode>("build");
+  const [notice, setNotice] = useState<string | null>(null);
+  const [cols, setColsState] = useState<Cols>(loadCols);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [fontSize, setFontSize] = useState<FontSize>(loadFontSize);
   const [autoPreview, setAutoPreview] = useState(loadAutoPreview);
@@ -108,8 +130,14 @@ export function App() {
   const edit: Edit = useCallback((op, key) => dispatch({ type: "edit", op, key }), []);
   const onLoaded = useCallback((tools: ToolSummary[]) => {
     setSafety((m) => ({ ...m, ...Object.fromEntries(tools.flatMap((x) => (x.safety ? [[x.name, x.safety]] : []))) }));
+    setCategory((m) => ({ ...m, ...Object.fromEntries(tools.flatMap((x) => (x.category ? [[x.name, x.category]] : []))) }));
   }, []);
   const safetyOf = useCallback((name: string) => safety[name] ?? null, [safety]);
+  const categoryOf = useCallback((name: string) => category[name] ?? null, [category]);
+  const setCols = (next: Cols) => {
+    setColsState(next);
+    try { localStorage.setItem(COLS_KEY, JSON.stringify(next)); } catch { /* storage unavailable: widths last for this session */ }
+  };
 
   useEffect(() => {
     if (!token) return;
@@ -169,40 +197,67 @@ export function App() {
   const sandboxTip = sandbox && !sandbox.available ? `${sandboxText}: ${sandbox.reason} ${sandbox.install_hint}` : (statusError ?? sandboxText);
   const cmd = tool?.command;
 
+  const center = (() => {
+    switch (mode) {
+      case "modules":
+        return <ModulesView catalogTool={catalogTool} onChanged={() => { clearToolCache(); setRefresh((n) => n + 1); }} />;
+      case "build":
+        return view === "graph"
+          ? <Canvas wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} categoryOf={categoryOf} onNotice={setNotice} />
+          : <BlockView wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} categoryOf={categoryOf} />;
+    }
+  })();
+  const maxCol = Math.max(320, Math.round(window.innerWidth * 0.4));
+
   return (
     <AiContext.Provider value={{ enabled: aiEnabled, openSettings: () => setSettingsOpen(true) }}>
     <div className={`app${outputOpen ? "" : " output-closed"}`}>
       <a className="skip" href="#main" onClick={(e) => { e.preventDefault(); document.getElementById("main")?.focus(); }}>{t("a11y.skip")}</a>
-      <header>
-        <h1>{t("app.name")}</h1>
+
+      {/* Kopfzeile: name, file, history, status, settings */}
+      <header className="app-header">
+        <h1 className="brand">{t("app.name")}</h1>
         <FileMenu wf={wf} fileId={fileId} dirty={dirty}
           onLoad={(doc, id) => { dispatch({ type: "load", doc }); setSavedJson(JSON.stringify(doc)); setFileId(id); setSelected(null); }}
           onSaved={(id) => { setFileId(id); setSavedJson(JSON.stringify(wf)); }}
           onDeleted={(id) => { if (id === fileId) setFileId(null); }}
           onNew={newDoc}
           onDraft={(doc) => { dispatch({ type: "load", doc }); setSavedJson(JSON.stringify(emptyWorkflow())); setFileId(null); setSelected(null); }} />
-        <button disabled={state.past.length === 0} onClick={() => dispatch({ type: "undo" })}>{t("history.undo")}</button>
-        <button disabled={state.future.length === 0} onClick={() => dispatch({ type: "redo" })}>{t("history.redo")}</button>
-        <div role="group" aria-label={t("view.label")} className="viewswitch">
-          {(["graph", "blocks"] as const).map((v) => (
-            <button key={v} aria-pressed={view === v} onClick={() => setView(v)}>{t(`view.${v}`)}</button>
-          ))}
-        </div>
-        <span className="status" title={sandboxTip} role="status" data-testid="sandbox-status" data-available={sandbox?.available ?? "unknown"}>
+        <span className="tb-group">
+          <button disabled={state.past.length === 0} onClick={() => dispatch({ type: "undo" })}><Icon name="undo" />{t("history.undo")}</button>
+          <button disabled={state.future.length === 0} onClick={() => dispatch({ type: "redo" })}><Icon name="redo" />{t("history.redo")}</button>
+        </span>
+        <span className="tb-spacer" />
+        <span className="status-pill" title={sandboxTip} role="status" data-testid="sandbox-status" data-available={sandbox?.available ?? "unknown"}>
           <span className={`dot ${sandboxClass}`} aria-hidden="true" /> {sandboxText}
         </span>
-        <button aria-pressed={mode === "modules"} onClick={() => setMode(mode === "modules" ? "workflow" : "modules")}>{t("mod.button")}</button>
-        <button aria-label={t("settings.title")} title={t("settings.title")} onClick={() => setSettingsOpen(true)}>⚙</button>
+        <button className="btn--icon" aria-label={t("settings.title")} title={t("settings.title")} onClick={() => setSettingsOpen(true)}><Icon name="settings" /></button>
       </header>
-      <main id="main" tabIndex={-1}>
+
+      {/* Modusleiste: one button per mode, view switch of the build mode */}
+      <nav className="modebar">
+        <div role="group" aria-label={t("mode.label")} className="segmented">
+          {MODES.map((m) => <button key={m} aria-pressed={mode === m} onClick={() => setMode(m)}>{t(`mode.${m}`)}</button>)}
+        </div>
+        {mode === "build" && (
+          <div role="group" aria-label={t("view.label")} className="segmented">
+            {(["graph", "blocks"] as const).map((v) => (
+              <button key={v} aria-pressed={view === v} onClick={() => setView(v)}><Icon name={v} />{t(`view.${v}`)}</button>
+            ))}
+          </div>
+        )}
+      </nav>
+
+      {/* Hauptgrid: catalog | center | details */}
+      <main id="main" tabIndex={-1} className="app-main"
+        style={{ gridTemplateColumns: `minmax(12rem, ${cols.catalog}px) auto minmax(18rem, 1fr) auto minmax(16rem, ${cols.details}px)` }}>
         <CatalogPanel selected={catalogTool} onSelect={setCatalogTool} onLoaded={onLoaded} reloadKey={refresh} />
-        {mode === "modules"
-          ? <ModulesView catalogTool={catalogTool} onChanged={() => { clearToolCache(); setRefresh((n) => n + 1); }} />
-          : view === "graph"
-          ? <Canvas wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} />
-          : <BlockView wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} />}
+        <Resizer label={t("layout.catalog")} value={cols.catalog} min={192} max={maxCol} onChange={(catalog) => setCols({ ...cols, catalog })} />
+        {center}
+        <Resizer label={t("layout.details")} value={cols.details} min={256} max={maxCol} invert onChange={(details) => setCols({ ...cols, details })} />
         <section className="panel" aria-labelledby="details-h">
-          <h2 id="details-h">{t("details.title")}</h2>
+          <div className="panel__header"><h2 id="details-h">{t("details.title")}</h2></div>
+          <div className="panel__body">
           {selStep ? (
             <StepPanel key={`${selStep.id}:${state.epoch}:${refresh}`} autoPreview={autoPreview} step={selStep} wf={wf} sandbox={sandbox} onRetest={retest}
               update={(patch, key) => edit((w) => updateStep(w, selStep.id, patch), key ? `${selStep.id}:${key}` : undefined)}
@@ -216,42 +271,49 @@ export function App() {
             <VariablesPanel key={state.epoch} variables={wf.variables} onChange={(v) => edit((w) => setVariables(w, v), "vars")} />
           )}
           {!selStep && catalogTool && (
-            <section aria-label={t("details.title")}>
+            <section aria-label={t("details.title")} className="tool-info">
               {toolError && <p role="alert" className="error">{t("error.network", { message: toolError })}</p>}
               {cmd && (
                 <div>
                   <h3>{cmd.display_name ?? tool.name}</h3>
                   {cmd.summary && <p>{cmd.summary}</p>}
-                  {cmd.usage && <><h4>{t("details.usage")}</h4><pre>{cmd.usage}</pre></>}
+                  {cmd.usage && <><h4>{t("details.usage")}</h4><pre className="code">{cmd.usage}</pre></>}
                 </div>
               )}
               <Templates tool={catalogTool} onInsert={(doc) => { edit((w) => mergeTemplate(w, doc)); setSelected(null); }} />
             </section>
           )}
+          </div>
         </section>
       </main>
-      <footer>
-        <p className="statusline" role="status">
-          {validation === "checking" ? t("status.checking") : typeof validation === "string" ? `${t("error.prefix")}: ${validation}`
-            : validation.ok ? t("status.valid") : t("status.invalid", { n: validation.errors.length })}
-          {state.warnings.map((w) => <span key={w} className="hint"> · {warningText(w)}</span>)}
-        </p>
+
+      {/* Fuss: status line, validation errors, run panel */}
+      <footer className="app-footer">
+        <div className="statusbar">
+          <p className="statusline" role="status">
+            <span className={`dot ${validation === "checking" ? "caution" : typeof validation === "string" || !validation.ok ? "dangerous" : "safe"}`} aria-hidden="true" />
+            {validation === "checking" ? t("status.checking") : typeof validation === "string" ? `${t("error.prefix")}: ${validation}`
+              : validation.ok ? t("status.valid") : t("status.invalid", { n: validation.errors.length })}
+            {state.warnings.map((w) => <span key={w} className="hint"> · {warningText(w)}</span>)}
+            {notice && <span className="notice"> · {notice}</span>}
+          </p>
+          <button aria-expanded={outputOpen} onClick={() => setOutputOpen(!outputOpen)}>
+            {t(outputOpen ? "output.hide" : "output.show")}
+          </button>
+        </div>
         {typeof validation === "object" && !validation.ok && (
           <ul className="errors">
             {validation.errors.map((e, i) => {
               const id = stepIdAtErrorPath(wf, e.path);
               return (
                 <li key={i}>
-                  {id ? <button onClick={() => setSelected(id)}>{id}</button> : null} <code>{e.path}</code> {e.message}
+                  {id ? <button className="btn--sm" onClick={() => setSelected(id)}>{id}</button> : null} <code>{e.path}</code> {e.message}
                 </li>
               );
             })}
           </ul>
         )}
-        <button aria-expanded={outputOpen} onClick={() => setOutputOpen(!outputOpen)}>
-          {t(outputOpen ? "output.hide" : "output.show")}
-        </button>
-        <div hidden={!outputOpen}>
+        <div className="footer-body" hidden={!outputOpen}>
           <RunPanel wf={wf} onSelectStep={setSelected}
             onCapture={(id) => edit((w) => captureOutput(w, id))}
             onEvaluate={(id) => { const created = newId(wf, `${id}_pruefe`); edit((w) => evaluateOutput(w, id)); setSelected(created); }} />

@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { listTools } from "../api";
 import { t } from "../i18n";
 import type { ToolSummary } from "../types/api";
-import { groupTools, label, OTHER } from "./groupTools";
+import { Icon } from "../icons";
+import { categoryClass, groupTools, label, OTHER } from "./groupTools";
 
 const FAV_KEY = "wts.favorites";
 
@@ -62,23 +63,27 @@ export function CatalogPanel({ selected, onSelect, onLoaded, reloadKey = 0 }: { 
   const heading = (c: string) => (c === "★" ? t("catalog.favorites") : c === OTHER ? t("catalog.other") : c);
 
   return (
-    <section className="panel" aria-labelledby="catalog-h">
-      <h2 id="catalog-h">{t("catalog.title")}</h2>
+    <section className="panel catalog" aria-labelledby="catalog-h">
+      <div className="panel__header"><h2 id="catalog-h">{t("catalog.title")}</h2></div>
+      <div className="search">
+      <Icon name="search" />
       <input
         type="search"
         value={query}
         placeholder={t("catalog.search")}
         aria-label={t("catalog.search")}
         onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); e.currentTarget.parentElement?.querySelector<HTMLElement>("button.tool")?.focus(); } }}
+        onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); e.currentTarget.closest("section")?.querySelector<HTMLElement>("button.tool")?.focus(); } }}
       />
+      </div>
+      <div className="panel__body">
       {error && <p role="alert" className="error">{t("error.network", { message: error })}</p>}
       {tools === null && !error && <p>{t("catalog.loading")}</p>}
       {tools !== null && groups.length === 0 && <p>{t("catalog.empty")}</p>}
       <div onKeyDown={onKeyDown}>
         {groups.map((g) => (
           <div key={g.category}>
-            <h3>{heading(g.category)}</h3>
+            <h3><span className={`cat-chip ${g.category === "★" ? "cat-fav" : categoryClass(g.category)}`} aria-hidden="true" />{heading(g.category)}</h3>
             <ul className="tools">
               {g.tools.map((tool) => (
                 <li key={tool.name}>
@@ -100,13 +105,14 @@ export function CatalogPanel({ selected, onSelect, onLoaded, reloadKey = 0 }: { 
                     aria-label={t(favorites.includes(tool.name) ? "catalog.fav.remove" : "catalog.fav.add", { name: label(tool) })}
                     onClick={() => toggle(tool.name)}
                   >
-                    {favorites.includes(tool.name) ? "★" : "☆"}
+                    <Icon name="star" filled={favorites.includes(tool.name)} />
                   </button>
                 </li>
               ))}
             </ul>
           </div>
         ))}
+      </div>
       </div>
     </section>
   );

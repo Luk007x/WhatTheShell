@@ -230,3 +230,18 @@ def test_pause_blocks_next_step_until_resume(client: TestClient) -> None:
         client.post(f"/api/runs/{run_id}/control", json={"action": "resume"})
         events = read_until_finished(ws)
     assert "s2" in [e.get("step_id") for e in events if e["type"] == "step_started"]
+
+
+def test_run_history_newest_first(client: TestClient) -> None:
+    assert client.get("/api/runs").json() == []
+    first = create(client, doc(ECHO))["run_id"]
+    assert client.get("/api/runs").json() == []  # not started yet
+    ids = [first, create(client, doc(ECHO))["run_id"]]
+    for run_id in ids:
+        assert client.post(f"/api/runs/{run_id}/start").status_code == 202
+        with client.websocket_connect(f"/ws/runs/{run_id}") as ws:
+            read_until_finished(ws)
+    listed = client.get("/api/runs").json()
+    assert [r["run_id"] for r in listed] == ids[::-1]
+    assert listed[0]["status"] == "success" and listed[0]["exit_code"] == 0
+    assert listed[0]["workflow_name"] == "t" and listed[0]["finished"]

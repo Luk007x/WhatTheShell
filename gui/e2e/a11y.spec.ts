@@ -73,7 +73,7 @@ test.describe.serial("a11y", () => {
     await audit("modules raw");
     await page.getByRole("tab", { name: "Formular" }).click();
     await audit("modules form");
-    await page.getByRole("button", { name: "Module", exact: true }).click();
+    await page.getByRole("button", { name: "Erstellen", exact: true }).click();
   });
 
   test("settings modal and focus return", async () => {

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ApiError, errMsg, getTool, postCommand, postPreview } from "../api";
 import { useDebounced } from "../hooks";
 import { getLang, t } from "../i18n";
+import { Icon } from "../icons";
 import {
   argsFromForm, conditionOperator, conditionWith, fieldKind, firstSentence, linesOf, matchesQuery,
   OPERATORS, rawFromArg, sortOptions, type OperatorName, type RawValue, type Spec,
@@ -81,7 +82,7 @@ function Field({ idPrefix, spec, value, onChange }: { idPrefix: string; spec: Sp
         {spec.required && <span aria-label={t("field.required")} className="req"> *</span>}
         {flags.length > 0 && spec.label && <small className="flags"> {flags.join(", ")}</small>}
         {spec.confidence && spec.confidence !== "high" && (
-          <span className="badge" title={t("field.guessed.title")}> {t("field.guessed")}</span>
+          <span className="badge badge--caution" title={t("field.guessed.title")}>{t("field.guessed")}</span>
         )}
       </label>
       {control}
@@ -261,11 +262,10 @@ function CommandView({ step }: { step: CommandStep }) {
       {err && <p role="alert" className="error">{err}</p>}
       {res && (
         <>
-          <code className="cmd" data-testid="cmd-display">{res.display + suffix}</code>{" "}
-          <button onClick={copy}>{copied ? t("cmd.copied") : t("cmd.copy")}</button>
-          <p>
-            <span className={`dot ${res.safety}`} aria-hidden="true" />
-            {t("cmd.safety")}: <strong>{t(`safety.${res.safety}`)}</strong>
+          <code className="cmd" data-testid="cmd-display">{res.display + suffix}</code>
+          <p className="cmd-meta">
+            <span>{t("cmd.safety")}: <strong className={`badge badge--${res.safety}`}>{t(`safety.${res.safety}`)}</strong></span>
+            <button className="btn--sm" onClick={copy}>{copied ? t("cmd.copied") : t("cmd.copy")}</button>
           </p>
           {res.reasons.length > 0 && <ul>{res.reasons.map((r) => <li key={r}>{r}</li>)}</ul>}
         </>
@@ -317,7 +317,7 @@ function Preview({ step, info, sandbox, onRetest, update, autoPreview }: { step:
         </select>
       </label>{" "}
       {applied && <small className="muted">{t("prev.applied")} </small>}
-      <button disabled={sandbox?.available === false} onClick={() => run(body)}>{t("prev.run")}</button>
+      <button disabled={sandbox?.available === false} onClick={() => run(body)}><Icon name="play" />{t("prev.run")}</button>
       {unavailable && (
         <p role="alert" className="error">
           {t("prev.sandbox")}: {sandbox?.reason} {sandbox?.install_hint} <button onClick={onRetest}>{t("prev.retest")}</button>
@@ -426,7 +426,7 @@ export function StepPanel(props: {
   const [idDraft, setIdDraft] = useState(step.id);
   return (
     <div className="step-panel">
-      <h3>{step.label ?? step.id}</h3>
+      <h3 className="step-title">{step.label ?? step.id} <span className="badge">{t(`kind.${step.kind ?? "command"}`)}</span></h3>
       <Text id={`f-${step.id}-id`} label={t("step.id")} value={idDraft} onChange={(v) => { setIdDraft(v); }} />
       {idDraft !== step.id && <button onClick={() => props.rename(idDraft)}>{t("step.rename")}</button>}
       <Text id={`f-${step.id}-label`} label={t("step.label")} value={step.label ?? ""} onChange={(v) => props.update({ label: v || undefined }, "label")} />
@@ -435,7 +435,7 @@ export function StepPanel(props: {
       ) : (
         <ControlForm step={step} wf={props.wf} update={props.update} />
       )}
-      <p><button onClick={props.remove}>{t("canvas.delete")}</button></p>
+      <p className="step-actions"><button className="btn--danger" onClick={props.remove}><Icon name="trash" />{t("canvas.delete")}</button></p>
     </div>
   );
 }

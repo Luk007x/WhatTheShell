@@ -105,7 +105,7 @@ function AiSettings({ onChanged }: { onChanged: (enabled: boolean) => void }) {
         </div>
       )}
       {saved && <p role="status" className="hint">{t("mod.saved")}</p>}
-      <button onClick={save}>{t("file.save")}</button>
+      <button className="btn--primary" onClick={save}>{t("file.save")}</button>
     </section>
   );
 }

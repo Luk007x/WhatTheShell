@@ -258,3 +258,26 @@ def test_lang_en_translates_tool_and_list(client: TestClient) -> None:
     )
     assert entry["display_name"] == "grep – search text"
     assert client.get("/api/tools/grep", params={"lang": "../x"}).status_code == 422
+
+
+def test_workflow_index_fields_and_run_shortcut(client: TestClient, tmp_path: Path) -> None:
+    client.put("/api/workflows/log_errors", json={"document": WORKFLOW})
+    entry = next(w for w in client.get("/api/workflows").json() if w["id"] == "log_errors")
+    assert entry["shadows"] == ["bundled"]
+    assert entry["steps"] == 1
+    assert entry["error"] is None
+    assert "variables" in entry
+    assert client.get("/api/status").json()["workflows_watch"] in (True, False)
+    plan = client.post("/api/workflows/log_errors/run", json={"dry_run": True})
+    assert plan.status_code == 200
+    assert "wc" in plan.json()["plan"]
+    assert client.post("/api/workflows/gibt-es-nicht/run", json={}).status_code == 404
+
+
+def test_broken_workflow_is_listed_with_error(client: TestClient, tmp_path: Path) -> None:
+    folder = tmp_path / "config/whattheshell/workflows"
+    folder.mkdir(parents=True)
+    (folder / "kaputt.workflow.yaml").write_text("name: [")
+    client.put("/api/workflows/anderer", json={"document": WORKFLOW})  # reload rescans
+    entry = next(w for w in client.get("/api/workflows").json() if w["id"] == "kaputt")
+    assert "kaputt.workflow.yaml" in entry["error"]

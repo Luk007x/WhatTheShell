@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """``/api/ai/*``: two-phase AI tasks (data preview, then send) and approval of results.
 
-Every endpoint passes the gate first. Nothing a model returns is saved or run here except by
-``POST /api/ai/apply``, which re-validates and writes into the user's folders only.
+Every task endpoint passes the gate first; ``GET /check`` reports "KI aus" instead (no
+provider import). Nothing a model returns is saved or run here except by ``POST /api/ai/apply``,
+which re-validates and writes into the user's folders only.
 """
 
+import dataclasses
 import re
 import threading
 from pathlib import Path
@@ -17,7 +19,7 @@ from whattheshell import paths
 from whattheshell.ai import AiDisabled, require_enabled
 from whattheshell.ai import tasks as ai_tasks
 from whattheshell.ai.approve import Approval, apply, propose
-from whattheshell.ai.docs import read_doc
+from whattheshell.ai.check import check
 from whattheshell.ai.protocol import Prompt, make_provider
 from whattheshell.api.modules_api import _user_path
 from whattheshell.api.rest import _get_info, _sandbox, fail
@@ -44,7 +46,8 @@ def _gate(request: Request) -> None:
         raise fail(403, "ai_disabled", str(err)) from err
 
 
-router = APIRouter(prefix="/api/ai", dependencies=[Depends(_gate)])
+router = APIRouter(prefix="/api/ai")
+_gated = APIRouter(dependencies=[Depends(_gate)])  # every task; only `/check` stays outside
 
 
 class _Task(StrictModel):
@@ -166,7 +169,7 @@ def _module_task(request: Request, body: ToolTask, *, examples: bool) -> dict[st
             current = registry_module_text(body.tool, request.app.state.registry)
         except OSError as err:
             raise fail(500, "read", f"Modul nicht lesbar: {err}. Prüfe Rechte.") from err
-    inspect_json = info.model_dump_json(indent=2)
+    inspect_json = info.model_dump_json(exclude_none=True)  # compact: one line in the prompt
     if examples:
         base = current or scaffold_module(
             _get_info(request, body.tool, [], catalog=request.app.state.raw_catalog)
@@ -177,25 +180,24 @@ def _module_task(request: Request, body: ToolTask, *, examples: bool) -> dict[st
             body.tool,
             current_raw=current,
             inspect_json=inspect_json,
-            authoring_doc=read_doc("MODULE_AUTHORING.md"),
         )
     target = f"{body.tool}.module.yaml"
     return _run(request, prompt, body.send, "module", target, current, body.tool)
 
 
-@router.post("/improve-module")
+@_gated.post("/improve-module")
 def improve_module(request: Request, body: ToolTask) -> dict[str, Any]:
     """Write or improve the module of a tool."""
     return _module_task(request, body, examples=False)
 
 
-@router.post("/examples")
+@_gated.post("/examples")
 def examples(request: Request, body: ToolTask) -> dict[str, Any]:
     """Add examples and fixtures to the module of a tool."""
     return _module_task(request, body, examples=True)
 
 
-@router.post("/draft-workflow")
+@_gated.post("/draft-workflow")
 def draft_workflow(request: Request, body: DraftTask) -> dict[str, Any]:
     """Draft a workflow from a description; the file name stem comes from `name` or the answer."""
     registry: ModuleRegistry = request.app.state.registry
@@ -203,9 +205,7 @@ def draft_workflow(request: Request, body: DraftTask) -> dict[str, Any]:
         f"{m.module.tool}: " + ", ".join(f.id for f in (*m.module.inputs, *m.module.options))
         for m in registry.all()
     )
-    prompt = ai_tasks.draft_workflow(
-        body.description, hint, read_doc("FORMATS.md", "## 4.", "## 5.")
-    )
+    prompt = ai_tasks.draft_workflow(body.description, hint)
     result = _run(
         request, prompt, body.send, "workflow", body.name and f"{body.name}.workflow.yaml"
     )
@@ -216,7 +216,7 @@ def draft_workflow(request: Request, body: DraftTask) -> dict[str, Any]:
     return result
 
 
-@router.post("/diagnose")
+@_gated.post("/diagnose")
 def diagnose(request: Request, body: DiagnoseTask) -> dict[str, Any]:
     """Explain a failed step; outputs are only sent with `include_output` or `send_outputs`."""
     include = body.include_output or request.app.state.settings.ai.send_outputs
@@ -228,7 +228,7 @@ def diagnose(request: Request, body: DiagnoseTask) -> dict[str, Any]:
     return _run(request, ai_tasks.diagnose(step, include), body.send, "text")
 
 
-@router.post("/apply")
+@_gated.post("/apply")
 def apply_proposal(request: Request, body: ApplyBody) -> dict[str, str]:
     """Validate again and write a proposal into the user's folder (module: registry reloads)."""
     errors = _check(body.kind, body.raw, None, body.target_name)
@@ -246,3 +246,12 @@ def apply_proposal(request: Request, body: ApplyBody) -> dict[str, str]:
     if body.kind == "module":
         request.app.state.registry.reload(path)
     return {"path": str(path)}
+
+
+@router.get("/check")
+def check_ai(request: Request, network: bool = True) -> dict[str, Any]:
+    """Preflight of the configured source; with AI off 200 and the single item "KI aus"."""
+    return dataclasses.asdict(check(request.app.state.settings, probe_network=network))
+
+
+router.include_router(_gated)  # after all routes: include copies them

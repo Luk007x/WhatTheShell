@@ -27,6 +27,14 @@ def module_dirs(project_root: Path | None = None) -> list[Path]:
     return dirs
 
 
+def workflow_dirs(project_root: Path | None = None) -> list[Path]:
+    """Return workflow search directories in ascending priority; they may not exist."""
+    dirs = [bundled.WORKFLOWS_DIR, config_dir() / "workflows"]
+    if project_root is not None:
+        dirs.append(project_root / ".whattheshell" / "workflows")
+    return dirs
+
+
 def inside(path: Path, root: Path) -> bool:
     """True if `path` (symlinks and ``..`` resolved) lies within `root`."""
     return path.resolve().is_relative_to(root.resolve())

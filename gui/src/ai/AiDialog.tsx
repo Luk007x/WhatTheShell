@@ -76,7 +76,7 @@ export function AiDialog({ task, build, title, diagnose = false, onClose, onAppl
           ) : error === null && <p role="status">{t("catalog.loading")}</p>}
           <div className="actions">
             <button data-autofocus onClick={onClose}>{t("run.cancel")}</button>
-            <button onClick={send} disabled={!preview}>{t("ai.send")}</button>
+            <button className="btn--primary" onClick={send} disabled={!preview}>{t("ai.send")}</button>
           </div>
         </>
       )}
@@ -105,7 +105,7 @@ export function AiDialog({ task, build, title, diagnose = false, onClose, onAppl
             {result.kind === "text" ? <button data-autofocus onClick={onClose}>{t("settings.close")}</button> : (
               <>
                 <button data-autofocus onClick={onClose}>{t("ai.discard")}</button>
-                <button onClick={apply} disabled={!canApply(result)}>{t("ai.apply")}</button>
+                <button className="btn--primary" onClick={apply} disabled={!canApply(result)}>{t("ai.apply")}</button>
               </>
             )}
           </div>

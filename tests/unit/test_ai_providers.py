@@ -262,3 +262,60 @@ def test_providers_package_imports_no_provider_module() -> None:
         "assert not bad, bad"
     )
     subprocess.run([sys.executable, "-c", code], check=True)  # noqa: S603
+
+
+@pytest.fixture
+def real_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Fake user HOME with global CLAUDE.md, settings and login files of both agents."""
+    home = tmp_path / "realhome"
+    (home / ".claude").mkdir(parents=True)
+    (home / ".claude/CLAUDE.md").write_text("GLOBAL")
+    (home / ".claude/settings.json").write_text("{}")
+    (home / ".claude/.credentials.json").write_text("CRED")
+    (home / ".codex").mkdir()
+    (home / ".codex/config.toml").write_text("x = 1")
+    (home / ".codex/auth.json").write_text("AUTH")
+    monkeypatch.setenv("HOME", str(home))
+    return home
+
+
+def test_claude_runs_in_throwaway_home(bin_dir: Path, real_home: Path) -> None:
+    _script(
+        bin_dir, "claude",
+        'echo "$HOME|$XDG_CONFIG_HOME|$XDG_CACHE_HOME|$(pwd)"; ls -A "$HOME/.claude"\n'
+        'stat -c %a "$HOME/.claude/.credentials.json"; cat "$HOME/.claude/.credentials.json"\n',
+    )  # fmt: skip
+    head, listing, mode, cred = AgentCliProvider("claude", [], 5).complete(PROMPT).splitlines()
+    home, config, cache, cwd = head.split("|")
+    assert home != str(real_home) and Path(home).name == "home" and Path(cwd).name == "work"
+    assert (config, cache) == (f"{home}/.config", f"{home}/.cache")
+    assert Path(cwd).parent == Path(home).parent
+    assert (listing, mode, cred) == (".credentials.json", "600", "CRED")  # no CLAUDE.md, settings
+    assert not Path(home).parent.exists()
+
+
+def test_codex_runs_in_throwaway_home_without_user_config(bin_dir: Path, real_home: Path) -> None:
+    _script(
+        bin_dir, "codex",
+        'case "$*" in *"--ignore-user-config --ignore-rules"*) ;; *) exit 3;; esac\n'
+        'tmp=""; while [ $# -gt 0 ]; do [ "$1" = -C ] && tmp=$2; shift; done\n'
+        'ls -A "$HOME/.codex" > "$tmp/last.txt"; echo "$HOME" >> "$tmp/last.txt"\n',
+    )  # fmt: skip
+    listing, home = AgentCliProvider("codex", [], 5).complete(PROMPT).splitlines()
+    assert listing == "auth.json" and not Path(home).exists()
+
+
+def test_throwaway_home_removed_after_timeout(
+    bin_dir: Path, real_home: Path, tmp_path: Path
+) -> None:
+    seen = tmp_path / "seen"
+    _script(bin_dir, "claude", f'echo "$HOME" > "{seen}"; sleep 5\n')
+    with pytest.raises(RuntimeError, match="Zeitlimit"):
+        AgentCliProvider("claude", [], 0.5).complete(PROMPT)
+    assert not Path(seen.read_text().strip()).parent.exists()
+
+
+def test_missing_login_file_is_not_an_error(bin_dir: Path, real_home: Path) -> None:
+    (real_home / ".claude/.credentials.json").unlink()
+    _script(bin_dir, "claude", 'ls -A "$HOME/.claude"; echo end\n')
+    assert AgentCliProvider("claude", [], 5).complete(PROMPT).strip() == "end"

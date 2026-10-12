@@ -19,7 +19,7 @@ Verbindlicher Vertrag zwischen `src/whattheshell/api/` und `gui/`. Nur `127.0.0.
 
 | Methode, Pfad | Anfrage | Antwort |
 |---|---|---|
-| `GET /api/status` | – | `{app, version, sandbox: SandboxStatus, module_errors: [{path, line, message}], config_dir, workflows_dir, modules_watch: bool}` (`modules_watch`: Hot-Reload der Moduldateien läuft). Die Hilfe-Abfrage unbekannter Tools läuft in der Sandbox, sobald der erste Selbsttest sie als verfügbar meldet |
+| `GET /api/status` | – | `{app, version, sandbox: SandboxStatus, module_errors: [{path, line, message}], config_dir, workflows_dir, modules_watch: bool, workflows_watch: bool}` (`modules_watch`/`workflows_watch`: Hot-Reload der Modul- bzw. Workflowdateien läuft). Die Hilfe-Abfrage unbekannter Tools läuft in der Sandbox, sobald der erste Selbsttest sie als verfügbar meldet |
 | `POST /api/sandbox/selftest` | – | `SandboxStatus` (erneut geprüft) |
 | `GET /api/tools?search=&lang=de|en` | – | `[{name, path, display_name?, category?, summary?, safety?}]` (Zusatzfelder nur aus geladenen Modulen, kein Hilfe-Abruf) |
 | `GET /api/tools/{name}?sub=a/b&deep=0|1&refresh=0|1&lang=de|en` | – | `ToolInfo` (Modelle aus `schemas/`), `sub`-Wörter müssen `^[A-Za-z][A-Za-z0-9_-]*$` genügen (sonst 422), `name` dem Tool-Namensmuster. Unbekannte Subbefehle werden nicht abgefragt (kein Prozessstart): Fallback-Eintrag ohne Optionen. `lang` (Muster `^[a-z]{2,3}$`, Standard `de` = Originaltexte der Module): wendet `i18n[lang]` des Moduls auf `display_name`, `summary`, `description` sowie `label`/`help` von Optionen und Eingaben an (rekursiv); fehlt die Sprache oder ein Text, bleibt der Originaltext. Gleiches für `display_name`/`summary` in `GET /api/tools` |
@@ -31,18 +31,21 @@ Verbindlicher Vertrag zwischen `src/whattheshell/api/` und `gui/`. Nur `127.0.0.
 | `GET /api/templates/{tool}` | – | `[{title, workflow: {id|null, document: Workflow|null}, error?}]`: `templates[]` aller Module des Tools, Pfad relativ zur Moduldatei (mitgelieferte Vorlagen liegen neben den Modulen), `id` = Dateiname ohne `.workflow.yaml`; unlesbare Vorlage → Eintrag mit `error` |
 | `POST /api/command` | `{tool, command: [], args: {}, extra_args: []}` | `{argv: [], display, safety, reasons: []}` oder 422 mit `message` (ArgvError) |
 | `POST /api/preview` | `{tool, command, args, extra_args, example: int|null, stdin: str|null}` | `{command, exit_code, stdout, stderr, duration, truncated, timed_out}`; Fixtures des gewählten Beispiels werden angelegt; 409 wenn Sandbox nicht verfügbar; nur in bwrap |
-| `GET /api/workflows` | – | `[{id, name, path, source: "bundled"|"user"}]`, `id` = Dateiname ohne Endung, Nutzerordner `config_dir()/workflows` |
-| `GET /api/workflows/{id}` | – | `{id, path, document: Workflow, raw: str}` |
-| `PUT /api/workflows/{id}` | `{document: Workflow}` | validiert (422 mit `errors: [{path, message}]`), schreibt YAML in den Nutzerordner (eine mitgelieferte Datei bleibt unberührt; die Nutzerdatei gleicher id überschattet sie), antwortet `{id, path}` |
-| `DELETE /api/workflows/{id}` | – | 204 (löscht nur die Nutzerdatei; ohne Nutzerdatei bei mitgelieferter id 403) |
+| `GET /api/workflows` | – | Workflow-Bibliothek: `[{id, name, description, source: "bundled"|"user"|"project", path, variables: {name: VariableSpec}, steps: int, error: str|null, shadows: [source]}]`. Suchordner in aufsteigender Priorität: mitgeliefert, `config_dir()/workflows`, `<cwd der App>/.whattheshell/workflows`; Endungen `.workflow.yaml|.yml|.json`, `id` = Dateiname ohne Endung. Es erscheint nur der Gewinner, `shadows` nennt die überdeckten Quellen. Kaputte Dateien erscheinen mit `error` (`Pfad:Zeile: Meldung`), `name` = id. Der Index wird live nachgeladen |
+| `GET /api/workflows/{id}` | – | `{id, path, document: Workflow, raw: str}` des Gewinners |
+| `PUT /api/workflows/{id}` | `{document: Workflow}` | validiert (422 mit `errors: [{path, message}]`), schreibt YAML in den Nutzerordner (andere Quellen bleiben unberührt; die Nutzerdatei gleicher id überschattet mitgelieferte), lädt den Index neu, antwortet `{id, path}` |
+| `DELETE /api/workflows/{id}` | – | 204 (löscht nur die Nutzerdatei; liegt die id nur in `bundled` oder `project`, 403 mit Hinweis, Projektdateien von Hand entfernen; unbekannt 404) |
+| `POST /api/workflows/{id}/run` | `{variables: {}, cwd: str|null, dry_run: bool}` | Abkürzung: lädt das Dokument des Gewinners aus dem Index und verhält sich wie `POST /api/runs` (gleiche Antwort und Fehler); unbekannte id 404 |
 | `POST /api/workflows/validate` | `{document}` | `{ok, errors: [...]}` |
 | `POST /api/runs` | `{document: Workflow, variables: {}, cwd: str|null, dry_run: bool}` | `{run_id, plan: str, needs_confirmation: bool, max_safety}`; bei `dry_run` kein Lauf, nur Plan. `prepare` läuft sofort (Tools auflösen, Klassen); Fehler → 422 |
+| `GET /api/runs` | – | Gestartete Läufe, neueste zuerst, höchstens 50: `[{run_id, status, workflow_name, started, finished, exit_code}]` (ISO-8601, `finished`/`exit_code` null solange der Lauf läuft; nur im Speicher der App) |
 | `POST /api/runs/{id}/start` | – | 202; startet den Lauf im Hintergrund (Workflow-Bestätigung nach 10.6 gilt mit diesem Aufruf als erteilt) |
 | `GET /api/runs/{id}` | – | `{status, events: [...]}` (Verlauf, max 10 000 Events) |
 | `POST /api/runs/{id}/control` | `{action: "abort"|"pause"|"resume"|"step"}` | 204 |
 | `POST /api/runs/{id}/confirm` | `{step_id, ok: bool}` | 204 (Antwort auf `confirm_request`) |
 | `GET /api/settings` | – | Settings-Dokument (siehe unten) plus schreibgeschütztes `key_status: "set"|"missing"` (ist die Umgebungsvariable `ai.api.key_env` gesetzt; der Wert wird nie ausgegeben) |
 | `PUT /api/settings` | Settings-Dokument (ohne `key_status`) | Validierung wie `Settings` (unbekannte oder Schlüsselfelder → 422 `validation`, ohne Eingabewerte), schreibt atomar (0600), lädt die Einstellungen neu; Antwort wie `GET`. `ai.enabled` wird nur hier oder mit `wts ai enable` true |
+| `GET /api/ai/check?network=1\|0` | – | `{ok, provider, items: [{name, ok, detail, hint}]}`: Preflight der konfigurierten Quelle (D-012). Ohne Gate: bei ausgeschalteter KI trotzdem 200 mit dem einzigen Item „KI aus“ (`ok: false`), damit die GUI es anzeigen kann; Anbieter-, Netz- und Prozesscode wird dann nicht geladen. `network=0` kontaktiert keinen Endpunkt; Agenten-CLIs werden immer gestartet (`--version`, Anmeldestatus im Temp-HOME). Fehler und Zeitlimits sind Items, nie 5xx |
 | `POST /api/ai/improve-module` | `{tool, send: bool=false}` | siehe Abschnitt „KI-Endpunkte“ |
 | `POST /api/ai/examples` | `{tool, send}` | dito |
 | `POST /api/ai/draft-workflow` | `{description, name?, send}` | dito (`name` = Dateiname ohne Endung, Muster `^[A-Za-z0-9][A-Za-z0-9_-]*$`) |
@@ -89,7 +92,7 @@ Jeder KI-Einstieg ruft zuerst `ai.require_enabled(settings)` (wirft `AiDisabled`
 
 ## KI-Endpunkte (`/api/ai/*`)
 
-- Jeder Aufruf prüft zuerst `ai.enabled`: aus → 403 `{"error": "ai_disabled", message}`, noch vor der Body-Prüfung und bevor `ai.providers` importiert wird.
+- Jeder Aufruf außer `GET /api/ai/check` prüft zuerst `ai.enabled`: aus → 403 `{"error": "ai_disabled", message}`, noch vor der Body-Prüfung und bevor `ai.providers` importiert wird.
 - Zweiphasig (F-30). `send: false` (Standard): `{"prompt": {"system", "user"}, "chars": n}`, nichts wird gesendet. `send: true`: `{"kind": "module"|"workflow"|"text", "raw", "errors": [str], "diff", "target": str|null, "valid": bool}`. Der Prompt ist in beiden Fällen um den Wert von `ai.api.key_env` maskiert. Nichts wird gespeichert oder ausgeführt; `raw` ist unvertraut und wird erst mit `apply` übernommen.
 - `diagnose` ohne `include_output` entfernt `stdout`/`stderr` aus dem Schritt vor dem Prompt-Bau; `ai.send_outputs: true` erzwingt sie.
 - `improve-module`/`examples`: Grundlage ist die Nutzerdatei (`target` = `<tool>.module.yaml`), sonst ein Gerüst aus dem rohen Katalog. Antwort mit anderem `tool:` → `valid: false`.

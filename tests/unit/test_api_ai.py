@@ -83,6 +83,29 @@ def test_disabled_is_403_without_provider_import(
     assert client.post(f"/api/ai/{task}", json={"bogus": 1}).status_code == 403  # gate before 422
 
 
+def test_check_reports_ai_off_with_200_without_provider_import(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delitem(sys.modules, "whattheshell.ai.providers", raising=False)
+    monkeypatch.setattr(socket, "create_connection", _forbidden)
+    monkeypatch.setattr(subprocess, "Popen", _forbidden)
+    reply = client.get("/api/ai/check")
+    assert reply.status_code == 200
+    body = reply.json()
+    assert body["ok"] is False and [i["name"] for i in body["items"]] == ["KI aus"]
+    assert "wts ai enable" in body["items"][0]["hint"]
+    assert "whattheshell.ai.providers" not in sys.modules
+
+
+def test_check_without_network(client: TestClient, fake: FakeProvider) -> None:
+    body = client.get("/api/ai/check", params={"network": 0}).json()
+    assert body["provider"] == "local" and body["ok"] is False
+    assert {i["name"]: i["ok"] for i in body["items"]} == {
+        "Modell eingetragen": False,
+        "Endpunkt": True,
+    }
+
+
 def test_preview_sends_nothing_and_masks(
     client: TestClient, fake: FakeProvider, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -103,7 +126,7 @@ def test_send_module_valid_writes_nothing(
     assert reply.status_code == 200 and body["valid"] is True and body["errors"] == []
     assert body["kind"] == "module" and body["target"] == "demo.module.yaml"
     assert body["raw"] == MODULE and "+tool: demo" in body["diff"]
-    assert len(fake.prompts) == 1 and "Befehl TOOL = demo" in fake.prompts[0].user
+    assert len(fake.prompts) == 1 and "Befehl demo" in fake.prompts[0].system
     assert not (tmp_path / "config/whattheshell/modules/demo.module.yaml").exists()
 
 

@@ -21,7 +21,7 @@ from whattheshell import APP_NAME, __version__, paths
 from whattheshell.ai import AiDisabled, require_enabled
 from whattheshell.ai import tasks as ai_tasks
 from whattheshell.ai.approve import apply, propose, target_path
-from whattheshell.ai.docs import read_doc
+from whattheshell.ai.check import CheckResult, check
 from whattheshell.ai.protocol import Prompt, make_provider
 from whattheshell.catalog import Catalog, ToolNotFound
 from whattheshell.engine import (
@@ -65,6 +65,7 @@ from whattheshell.modules.store import (
 from whattheshell.modules.watch import watch_modules
 from whattheshell.sandbox import ExampleResult, run_example, self_test
 from whattheshell.settings import Settings, load_settings, save_settings
+from whattheshell.workflows import WorkflowIndex
 
 
 def _registry() -> ModuleRegistry:
@@ -154,7 +155,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     scaffold.add_argument("--force", action="store_true", help="Zieldatei überschreiben")
     run = commands.add_parser("run", help="Workflow ausführen")
-    run.add_argument("file", type=Path)
+    run.add_argument("file", type=Path, help="Workflow-Datei oder id aus `wts workflows`")
     run.add_argument("--dry-run", action="store_true", help="Nur den Plan zeigen")
     run.add_argument(
         "--yes", "-y", action="store_true", help="Alle Bestätigungen mit ja beantworten"
@@ -169,6 +170,7 @@ def main(argv: list[str] | None = None) -> int:
     example.add_argument("tool")
     example.add_argument("number", nargs="?", type=int, help="Nur dieses Beispiel (1-basiert)")
     example.add_argument("--all", action="store_true", help="Alle Beispiele (Standard)")
+    commands.add_parser("workflows", help="Workflow-Bibliothek auflisten")
     modules = commands.add_parser("modules", help="Geladene Module auflisten")
     modules.add_argument("--watch", action="store_true", help="Änderungen live neu laden")
     gui = commands.add_parser("gui", help="Oberfläche starten (nur 127.0.0.1, mit Sitzungstoken)")
@@ -179,6 +181,8 @@ def main(argv: list[str] | None = None) -> int:
     ai_commands.add_parser("enable", help="KI-Funktionen einschalten")
     ai_commands.add_parser("disable", help="KI-Funktionen ausschalten")
     ai_commands.add_parser("status", help="Einstellungen zeigen (ohne Schlüssel)")
+    ai_check = ai_commands.add_parser("check", help="Konfigurierte KI-Quelle prüfen")
+    ai_check.add_argument("--no-network", action="store_true", help="Keinen Endpunkt kontaktieren")
     ai_config = ai_commands.add_parser("config", help="Einstellung ändern")
     ai_config_set = ai_config.add_subparsers(dest="config_command", required=True).add_parser(
         "set", help="z. B. `provider agent`, `agent.kind codex`, `api.model NAME`"
@@ -260,6 +264,8 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
         return _scaffold(args)
     if args.command == "modules":
         return _modules(args.watch)
+    if args.command == "workflows":
+        return _workflows()
     if args.command == "run":
         return _run(args)
     if args.command == "sandbox":
@@ -296,6 +302,10 @@ def _ai(args: argparse.Namespace) -> int:
     try:
         if args.ai_command in ("enable", "disable", "status", "config"):
             return _ai_settings(args, settings)
+        if args.ai_command == "check":  # reports "KI aus" itself, imports providers only when on
+            result = check(settings, probe_network=not args.no_network)
+            _print_check(result)
+            return 0 if result.ok else 1
         require_enabled(settings)  # first thing for every task: no catalog, file or network access
         return _ai_task(args, settings)
     except AiDisabled as err:
@@ -317,6 +327,8 @@ def _ai_settings(args: argparse.Namespace, settings: Settings) -> int:
         print(f"api: {ai.api.kind} Modell '{ai.api.model}' Schlüsselquelle {source}")
         print(f"agent: {ai.agent.kind} Aufruf {ai.agent.command or 'Standard'}")
         print(f"Befehlsausgaben mitsenden: {'ja' if ai.send_outputs else 'nein'}")
+        print("Prüfung (ohne Netz):")
+        _print_check(check(settings, probe_network=False))
         return 0
     data = settings.model_dump(mode="json")
     if args.ai_command == "config":
@@ -351,6 +363,20 @@ def _ai_settings(args: argparse.Namespace, settings: Settings) -> int:
         return 1
     print(f"KI: {'an' if settings.ai.enabled else 'aus'} ({args.ai_command})")
     return 0
+
+
+def _print_check(result: CheckResult) -> None:
+    try:
+        "✔✘".encode(sys.stdout.encoding or "ascii")
+        good, bad = "✔", "✘"
+    except (UnicodeEncodeError, LookupError):
+        good, bad = "[ok]", "[fehlt]"
+    for item in result.items:
+        print(f"{good if item.ok else bad} {item.name}: {item.detail}")
+        if item.hint:
+            print(f"    {item.hint}")
+    state = "bereit" if result.ok else "nicht bereit"
+    print(f"KI-Quelle '{result.provider}': {state}")
 
 
 def _preview_text(prompt: Prompt, provider: str) -> str:
@@ -399,8 +425,7 @@ def _ai_prompt(
             f"{m.module.tool}: " + ", ".join(f.id for f in (*m.module.inputs, *m.module.options))
             for m in registry.all()
         )
-        formats = read_doc("FORMATS.md", "## 4.", "## 5.")
-        return ai_tasks.draft_workflow(args.description, hint, formats), "workflow", target, None
+        return ai_tasks.draft_workflow(args.description, hint), "workflow", target, None
     target = args.out if command == "improve-module" and args.out else None
     target = target or Path(f"{args.tool}.module.yaml")
     existing = target_path("module", target)  # target check before any read
@@ -408,13 +433,12 @@ def _ai_prompt(
     current = _read_text(existing)
     if current is None:  # no user file: the effective (e.g. bundled) module is the baseline
         current = registry_module_text(args.tool, registry)
-    inspect_json = info.model_dump_json(indent=2)
+    inspect_json = info.model_dump_json(exclude_none=True)  # compact: one line in the prompt
     if command == "improve-module":
         prompt = ai_tasks.improve_module(
             args.tool,
             current_raw=current,
             inspect_json=inspect_json,
-            authoring_doc=read_doc("MODULE_AUTHORING.md"),
         )
     else:
         prompt = ai_tasks.generate_examples(
@@ -808,9 +832,29 @@ def _execute(runner: Runner, prepared: Prepared, controller: Controller) -> RunR
     return outcome[0] if outcome else None
 
 
+def _workflow_index() -> WorkflowIndex:
+    index = WorkflowIndex(paths.workflow_dirs(Path.cwd()))
+    index.scan()
+    return index
+
+
+def _workflows() -> int:
+    for entry in sorted(_workflow_index().all(), key=lambda e: e.id):
+        if entry.error:
+            print(f"FEHLER {entry.error}", file=sys.stderr)
+        else:
+            print(f"{entry.source}\t{entry.id}\t{entry.name}\t{entry.steps}\t{entry.path}")
+    return 0
+
+
 def _run(args: argparse.Namespace) -> int:
+    file: Path = args.file
+    if not file.exists():  # not a path: look it up in the library
+        entry = _workflow_index().get(str(file))
+        if entry is not None:
+            file = entry.path
     try:
-        workflow = load_workflow_file(args.file)
+        workflow = load_workflow_file(file)
     except DocumentError as err:
         print(err, file=sys.stderr)
         return 3

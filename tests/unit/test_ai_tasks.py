@@ -15,23 +15,32 @@ MODULE = "schema_version: 1\ntool: grep\ndisplay_name: grep\n"
 WORKFLOW = "schema_version: 1\nname: Mein Test\nsteps:\n  - { id: a, kind: message, text: hi }\n"
 
 
-def test_improve_module_prompt_has_template_and_inputs() -> None:
-    prompt = tasks.improve_module(
-        "grep", current_raw=MODULE, inspect_json='{"INSPECT": 1}', authoring_doc="DOKU-TEXT"
-    )
+def test_improve_module_prompt_has_rules_not_doc() -> None:
+    prompt = tasks.improve_module("grep", current_raw=MODULE, inspect_json='{"INSPECT": 1}')
     assert "Du schreibst ein WhatTheShell-Modul für den Befehl grep" in prompt.system
-    assert "ohne Markdown-Zäune" in prompt.system and "i18n.en" in prompt.system
-    for expected in ('{"INSPECT": 1}', "DOKU-TEXT", MODULE):
-        assert expected in prompt.user
-    new = tasks.improve_module("grep", current_raw=None, inspect_json="{}", authoring_doc="")
-    assert "Aktuelles Modul" not in new.user and "neues Modul" in new.user
+    rules = (
+        "beginnend mit `schema_version: 1`",
+        "keine Markdown-Zäune",
+        "i18n.en",
+        "ids nur aus der inspect-JSON",
+        "before_options",
+        "dangerous",
+        "ohne Netz",
+    )
+    for rule in rules:
+        assert rule in prompt.system, rule
+    assert "Modulautorenhandbuch" not in prompt.system + prompt.user  # no doc full text
+    assert prompt.user == f'inspect-JSON:\n{{"INSPECT": 1}}\n\nAktuelles Modul:\n{MODULE}'
+    new = tasks.improve_module("grep", current_raw=None, inspect_json="{}")
+    assert "Aktuelles Modul" not in new.user and "neues Modul" in new.system
 
 
 def test_examples_and_workflow_prompts() -> None:
-    assert "Beispiele" in tasks.generate_examples("grep", MODULE, "{}").user
-    prompt = tasks.draft_workflow("zähle Fehler", "grep: patterns", "FORMAT-AUSZUG")
-    assert "zähle Fehler" in prompt.user and "FORMAT-AUSZUG" in prompt.user
-    assert "{{ var.name }}" in prompt.system and "id" in prompt.system
+    assert "Beispiele" in tasks.generate_examples("grep", MODULE, "{}").system
+    prompt = tasks.draft_workflow("zähle Fehler", "grep: patterns")
+    assert "zähle Fehler" in prompt.user and "grep: patterns" in prompt.user
+    assert "{{ var.name }}" in prompt.system and "foreach: source, as, body" in prompt.system
+    assert "Grundentscheidung" not in prompt.system  # FORMATS section 4 only as field list
 
 
 def test_diagnose_without_output_sends_no_stdout() -> None:

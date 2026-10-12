@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { t } from "../i18n";
+import { Icon } from "../icons";
 import { ID_PATTERN } from "../model/ops";
 import type { Workflow } from "../types/workflow";
 
@@ -22,7 +23,7 @@ export function VariablesPanel({ variables, onChange }: { variables: Workflow["v
   return (
     <section aria-label={t("vars.title")}>
       <h3>{t("vars.title")}</h3>
-      <table>
+      <table className="table">
         <thead>
           <tr><th>{t("vars.name")}</th><th>{t("vars.type")}</th><th>{t("vars.default")}</th><th>{t("vars.label")}</th><th /></tr>
         </thead>
@@ -38,12 +39,12 @@ export function VariablesPanel({ variables, onChange }: { variables: Workflow["v
               <td><input aria-label={t("vars.default")} value={v.default === undefined || v.default === null ? "" : String(v.default)}
                 onChange={(e) => setVar(name, { default: e.target.value === "" ? undefined : v.type === "int" || v.type === "float" ? Number(e.target.value) : e.target.value })} /></td>
               <td><input aria-label={t("vars.label")} value={v.label ?? ""} onChange={(e) => setVar(name, { label: e.target.value || undefined })} /></td>
-              <td><button aria-label={`${t("vars.remove")} ${name}`} onClick={() => remove(name)}>×</button></td>
+              <td><button className="btn--icon" aria-label={`${t("vars.remove")} ${name}`} title={`${t("vars.remove")} ${name}`} onClick={() => remove(name)}><Icon name="trash" /></button></td>
             </tr>
           ))}
         </tbody>
       </table>
-      <button onClick={add}>{t("vars.add")}</button>
+      <button onClick={add}><Icon name="plus" />{t("vars.add")}</button>
     </section>
   );
 }

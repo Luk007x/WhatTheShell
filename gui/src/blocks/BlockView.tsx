@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Block view (D-010): the same step tree as nested, stackable cards. Pure presentation; every change is an op from model/ops.ts.
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import type { Edit } from "../canvas/Canvas";
+import { FlowHelp, headClass, type Edit } from "../canvas/Canvas";
+import { Icon } from "../icons";
 import { t } from "../i18n";
 import { canDrop, commandStep, CONTROL_KINDS, controlStep, dropIndex, moveTargets, placeOf, placeOfPath, toBlocks, type Block, type Move } from "../model/blocks";
 import { addStep, isCommand, moveStep, removeStep, type SeqPath, type Step } from "../model/ops";
@@ -32,8 +33,9 @@ export function BlockView(props: {
   edit: Edit;
   catalogTool: string | null;
   safetyOf: (tool: string) => string | null;
+  categoryOf: (tool: string) => string | null;
 }) {
-  const { wf, selected, onSelect, edit, catalogTool, safetyOf } = props;
+  const { wf, selected, onSelect, edit, catalogTool, safetyOf, categoryOf } = props;
   const tree = useMemo(() => toBlocks(wf), [wf]);
   const [live, setLive] = useState("");
   const [menu, setMenu] = useState<string | null>(null);
@@ -87,7 +89,7 @@ export function BlockView(props: {
         {empty && <span className="muted">{t("blocks.empty")}</span>}
         {tail && (
           <>
-            <button aria-label={t("blocks.add", { where })} aria-expanded={adding === key} onClick={() => setAdding(adding === key ? null : key)}>+</button>
+            <button aria-label={t("blocks.add", { where })} aria-expanded={adding === key} className="btn--icon" onClick={() => setAdding(adding === key ? null : key)}><Icon name="plus" /></button>
             {adding === key && (
               <ul className="add-list" aria-label={t("blocks.add", { where })}>
                 <li>
@@ -145,15 +147,15 @@ export function BlockView(props: {
             e.preventDefault(); // Alt+Left would otherwise navigate back
           }}
         >
-          <div className="blk-head">
+          <div className={`blk-head ${headClass(s, isCommand(s) ? categoryOf(s.tool) : null)}`}>
             <span className="blk-title">{title}</span>
-            <span className="blk-tag">{t(`kind.${kind}`)}</span>
-            {safety && <span className={`blk-tag safety-tag-${safety}`}>{t(`safety.${safety}`)}</span>}
-            {pipe && <span className="blk-tag">{t("blocks.pipe", { id: pipe })}</span>}
-            <button className="blk-menu-btn" aria-label={t("blocks.menu", { id: s.id })} aria-expanded={menu === s.id}
+            <span className="badge">{t(`kind.${kind}`)}</span>
+            {safety && <span className={`badge badge--${safety}`}>{t(`safety.${safety}`)}</span>}
+            <button className="blk-menu-btn btn--icon" aria-label={t("blocks.menu", { id: s.id })} aria-expanded={menu === s.id}
               onClick={(e) => { e.stopPropagation(); setMenu(menu === s.id ? null : s.id); }}>⋯</button>
           </div>
           <div className="blk-sub">{subtitle(s)}</div>
+          {pipe && <span className="badge badge--data blk-pipe">{t("blocks.pipe", { id: pipe })}</span>}
           {mt && (
             <div className="blk-menu" role="group" aria-label={t("blocks.menu", { id: s.id })}
               onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setMenu(null); } }}>
@@ -161,7 +163,7 @@ export function BlockView(props: {
               <button disabled={!mt.down} onClick={act(mt.down)}>{t("blocks.down")}</button>
               {mt.into.map((i) => <button key={i.path.join("/")} onClick={act(i)}>{t("blocks.into", { target: i.label })}</button>)}
               <button disabled={!mt.out} onClick={act(mt.out)}>{t("blocks.out")}</button>
-              <button onClick={() => { setMenu(null); remove(s.id); }}>{t("blocks.delete")}</button>
+              <button className="btn--danger" onClick={() => { setMenu(null); remove(s.id); }}><Icon name="trash" />{t("blocks.delete")}</button>
             </div>
           )}
         </div>
@@ -178,8 +180,10 @@ export function BlockView(props: {
   return (
     <section className="panel canvas" aria-labelledby="canvas-h">
       <h2 id="canvas-h" className="sr-only">{t("canvas.title")}</h2>
-      <div className="toolbar">
-        <label>{t("canvas.name")} <input value={wf.name} onChange={(e) => edit((w) => ({ ...w, name: e.target.value }), "name")} /></label>
+      <div className="toolbar" role="toolbar" aria-label={t("canvas.toolbar")}>
+        <label className="tb-field">{t("canvas.name")} <input value={wf.name} onChange={(e) => edit((w) => ({ ...w, name: e.target.value }), "name")} /></label>
+        <span className="tb-spacer" />
+        <FlowHelp />
       </div>
       <div className="blocks" onClick={() => onSelect(null)} onKeyDown={(e) => { if (e.key === "Escape") { setAdding(null); setMenu(null); } }}>{seq(tree, [], true)}</div>
       <div aria-live="polite" className="sr-only">{live}</div>

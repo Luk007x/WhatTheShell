@@ -29,3 +29,11 @@ export function groupTools(tools: ToolSummary[], query: string): Group[] {
       tools: list.sort((a, b) => label(a).localeCompare(label(b))),
     }));
 }
+
+/** CSS class for the colour of a category (`cat-0` … `cat-7`, stable per name), `cat-none` without category. */
+export function categoryClass(category: string | null | undefined): string {
+  if (!category) return "cat-none";
+  let h = 0;
+  for (const c of category) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return `cat-${h % 8}`;
+}

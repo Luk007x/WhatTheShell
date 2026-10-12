@@ -131,14 +131,14 @@ export function ModuleEditor({ init, categories, onSaved, onDeleted, dirtyRef }:
     <div className="mod-editor">
       <h3>{tool} <span className="muted">{source ? t(`mod.source.${source}`) : t("mod.unsaved")}</span></h3>
       <div className="toolbar" role="toolbar" aria-label={t("canvas.toolbar")}>
-        <div role="tablist" aria-label={t("mod.title")}>
+        <div role="tablist" aria-label={t("mod.title")} className="segmented">
           {(["form", "raw"] as const).map((k) => (
             <button key={k} role="tab" aria-selected={tab === k} onClick={() => show(k)}>{t(`mod.tab.${k}`)}</button>
           ))}
         </div>
-        <button onClick={save}>{t("file.save")}</button>
+        <button className="btn--primary" onClick={save}>{t("file.save")}</button>
         <button onClick={download}>{t("mod.export")}</button>
-        <button disabled={source !== "user"} onClick={remove}>{t("file.delete")}</button>
+        <button className="btn--danger" disabled={source !== "user"} onClick={remove}>{t("file.delete")}</button>
         {aiOn ? (
           <>
             <button onClick={() => setAiTask("improve-module")}>{t("ai.improve")}</button>

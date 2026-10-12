@@ -16,10 +16,11 @@ export function Modal({ open, title, onCancel, children }: { open: boolean; titl
   return (
     <dialog ref={ref} aria-label={title} onCancel={(e) => { e.preventDefault(); onCancel(); }}>
       {open && (
-        <div className="modal-body">
-          <h2>{title}</h2>
-          {children}
-        </div>
+        <>
+          <header className="modal__head"><h2>{title}</h2></header>
+          {/* a trailing `.actions` block is styled as the sticky footer */}
+          <div className="modal__body">{children}</div>
+        </>
       )}
     </dialog>
   );

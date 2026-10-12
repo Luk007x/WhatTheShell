@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Derives the React Flow graph from the workflow document. Never stored (F-33).
-// Ports: all steps `in` (target) and `next` (source); if: `then`/`else`; foreach: `body`;
-// command: `fallback` (when on_error.steps exist), `stdout` (source), `stdin` (target).
+// Ports by step kind (D-012): every step `in` (target, top) and `next` (source, bottom); if: `then`/`else`; foreach: `body`;
+// on_error.action fallback: `fallback`; only command: `stdin` (target, left) and `stdout` (source, right).
 import dagre from "@dagrejs/dagre";
-import type { Edge, Node } from "@xyflow/react";
+import { MarkerType, type Edge, type Node } from "@xyflow/react";
 import type { Workflow } from "../types/workflow";
-import { childSeq, isCommand, portsOf, type SeqPath, type Step } from "./ops";
+import { childSeq, isCommand, portsOf, type Port, type SeqPath, type Step } from "./ops";
 
 export interface StepNodeData extends Record<string, unknown> {
   step: Step;
@@ -13,12 +13,47 @@ export interface StepNodeData extends Record<string, unknown> {
   depth: number;
   /** Safety class of the tool, filled in by the canvas from the catalog. */
   safety?: string | null;
+  /** Catalog category of the tool, filled in by the canvas. */
+  category?: string | null;
 }
 export type StepNode = Node<StepNodeData, "step">;
-export type FlowEdge = Edge<{ kind: "flow" | "pipe" }>;
+/** `port` is the source handle of a flow edge (`next` or a branch port). */
+export type FlowEdge = Edge<{ kind: "flow" | "pipe"; port?: string }>;
 
-export const NODE_W = 200;
-export const NODE_H = 64;
+export type HandleId = "in" | "next" | Port | "stdin" | "stdout";
+export interface HandleSpec {
+  id: HandleId;
+  type: "source" | "target";
+  side: "top" | "bottom" | "left" | "right";
+  /** flow = order of steps, data = recorded stdout as stdin of a later command. */
+  kind: "flow" | "data";
+  /** Horizontal position in percent for bottom handles. */
+  x?: number;
+}
+
+export const NODE_W = 220;
+export const NODE_H = 96;
+
+/** The handles a step offers, nothing else (D-012). */
+export function handlesOf(step: Step): HandleSpec[] {
+  const out: HandleSpec[] = [{ id: "in", type: "target", side: "top", kind: "flow" }];
+  if (isCommand(step)) out.push({ id: "stdin", type: "target", side: "left", kind: "data" }, { id: "stdout", type: "source", side: "right", kind: "data" });
+  const kind = step.kind ?? "command";
+  const branches: Port[] =
+    kind === "if" ? ["then", "else"] : kind === "foreach" ? ["body"] : isCommand(step) && (step.on_error?.action === "fallback" || step.on_error?.steps) ? ["fallback"] : []; // steps without the action would otherwise leave an edge without handle
+  // `next` in the middle, then/body left, else/fallback right
+  const x: Record<Port, number> = { then: 18, body: 18, else: 82, fallback: 82 };
+  out.push({ id: "next", type: "source", side: "bottom", kind: "flow", x: 50 });
+  for (const p of branches) out.push({ id: p, type: "source", side: "bottom", kind: "flow", x: x[p] });
+  return out;
+}
+
+/** Which edge a handle pair makes: stdout → stdin is data, every flow source → in is order. Anything else is refused. */
+export function connectionKind(sourceHandle: string | null | undefined, targetHandle: string | null | undefined): "flow" | "pipe" | null {
+  if (sourceHandle === "stdout") return targetHandle === "stdin" ? "pipe" : null;
+  const flowSources: (string | null | undefined)[] = ["next", "then", "else", "body", "fallback"];
+  return flowSources.includes(sourceHandle) && targetHandle === "in" ? "flow" : null;
+}
 
 export function toGraph(wf: Workflow): { nodes: StepNode[]; edges: FlowEdge[] } {
   const nodes: StepNode[] = [];
@@ -29,7 +64,9 @@ export function toGraph(wf: Workflow): { nodes: StepNode[]; edges: FlowEdge[] } 
     sourceHandle,
     target,
     targetHandle: "in",
-    data: { kind: "flow" },
+    className: "edge-flow",
+    markerEnd: { type: MarkerType.ArrowClosed, color: "var(--edge-flow)" },
+    data: { kind: "flow", port: sourceHandle },
   });
   const walk = (steps: Step[], path: SeqPath) => {
     steps.forEach((step, i) => {
@@ -43,6 +80,8 @@ export function toGraph(wf: Workflow): { nodes: StepNode[]; edges: FlowEdge[] } 
           sourceHandle: "stdout",
           target: step.id,
           targetHandle: "stdin",
+          className: "edge-pipe",
+          markerEnd: { type: MarkerType.ArrowClosed, color: "var(--edge-data)" },
           data: { kind: "pipe" },
           style: { strokeDasharray: "6 4" },
         });
@@ -59,7 +98,7 @@ export function toGraph(wf: Workflow): { nodes: StepNode[]; edges: FlowEdge[] } 
 
   // Auto layout only for nodes without a stored position. ponytail: unlaid nodes may shift when the structure changes, write layout on drag
   const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: "TB", nodesep: 40, ranksep: 50 });
+  g.setGraph({ rankdir: "TB", nodesep: 60, ranksep: 70 });
   g.setDefaultEdgeLabel(() => ({}));
   for (const n of nodes) g.setNode(n.id, { width: NODE_W, height: NODE_H });
   for (const e of edges) if (e.data?.kind === "flow") g.setEdge(e.source, e.target);

@@ -58,6 +58,28 @@ def test_enable_disable_status(
     assert not load_settings().ai.enabled
 
 
+def test_check_and_status_summary(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["ai", "check"]) == 1
+    out = capsys.readouterr().out
+    assert "KI aus" in out and "wts ai enable" in out and "nicht bereit" in out
+    _enable()
+    assert main(["ai", "config", "set", "local.model", "llama3"]) == 0
+    assert main(["ai", "check", "--no-network"]) == 0
+    out = capsys.readouterr().out
+    assert "Modell eingetragen: llama3" in out and "KI-Quelle 'local': bereit" in out
+    assert main(["ai", "status"]) == 0
+    assert "Prüfung (ohne Netz):" in capsys.readouterr().out
+
+
+def test_improve_module_prompt_for_wc_is_short(fake: FakeProvider) -> None:
+    _enable()
+    fake._responses.append("schema_version: 1\ntool: wc\n")
+    main(["ai", "improve-module", "wc", "--yes"])
+    prompt = fake.prompts[0]
+    assert len(f"{prompt.system}\n{prompt.user}".splitlines()) < 200
+    assert "Modulautorenhandbuch" not in prompt.system + prompt.user
+
+
 def test_config_set(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["ai", "config", "set", "provider", "agent"]) == 0
     assert main(["ai", "config", "set", "agent.kind", "codex"]) == 0

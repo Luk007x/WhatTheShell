@@ -58,7 +58,7 @@ export function FileMenu({ wf, fileId, dirty, onLoad, onSaved, onDeleted, onNew,
       <button onClick={() => (fileId ? open("save", fileId) : open("save", slugify(wf.name)))}>{t("file.save")}</button>
       <button onClick={() => open("save", slugify(wf.name))}>{t("file.saveas")}</button>
       {aiOn && <button onClick={() => { setDesc(""); setDraftName(""); setMode("draft"); }}>{t("ai.draft")}</button>}
-      <span className="muted" role="status">{wf.name || t("file.untitled")}{dirty && <strong title={t("file.dirty")}> ● {t("file.dirty")}</strong>}</span>
+      <span className="muted docname" role="status">{wf.name || t("file.untitled")}{dirty && <strong title={t("file.dirty")}> ● {t("file.dirty")}</strong>}</span>
 
       <Modal open={mode === "open"} title={t("file.open")} onCancel={() => setMode(null)}>
         {err && <p role="alert" className="error">{err.message}</p>}
@@ -66,8 +66,8 @@ export function FileMenu({ wf, fileId, dirty, onLoad, onSaved, onDeleted, onNew,
         <ul className="filelist">
           {list.map((x) => (
             <li key={`${x.source}:${x.id}`}>
-              <button onClick={() => load(x)}>{x.name} <small className="muted">{x.id} · {t(`file.source.${x.source}`)}</small></button>
-              {x.source === "user" && <button aria-label={`${t("file.delete")} ${x.name}`} onClick={() => remove(x)}>{t("file.delete")}</button>}
+              <button className="filelist__item" onClick={() => load(x)}>{x.name} <small className="muted">{x.id} · {t(`file.source.${x.source}`)}</small></button>
+              {x.source === "user" && <button className="btn--danger btn--sm" aria-label={`${t("file.delete")} ${x.name}`} onClick={() => remove(x)}>{t("file.delete")}</button>}
             </li>
           ))}
         </ul>
@@ -85,7 +85,7 @@ export function FileMenu({ wf, fileId, dirty, onLoad, onSaved, onDeleted, onNew,
         </div>
         <div className="actions">
           <button onClick={() => setMode(null)}>{t("run.cancel")}</button>
-          <button disabled={desc.trim() === "" || (draftName !== "" && !FILE_ID_PATTERN.test(draftName))} onClick={() => { setAsking(true); setMode(null); }}>{t("ai.next")}</button>
+          <button className="btn--primary" disabled={desc.trim() === "" || (draftName !== "" && !FILE_ID_PATTERN.test(draftName))} onClick={() => { setAsking(true); setMode(null); }}>{t("ai.next")}</button>
         </div>
       </Modal>
       {asking && (
@@ -108,7 +108,7 @@ export function FileMenu({ wf, fileId, dirty, onLoad, onSaved, onDeleted, onNew,
         ) : err && <p role="alert" className="error">{err.message}</p>}
         <div className="actions">
           <button onClick={() => setMode(null)}>{t("run.cancel")}</button>
-          <button onClick={save} disabled={!loaded || !FILE_ID_PATTERN.test(id)}>{t("file.save")}</button>
+          <button className="btn--primary" onClick={save} disabled={!loaded || !FILE_ID_PATTERN.test(id)}>{t("file.save")}</button>
         </div>
       </Modal>
     </span>

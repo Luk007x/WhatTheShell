@@ -23,37 +23,47 @@ __all__ = [
 OUTPUT_LIMIT = 4000
 
 _ONLY_YAML = (
-    "Antworte NUR mit dem YAML-Inhalt, ohne Markdown-Zäune, ohne Text davor oder danach, "
-    "ohne Erklärungen."
+    "Ausgabe: genau eine YAML-Datei, beginnend mit `schema_version: 1`, keine Erklärung, "
+    "keine Markdown-Zäune."
 )
+# Short rules instead of the full MODULE_AUTHORING.md (D-012): role, inputs, exact output.
 _MODULE_SYSTEM = f"""Rolle: Du schreibst ein WhatTheShell-Modul für den Befehl TOOL.
-
-Qualitätsregeln:
-- schema_version: 1, tool: TOOL, override_mode: merge.
-- Alle Texte (display_name, summary, label, help, group) auf Deutsch, kurz und für Einsteiger \
-verständlich; i18n.en mit englischen Texten.
-- ids ausschließlich aus der inspect-Ausgabe; keine erfundenen ids oder Felder.
-- Optionen in sinnvolle Gruppen (group) ordnen; 5-8 Optionen mit importance: common, seltene mit \
-rare.
-- 2-3 Beispiele mit fixtures, args (Schlüssel = ids) und expect; klein, deterministisch, relative \
-Pfade, kein Netzwerk, nichts außerhalb des Arbeitsordners.
-- output.exit_codes befüllen, wenn die Man-Page Exit-Codes nennt.
-- safety: Befehl und Optionen nach Abschnitt 5 der Anleitung einstufen; löschende oder \
-überschreibende Optionen anheben.
-- Keine type: secret mit default.
-Ausgabe: genau eine YAML-Datei TOOL.module.yaml. {_ONLY_YAML}"""
+Eingaben:
+- inspect-JSON: Ausgabe von `wts inspect TOOL --json` (Optionen, Eingaben, ids)
+- aktuelles Modul, falls vorhanden
+{_ONLY_YAML} Dateiname TOOL.module.yaml.
+Regeln:
+- Kopf: schema_version: 1, tool: TOOL, override_mode: merge; Optionen werden nach id \
+zusammengeführt, angegebene Felder überschreiben.
+- Alle Texte (display_name, summary, label, help, group) auf Deutsch, kurz, für Einsteiger; \
+i18n.en mit englischen Texten.
+- ids nur aus der inspect-JSON; keine erfundenen ids, Optionen oder Felder.
+- inputs ersetzen die Katalog-Eingaben vollständig (Reihenfolge = Argumentreihenfolge); \
+before_options: true, wenn ein Argument vor den Optionen stehen muss (z. B. start bei find).
+- Optionen in Gruppen (group); 5-8 wichtige mit importance: common, seltene mit rare.
+- safety: safe (liest nur), caution (schreibt/ändert umkehrbar), dangerous (löscht, \
+überschreibt, wirkt auf System/Rechte); löschende oder überschreibende Optionen anheben, im \
+Zweifel höher.
+- 2-3 Beispiele: title, fixtures (path relativ ohne .., content), args (Schlüssel = ids), \
+expect; klein, deterministisch, ohne Netz, nichts außerhalb des Arbeitsordners.
+- Keine type: secret mit default; output.exit_codes nur, wenn die Hilfe sie nennt."""
 
 _WORKFLOW_SYSTEM = f"""Rolle: Du entwirfst einen WhatTheShell-Workflow aus einer Beschreibung.
-
-Format (Kurzfassung): schema_version: 1, name, description, variables (Schlüssel = id), steps.
-Jeder Schritt hat eine eindeutige id (^[a-z][a-z0-9_]*$, nicht var/item). kind: command (tool, \
-args mit Schlüsseln = Option-/Input-ids des Moduls, extra_args, stdin: {{pipe: id}} | {{text}} | \
-{{file}}, ok_exit_codes, on_error), if (condition, then, else), foreach (source, as, body), \
-set, wait, message, abort.
-Variablen und Schritt-Ausgaben nur als {{{{ var.name }}}}, {{{{ schritt_id.stdout }}}} \
-(auch stderr, exit_code, lines), {{{{ item }}}}; Schritte dürfen nur frühere Schritte \
-referenzieren. Keine erfundenen Felder, keine Shell-Konstrukte, nur argv.
-{_ONLY_YAML}"""
+Eingaben:
+- Beschreibung
+- verfügbare Tools mit ihren Option-/Input-ids
+{_ONLY_YAML}
+Felder:
+- Kopf: schema_version: 1, name, description, variables (Schlüssel = id: {{type, default, \
+label}}), steps.
+- Jeder Schritt: id (eindeutig, ^[a-z][a-z0-9_]*$, nicht var/item), kind.
+- command: tool, args (Schlüssel = ids des Moduls), extra_args, stdin ({{pipe: id}} | \
+{{text}} | {{file}}), ok_exit_codes, on_error ({{action: abort|continue|retry|fallback}}).
+- if: condition ({{source, ein Operator wie eq, contains, is_empty, number_gt}}), then, else.
+- foreach: source, as, body. set: variable, value. wait: seconds. message: text. abort: text.
+- Templates nur {{{{ var.name }}}}, {{{{ schritt_id.stdout }}}} (auch stderr, exit_code, \
+lines), {{{{ item }}}}; nur frühere Schritte referenzieren.
+Regeln: keine erfundenen Felder oder ids, keine Shell-Konstrukte, nur argv."""
 
 _DIAGNOSE_SYSTEM = (
     "Rolle: Du hilfst Einsteigern, einen fehlgeschlagenen Befehl zu verstehen. "
@@ -62,31 +72,23 @@ _DIAGNOSE_SYSTEM = (
 )
 
 
-def _module_prompt(tool: str, task: str, current_raw: str | None, inspect_json: str) -> str:
-    parts = [
-        f"Befehl TOOL = {tool}",
-        task,
-        f"Ausgabe von `wts inspect {tool} --json`:\n{inspect_json}",
-    ]
+def _module_task(tool: str, task: str, current_raw: str | None, inspect_json: str) -> Prompt:
+    """Rules and task in the system prompt; the user prompt holds only the data."""
+    parts = [f"inspect-JSON:\n{inspect_json}"]
     if current_raw is not None:
         parts.append(f"Aktuelles Modul:\n{current_raw}")
-    return "\n\n".join(parts)
+    system = _MODULE_SYSTEM.replace("TOOL", tool)
+    return Prompt(f"{system}\nAuftrag: {task}", "\n\n".join(parts))
 
 
-def improve_module(
-    tool: str, *, current_raw: str | None, inspect_json: str, authoring_doc: str
-) -> Prompt:
+def improve_module(tool: str, *, current_raw: str | None, inspect_json: str) -> Prompt:
     """Prompt to write or improve the module of `tool` (descriptions, groups, defaults)."""
     task = (
         "Verbessere das aktuelle Modul (Beschreibungen, Gruppierung, Standardwerte)."
         if current_raw is not None
         else "Schreibe ein neues Modul."
     )
-    user = _module_prompt(tool, task, current_raw, inspect_json)
-    return Prompt(
-        _MODULE_SYSTEM.replace("TOOL", tool),
-        f"{user}\n\nAnleitung (docs/MODULE_AUTHORING.md):\n{authoring_doc}",
-    )
+    return _module_task(tool, task, current_raw, inspect_json)
 
 
 def generate_examples(tool: str, current_raw: str, inspect_json: str) -> Prompt:
@@ -95,19 +97,12 @@ def generate_examples(tool: str, current_raw: str, inspect_json: str) -> Prompt:
         "Ergänze 2-3 Beispiele mit fixtures, args und expect. Ändere nichts anderes. "
         "Gib das vollständige Modul zurück."
     )
-    return Prompt(
-        _MODULE_SYSTEM.replace("TOOL", tool),
-        _module_prompt(tool, task, current_raw, inspect_json),
-    )
+    return _module_task(tool, task, current_raw, inspect_json)
 
 
-def draft_workflow(description: str, tools_hint: str, formats_doc_excerpt: str) -> Prompt:
+def draft_workflow(description: str, tools_hint: str) -> Prompt:
     """Prompt to draft a workflow file from a free-text description."""
-    user = (
-        f"Beschreibung:\n{description}\n\n"
-        f"Verfügbare Tools und ihre ids:\n{tools_hint}\n\n"
-        f"Formatbeschreibung:\n{formats_doc_excerpt}"
-    )
+    user = f"Beschreibung:\n{description}\n\nVerfügbare Tools und ihre ids:\n{tools_hint}"
     return Prompt(_WORKFLOW_SYSTEM, user)
 
 

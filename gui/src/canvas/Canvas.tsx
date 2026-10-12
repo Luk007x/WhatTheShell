@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import "@xyflow/react/dist/style.css";
 import {
-  applyNodeChanges, Background, Controls, Handle, MiniMap, Position, ReactFlow,
-  type Connection, type NodeChange, type NodeProps,
+  applyNodeChanges, Background, Controls, Handle, MiniMap, Panel, Position, ReactFlow, useReactFlow,
+  type Connection, type NodeChange, type NodeProps, type OnConnectEnd,
 } from "@xyflow/react";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { categoryClass } from "../catalog/groupTools";
 import { t } from "../i18n";
+import { Icon } from "../icons";
+import { Modal } from "../Modal";
 import { commandStep, CONTROL_KINDS, controlStep } from "../model/blocks";
-import { toGraph, type FlowEdge, type StepNode } from "../model/graph";
+import { connectionKind, handlesOf, toGraph, type FlowEdge, type HandleSpec, type StepNode } from "../model/graph";
 import {
   addStep, findStep, isCommand, moveAfter, moveStep, portsOf, removeStep, setLayout, updateStep,
   type OpResult, type Port, type Step,
@@ -21,39 +24,94 @@ const subtitle = (s: Step): string => {
   return t(`kind.${s.kind}`);
 };
 
+/** Colour class of a node or block head: tool category for commands, fixed colours for control and helper steps. */
+export const headClass = (s: Step, category: string | null | undefined): string =>
+  isCommand(s) ? categoryClass(category) : s.kind === "if" || s.kind === "foreach" ? "cat-control" : "cat-misc";
+
+const POSITION = { top: Position.Top, bottom: Position.Bottom, left: Position.Left, right: Position.Right } as const;
+
+function Port({ h, index }: { h: HandleSpec; index: number }) {
+  const full = t(`port.${h.id}`);
+  const x = h.x !== undefined ? `${h.x}%` : undefined;
+  return (
+    <>
+      <Handle type={h.type} position={POSITION[h.side]} id={h.id} className={`port port-${h.kind}`} style={x ? { left: x } : undefined}
+        title={full} aria-label={full} role="img" />
+      <span className={`port-label port-label-${h.side}`} style={{ left: x }} title={full} aria-hidden="true">
+        {t(`port.${h.id}.short`)}
+        {/* stacked below each other so several full labels never overlap */}
+        <span className="port-full" style={h.side === "bottom" ? { top: `calc(100% + ${0.25 + index * 1.75}rem)` } : undefined}>{full}</span>
+      </span>
+    </>
+  );
+}
+
 function StepNodeView({ data, selected }: NodeProps<StepNode>) {
   const s = data.step;
   const kind = s.kind ?? "command";
   const safety = data.safety ?? null;
+  const hs = handlesOf(s);
+  const at = (side: HandleSpec["side"]) => hs.filter((h) => h.side === side).map((h, i) => <Port key={h.id} h={h} index={i} />);
   return (
-    <div className={`node kind-${kind}${safety ? ` safety-${safety}` : ""}${selected ? " sel" : ""}`}>
-      <Handle type="target" position={Position.Top} id="in" />
-      {kind === "command" && <Handle type="target" position={Position.Left} id="stdin" title={t("stream.stdin")} />}
-      <div className="node-title">{s.label ?? s.id}</div>
-      <div className="node-sub">
-        {subtitle(s)}
-        {safety && <> · {t(`safety.${safety}`)}</>}
+    <div className={`node kind-${kind}${selected ? " sel" : ""}`}>
+      {at("top")}
+      <div className={`node-head ${headClass(s, data.category)}`}>
+        <span className="node-title">{s.label ?? s.id}</span>
+        {safety && <span className={`badge badge--${safety}`}>{t(`safety.${safety}`)}</span>}
       </div>
-      {kind === "if" && (
-        <>
-          <Handle type="source" position={Position.Right} id="then" style={{ top: "30%" }} title={t("port.then")} />
-          <Handle type="source" position={Position.Right} id="else" style={{ top: "65%" }} title={t("port.else")} />
-        </>
-      )}
-      {kind === "foreach" && <Handle type="source" position={Position.Right} id="body" title={t("port.body")} />}
-      {kind === "command" && (
-        <>
-          <Handle type="source" position={Position.Right} id="stdout" style={{ top: "30%" }} title={t("stream.stdout")} />
-          <Handle type="source" position={Position.Right} id="fallback" style={{ top: "70%" }} title={t("port.fallback")} />
-        </>
-      )}
-      <Handle type="source" position={Position.Bottom} id="next" title={t("port.next")} />
+      <div className="node-sub" title={subtitle(s)}>{subtitle(s)}</div>
+      {kind === "command" && <div className="node-io">{at("left")}{at("right")}</div>}
+      <div className="node-out">{at("bottom")}</div>
     </div>
   );
 }
 
 const nodeTypes = { step: StepNodeView };
-const SOURCE_PORTS = ["next", "then", "else", "body", "fallback", "stdout"];
+const FIT = { maxZoom: 1, padding: 0.15 };
+
+/** Keep every node in sight when steps are added or removed (the pane itself never scrolls). */
+function AutoFit({ count }: { count: number }) {
+  const { fitView } = useReactFlow();
+  useEffect(() => { void fitView(FIT); }, [count, fitView]);
+  return null;
+}
+
+/** "?" button with the explanation of what flows along the edges (D-012). */
+export function FlowHelp() {
+  const [open, setOpen] = useState(false);
+  const title = t("help.flow.title");
+  return (
+    <>
+      <button className="btn--icon" aria-label={title} title={title} onClick={() => setOpen(true)}><Icon name="help" /></button>
+      <Modal open={open} title={title} onCancel={() => setOpen(false)}>
+        {/* backticks in the text mark code */}
+        <p className="help-text">{t("help.flow.text").split("`").map((part, i) => (i % 2 ? <code key={i}>{part}</code> : <Fragment key={i}>{part}</Fragment>))}</p>
+        <div className="actions"><button data-autofocus onClick={() => setOpen(false)}>{t("settings.close")}</button></div>
+      </Modal>
+    </>
+  );
+}
+
+function Legend() {
+  return (
+    <details className="legend">
+      <summary>{t("legend.title")}</summary>
+      <ul>
+        <li><svg width="36" height="10" aria-hidden="true"><path d="M2 5h26" className="lg-flow" /><path d="M27 1l7 4-7 4z" className="lg-flow-head" /></svg> {t("legend.flow")}</li>
+        <li><svg width="36" height="10" aria-hidden="true"><path d="M2 5h26" className="lg-data" /><path d="M27 1l7 4-7 4z" className="lg-data-head" /></svg> {t("legend.data")}</li>
+      </ul>
+      <h3>{t("legend.ports")}</h3>
+      <ul>
+        {(["in", "next", "then", "else", "body", "fallback", "stdin", "stdout"] as const).map((p) => (
+          <li key={p}><span className={`lg-port port-${p === "stdin" || p === "stdout" ? "data" : "flow"}`} aria-hidden="true" /> <strong>{t(`port.${p}.short`)}</strong> {t(`port.${p}`)}</li>
+        ))}
+      </ul>
+      <h3>{t("legend.safety")}</h3>
+      <p className="lg-badges">{(["safe", "caution", "dangerous"] as const).map((s) => <span key={s} className={`badge badge--${s}`}>{t(`safety.${s}`)}</span>)}</p>
+      <p className="muted">{t("legend.category")}</p>
+    </details>
+  );
+}
 
 export function Canvas(props: {
   wf: Workflow;
@@ -62,34 +120,56 @@ export function Canvas(props: {
   edit: Edit;
   catalogTool: string | null;
   safetyOf: (tool: string) => string | null;
+  categoryOf: (tool: string) => string | null;
+  /** Short message for the status line; null clears it. */
+  onNotice: (text: string | null) => void;
 }) {
-  const { wf, selected, onSelect, edit, catalogTool, safetyOf } = props;
-  const [hint, setHint] = useState<string | null>(null);
+  const { wf, selected, onSelect, edit, catalogTool, safetyOf, categoryOf, onNotice } = props;
   const [target, setTarget] = useState("end");
   const graph = useMemo(() => toGraph(wf), [wf]);
   const [nodes, setNodes] = useState<StepNode[]>(graph.nodes);
 
   useEffect(() => {
-    setNodes(graph.nodes.map((n) => ({
-      ...n,
-      selected: n.id === selected,
-      data: { ...n.data, safety: isCommand(n.data.step) ? safetyOf(n.data.step.tool) : null },
-    })));
-  }, [graph, selected, safetyOf]);
+    setNodes(graph.nodes.map((n) => {
+      const s = n.data.step;
+      const safety = isCommand(s) ? safetyOf(s.tool) : null;
+      return {
+        ...n,
+        selected: n.id === selected,
+        ariaLabel: [s.label ?? s.id, t(`kind.${s.kind ?? "command"}`), safety ? t(`safety.${safety}`) : ""].filter(Boolean).join(", "),
+        data: { ...n.data, safety, category: isCommand(s) ? categoryOf(s.tool) : null },
+      };
+    }));
+  }, [graph, selected, safetyOf, categoryOf]);
+
+  const edges: FlowEdge[] = graph.edges.map((e) => {
+    const pipe = e.data?.kind === "pipe";
+    const port = e.data?.port;
+    return {
+      ...e,
+      label: pipe ? t("edge.pipe") : port && port !== "next" ? t(`port.${port}.short`) : undefined,
+      labelBgPadding: [4, 2],
+      labelBgBorderRadius: 4,
+      ariaLabel: t(pipe ? "edge.pipe.aria" : "edge.flow.aria", { a: e.source, b: e.target }),
+    };
+  });
 
   const onNodesChange = (changes: NodeChange<StepNode>[]) =>
     setNodes((ns) => applyNodeChanges(changes.filter((c) => c.type !== "remove"), ns)); // removal goes through the document
 
   const onConnect = (c: Connection) => {
     const { source, target, sourceHandle: port } = c;
-    if (source === target || !port) return;
-    if (port === "next") edit((w) => moveAfter(w, target, source));
-    else if (port === "stdout") edit((w) => updateStep(w, target, { stdin: { pipe: source } }));
+    const kind = connectionKind(port, c.targetHandle);
+    if (source === target || !port || !kind) { onNotice(t("connect.invalid")); return; }
+    onNotice(null);
+    if (kind === "pipe") edit((w) => updateStep(w, target, { stdin: { pipe: source } }));
+    else if (port === "next") edit((w) => moveAfter(w, target, source));
     else edit((w) => moveStep(w, target, [source, port], 0));
   };
+  // a drop on a handle that does not fit never reaches onConnect: say why
+  const onConnectEnd: OnConnectEnd = (_, state) => { if (state.toHandle && !state.isValid) onNotice(t("connect.invalid")); };
 
-  const isValidConnection = (c: { sourceHandle?: string | null; targetHandle?: string | null }) =>
-    c.sourceHandle === "stdout" ? c.targetHandle === "stdin" : SOURCE_PORTS.includes(c.sourceHandle ?? "") && c.targetHandle === "in";
+  const isValidConnection = (c: { sourceHandle?: string | null; targetHandle?: string | null }) => connectionKind(c.sourceHandle, c.targetHandle) !== null;
 
   const selHit = selected ? findStep(wf, selected) : undefined;
   const targets = selHit ? portsOf(selHit.step).filter((p): p is Exclude<Port, "fallback"> => p !== "fallback") : [];
@@ -99,11 +179,11 @@ export function Canvas(props: {
     <section className="panel canvas" aria-labelledby="canvas-h">
       <h2 id="canvas-h" className="sr-only">{t("canvas.title")}</h2>
       <div className="toolbar" role="toolbar" aria-label={t("canvas.toolbar")}>
-        <label>
+        <label className="tb-field">
           {t("canvas.name")} <input value={wf.name} onChange={(e) => edit((w) => ({ ...w, name: e.target.value }), "name")} />
         </label>
         {targets.length > 0 && (
-          <label>
+          <label className="tb-field">
             {t("canvas.target")}{" "}
             <select value={path.length ? target : "end"} onChange={(e) => setTarget(e.target.value)}>
               <option value="end">{t("canvas.target.end")}</option>
@@ -111,25 +191,30 @@ export function Canvas(props: {
             </select>
           </label>
         )}
-        <button disabled={!catalogTool} onClick={() => catalogTool && add(commandStep(wf, catalogTool))}>
-          {catalogTool ? t("canvas.add.tool", { name: catalogTool }) : t("canvas.add.pick")}
-        </button>
-        {CONTROL_KINDS.map((k) => (
-          <button key={k} onClick={() => add(controlStep(wf, k))}>{t(`kind.${k}`)}</button>
-        ))}
-        <button disabled={!selected} onClick={() => selected && edit((w) => removeStep(w, selected))}>{t("canvas.delete")}</button>
+        <span className="tb-group">
+          <button className="btn--primary" disabled={!catalogTool} onClick={() => catalogTool && add(commandStep(wf, catalogTool))}>
+            <Icon name="plus" />{catalogTool ? t("canvas.add.tool", { name: catalogTool }) : t("canvas.add.pick")}
+          </button>
+          {CONTROL_KINDS.map((k) => (
+            <button key={k} onClick={() => add(controlStep(wf, k))}>{t(`kind.${k}`)}</button>
+          ))}
+        </span>
+        <button className="btn--danger" disabled={!selected} onClick={() => selected && edit((w) => removeStep(w, selected))}><Icon name="trash" />{t("canvas.delete")}</button>
+        <span className="tb-spacer" />
+        <FlowHelp />
       </div>
-      {hint && <p role="status" className="hint">{hint}</p>}
       <div className="flow">
         <ReactFlow<StepNode, FlowEdge>
           nodes={nodes}
-          edges={graph.edges}
+          edges={edges}
           nodeTypes={nodeTypes}
+          colorMode="system"
           onNodesChange={onNodesChange}
           onConnect={onConnect}
+          onConnectEnd={onConnectEnd}
           isValidConnection={isValidConnection}
-          onNodeClick={(_, n) => { setHint(null); onSelect(n.id); }}
-          onPaneClick={() => { setHint(null); onSelect(null); }}
+          onNodeClick={(_, n) => { onNotice(null); onSelect(n.id); }}
+          onPaneClick={() => { onNotice(null); onSelect(null); }}
           onNodeDragStop={(_, n) => edit((w) => setLayout(w, n.id, n.position))}
           onDelete={({ nodes: ns, edges: es }) => {
             const gone = new Set(ns.map((n) => n.id));
@@ -137,15 +222,19 @@ export function Canvas(props: {
             for (const e of es) {
               if (gone.has(e.source) || gone.has(e.target)) continue; // edges of deleted nodes vanish silently
               if (e.data?.kind === "pipe") edit((w) => updateStep(w, e.target, { stdin: undefined }));
-              else setHint(t("canvas.flowHint"));
+              else onNotice(t("canvas.flowHint"));
             }
           }}
           nodesFocusable
           fitView
+          fitViewOptions={FIT}
+          minZoom={0.2}
         >
+          <AutoFit count={nodes.length} />
           <Background />
           <Controls />
           <MiniMap pannable zoomable />
+          <Panel position="top-right"><Legend /></Panel>
         </ReactFlow>
       </div>
     </section>

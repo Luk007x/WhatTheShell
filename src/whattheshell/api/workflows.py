@@ -1,21 +1,22 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Workflow files: user files in ``config_dir()/workflows`` shadow bundled ones of the same id."""
+"""Workflow endpoints on top of the workflow index; writes go to the user folder only."""
 
 import io
 import re
-from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Request, Response
 from pydantic import ValidationError
 from ruamel.yaml import YAML
 
-from whattheshell import bundled, paths
 from whattheshell.api.errors import validation_errors
 from whattheshell.api.rest import fail
+from whattheshell.api.runs import create_run_response
 from whattheshell.models.common import StrictModel
 from whattheshell.models.workflow import Workflow
 from whattheshell.modules.loader import DocumentError, load_workflow_file
+from whattheshell.modules.store import user_dir, write_user_file
+from whattheshell.workflows import WorkflowEntry, WorkflowIndex
 
 router = APIRouter(prefix="/api/workflows")
 SUFFIX = ".workflow.yaml"
@@ -28,10 +29,6 @@ class DocumentBody(StrictModel):
     document: dict[str, Any]
 
 
-def _user_dir() -> Path:
-    return paths.config_dir() / "workflows"
-
-
 def _check_id(workflow_id: str) -> str:
     if not _ID.fullmatch(workflow_id):
         raise fail(
@@ -42,17 +39,17 @@ def _check_id(workflow_id: str) -> str:
     return workflow_id
 
 
-def _is_bundled(workflow_id: str) -> bool:
-    return (bundled.WORKFLOWS_DIR / f"{workflow_id}{SUFFIX}").is_file()
+def _index(request: Request) -> WorkflowIndex:
+    index: WorkflowIndex = request.app.state.workflows
+    return index
 
 
-def _find(workflow_id: str) -> Path:
-    """Path of an existing workflow (user file wins over bundled)."""
-    for directory in (_user_dir(), bundled.WORKFLOWS_DIR):
-        candidate = directory / f"{_check_id(workflow_id)}{SUFFIX}"
-        if candidate.is_file():
-            return candidate
-    raise fail(404, "workflow_not_found", f"Workflow '{workflow_id}' gibt es nicht.")
+def _find(request: Request, workflow_id: str) -> WorkflowEntry:
+    """Winning entry of an existing workflow."""
+    entry = _index(request).get(_check_id(workflow_id))
+    if entry is None:
+        raise fail(404, "workflow_not_found", f"Workflow '{workflow_id}' gibt es nicht.")
+    return entry
 
 
 def _validate(document: dict[str, Any]) -> Workflow:
@@ -65,28 +62,28 @@ def _validate(document: dict[str, Any]) -> Workflow:
 
 
 @router.get("")
-def list_workflows() -> list[dict[str, str]]:
-    """Bundled and user workflows; a user file with the same id replaces the bundled entry."""
-    found: dict[str, dict[str, str]] = {}
-    for source, directory in (("bundled", bundled.WORKFLOWS_DIR), ("user", _user_dir())):
-        for path in sorted(directory.glob(f"*{SUFFIX}")) if directory.is_dir() else []:
-            workflow_id = path.name.removesuffix(SUFFIX)
-            if not _ID.fullmatch(workflow_id):
-                continue
-            try:
-                name = load_workflow_file(path).name
-            except DocumentError:
-                name = workflow_id  # broken file stays visible; GET reports the error
-            found[workflow_id] = {
-                "id": workflow_id, "name": name, "path": str(path), "source": source,
-            }  # fmt: skip
-    return list(found.values())
+def list_workflows(request: Request) -> list[dict[str, Any]]:
+    """Index entries; the highest-priority file of an id wins, `shadows` names the others."""
+    return [
+        {
+            "id": e.id,
+            "name": e.name,
+            "description": e.description,
+            "source": e.source,
+            "path": str(e.path),
+            "variables": {k: v.model_dump(mode="json") for k, v in e.variables.items()},
+            "steps": e.steps,
+            "error": e.error,
+            "shadows": e.shadows,
+        }
+        for e in sorted(_index(request).all(), key=lambda e: e.id)
+    ]
 
 
 @router.get("/{workflow_id}")
-def get_workflow(workflow_id: str) -> dict[str, Any]:
+def get_workflow(workflow_id: str, request: Request) -> dict[str, Any]:
     """Document and raw text of one workflow."""
-    path = _find(workflow_id)
+    path = _find(request, workflow_id).path
     try:
         workflow = load_workflow_file(path)
         raw = path.read_text(encoding="utf-8")
@@ -101,8 +98,8 @@ def get_workflow(workflow_id: str) -> dict[str, Any]:
 
 
 @router.put("/{workflow_id}")
-def put_workflow(workflow_id: str, body: DocumentBody) -> dict[str, str]:
-    """Validate and write the user file; a bundled workflow stays untouched (copy semantics)."""
+def put_workflow(workflow_id: str, body: DocumentBody, request: Request) -> dict[str, str]:
+    """Validate and write the user file; other sources stay untouched (copy semantics)."""
     _check_id(workflow_id)
     workflow = _validate(body.document)
     yaml = YAML(typ="safe")
@@ -111,34 +108,58 @@ def put_workflow(workflow_id: str, body: DocumentBody) -> dict[str, str]:
     yaml.sort_base_mapping_type_on_output = False  # type: ignore[assignment]  # keep field order
     buffer = io.StringIO()
     yaml.dump(workflow.model_dump(mode="json", exclude_defaults=True), buffer)
-    target = _user_dir() / f"{workflow_id}{SUFFIX}"
     try:
-        target.parent.mkdir(parents=True, exist_ok=True)
-        # write beside the target and rename, so a crash never leaves a half-written workflow
-        partial = target.with_name(target.name + ".tmp")
-        partial.write_text(buffer.getvalue(), encoding="utf-8")
-        partial.replace(target)
+        target = write_user_file("workflow", f"{workflow_id}{SUFFIX}", buffer.getvalue())
     except OSError as err:
         raise fail(
-            500, "write", f"Workflow nicht schreibbar: {err}. Prüfe Rechte auf {target.parent}."
+            500,
+            "write",
+            f"Workflow nicht schreibbar: {err}. Prüfe Rechte auf {user_dir('workflow')}.",
         ) from err
+    _index(request).reload(target)
     return {"id": workflow_id, "path": str(target)}
 
 
 @router.delete("/{workflow_id}", status_code=204)
-def delete_workflow(workflow_id: str) -> Response:
-    """Delete the user file; bundled workflows without one cannot be deleted."""
+def delete_workflow(workflow_id: str, request: Request) -> Response:
+    """Delete the user file; bundled and project files cannot be deleted here."""
     _check_id(workflow_id)
-    target = _user_dir() / f"{workflow_id}{SUFFIX}"
+    target = user_dir("workflow") / f"{workflow_id}{SUFFIX}"
     if not target.is_file():
-        if _is_bundled(workflow_id):
-            raise fail(403, "bundled", f"'{workflow_id}' ist mitgeliefert und nicht löschbar.")
+        entry = _index(request).get(workflow_id)
+        if entry is not None:
+            raise fail(
+                403,
+                "not_deletable",
+                f"'{workflow_id}' liegt in der Quelle '{entry.source}' ({entry.path}) und ist "
+                "hier nicht löschbar. Projektdateien gehören zum Projekt: dort von Hand entfernen.",
+            )
         raise fail(404, "workflow_not_found", f"Workflow '{workflow_id}' gibt es nicht.")
     try:
         target.unlink()
     except OSError as err:
         raise fail(500, "write", f"Workflow nicht löschbar: {err}.") from err
+    _index(request).reload(target)
     return Response(status_code=204)
+
+
+class RunWorkflowBody(StrictModel):
+    """Request body of `POST /api/workflows/{id}/run`."""
+
+    variables: dict[str, str] = {}
+    cwd: str | None = None
+    dry_run: bool = False
+
+
+@router.post("/{workflow_id}/run")
+def run_workflow(workflow_id: str, body: RunWorkflowBody, request: Request) -> Response:
+    """Shortcut for `POST /api/runs` with the indexed document; same answer."""
+    path = _find(request, workflow_id).path
+    try:
+        document = load_workflow_file(path).model_dump(mode="json")
+    except DocumentError as err:
+        raise fail(422, "workflow", str(err)) from err
+    return create_run_response(request.app, document, body.variables, body.cwd, body.dry_run)
 
 
 @router.post("/validate")

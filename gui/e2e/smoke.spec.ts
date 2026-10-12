@@ -163,7 +163,7 @@ test.describe.serial("smoke", () => {
     await editor.getByRole("button", { name: "Löschen", exact: true }).click();
     await expect(page.locator(".modules .tools li", { hasText: "eigene" })).toHaveCount(0);
     await expect(page.locator("button.tool", { hasText: "wc – E2E" })).toHaveCount(0);
-    await page.getByRole("button", { name: "Module", exact: true }).click();
+    await page.getByRole("button", { name: "Erstellen", exact: true }).click();
   });
 
   test("m) Vorlage einfügen", async () => {
