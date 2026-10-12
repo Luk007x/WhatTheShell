@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Merge module overrides into a catalog `CommandSpec` (FORMATS section 6)."""
 
+import logging
 from collections.abc import Sequence
 from typing import Any, TypeVar
 
@@ -9,6 +10,7 @@ from whattheshell.models.common import Confidence, InputSpec, OptionSpec
 from whattheshell.models.module import CommandOverride, Module, Translation
 from whattheshell.modules.registry import LoadedModule
 
+logger = logging.getLogger(__name__)
 _Spec = TypeVar("_Spec", InputSpec, OptionSpec)
 
 
@@ -33,6 +35,28 @@ def _merge_translation(base: Translation | None, new: Translation) -> Translatio
     for name in ("options", "inputs"):
         update[name] = {**getattr(base, name), **getattr(new, name)}
     return base.model_copy(deep=True, update=update)
+
+
+def _displace_options(result: CommandSpec) -> None:
+    """Rename catalog options whose id a module input claims: ``id_opt``, ``id_opt_2`` ..."""
+    input_ids = {spec.id for spec in result.inputs}
+    taken = input_ids | {spec.id for spec in result.options}
+    for index, option in enumerate(result.options):
+        if option.id not in input_ids:
+            continue
+        new_id, number = f"{option.id}_opt", 1
+        while new_id in taken:
+            number += 1
+            new_id = f"{option.id}_opt_{number}"
+        taken.add(new_id)
+        logger.warning(
+            "Modul %s: Eingabe '%s' verdrängt Katalog-Option '%s' (jetzt '%s')",
+            " ".join(result.name),
+            option.id,
+            option.id,
+            new_id,
+        )
+        result.options[index] = option.model_copy(update={"id": new_id})
 
 
 def merge_command(spec: CommandSpec, override: CommandOverride, *, replace: bool) -> CommandSpec:
@@ -60,6 +84,7 @@ def merge_command(spec: CommandSpec, override: CommandOverride, *, replace: bool
         result.interactive = override.interactive
     if "inputs" in given:  # module inputs replace the catalog ones (FORMATS section 6)
         result.inputs = _merge_specs([], override.inputs)
+        _displace_options(result)
     result.options = _merge_specs(result.options, override.options)
     result.inputs = unique_input_ids(result.inputs, result.options)
     result.examples = [*result.examples, *(e.model_copy(deep=True) for e in override.examples)]

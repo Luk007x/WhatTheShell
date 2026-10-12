@@ -25,3 +25,8 @@ def module_dirs(project_root: Path | None = None) -> list[Path]:
     if project_root is not None:
         dirs.append(project_root / ".whattheshell" / "modules")
     return dirs
+
+
+def inside(path: Path, root: Path) -> bool:
+    """True if `path` (symlinks and ``..`` resolved) lies within `root`."""
+    return path.resolve().is_relative_to(root.resolve())

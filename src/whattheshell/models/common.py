@@ -104,6 +104,8 @@ class OptionSpec(_FieldSpec):
 
     flags: list[str] = []
     type: ValueType = ValueType.bool
+    attached: bool = False  # value glued on as --flag=value (long forms only)
+    nargs: int = Field(1, ge=1)  # argv elements per occurrence
 
 
 class InputSpec(_FieldSpec):
@@ -111,3 +113,4 @@ class InputSpec(_FieldSpec):
 
     type: ValueType = ValueType.string
     position: int | None = None
+    before_options: bool = False  # argv: vor den Optionen (find PFAD -name …)

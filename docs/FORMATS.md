@@ -31,6 +31,8 @@ choices: []                # bei type enum
 min: null                  # bei int/float
 max: null
 metavar: null              # FILE, NUM, DIR aus der Hilfe
+attached: false            # Wert wird als `--flag=WERT` angehängt (Hilfe zeigt `[=ARG]`), sonst als eigenes argv-Element
+nargs: 1                   # Anzahl Werte je Vorkommen (jq --arg NAME WERT → 2); Wert ist dann eine Liste
 group: Suche
 importance: normal
 help: "…"
@@ -38,7 +40,7 @@ safety: safe               # Option kann die Klasse des Befehls anheben (z. B. -
 confidence: high
 ```
 
-`InputSpec` (Positionsargumente) hat dieselben Felder ohne `flags`, plus `position` (Reihenfolge, optional, sonst Listenreihenfolge).
+`InputSpec` (Positionsargumente) hat dieselben Felder ohne `flags`, plus `position` (Reihenfolge, optional, sonst Listenreihenfolge) und `before_options` (Standard false; true bei Tools, die das Argument vor den Optionen erwarten, z. B. `find PFAD -name …`).
 
 ## 2. Katalog (`models/catalog.py`), nicht vom Nutzer geschrieben
 
@@ -106,7 +108,7 @@ steps:
     kind: command                  # Standard, darf entfallen wenn `tool` gesetzt ist
     tool: find
     command: []                    # Subbefehl-Pfad, z. B. ["commit"] bei git
-    args: { path: "{{ var.logdir }}", name: "*.log", type: f }   # Schlüssel = Option-/Input-id
+    args: { start: "{{ var.logdir }}", name: "*.log", type: f }  # Schlüssel = Option-/Input-id (find-Modul: start, grep-Modul: patterns/files)
     extra_args: []                 # rohe Zusatzargumente (Fallback „Freie Argumente", F-6)
     cwd: null
     env: {}                        # nur Ergänzungen, Werte dürfen Templates sein
@@ -115,13 +117,13 @@ steps:
     on_error: { action: abort }    # abort | continue | retry (retries: n) | fallback (steps: [...])
   - id: suche
     tool: grep
-    args: { pattern: ERROR, recursive: true, count: true }
-    stdin: { pipe: finde }         # oder { text: "{{ finde.stdout }}" } oder { file: pfad }
+    args: { patterns: ERROR, recursive: true, count: true, files: ["{{ var.logdir }}"] }
+    stdin: { pipe: finde }         # Beispiel für eine Pipe; oder { text: "{{ finde.stdout }}" } oder { file: pfad }
   - id: pruefe
     kind: if
     condition: { source: suche.stdout, number_gt: 0 }
     then:
-      - { id: bericht, tool: tee, args: { file: bericht.txt }, stdin: { text: "{{ suche.stdout }}" } }
+      - { id: bericht, tool: tee, args: { file: [bericht.txt] }, stdin: { text: "{{ suche.stdout }}" } }
     else:
       - { id: ok, kind: message, text: "Alles in Ordnung." }
   - id: je_datei
@@ -172,7 +174,8 @@ Ein literales `{{` (z. B. `docker --format '{{.Names}}'`) wird als `\{{` geschri
 - Regex-Felder (`condition.regex`, `expect.stdout_regex`) müssen kompilierbar sein.
 - Pfade in Modulen (`fixtures[].path`, `templates[].workflow`) sind relativ, ohne `..`, nicht leer.
 - Im Modul sind ids über `inputs` und `options` eindeutig, ebenso `subcommands[].name`.
-- `stdin.pipe` und `source`/Template-Referenzen zeigen nur auf Schritte, die **vorher** in derselben oder einer umschließenden Folge liegen.
+- `stdin.pipe` und `source`/Template-Referenzen zeigen nur auf Schritte, die **vorher** in derselben oder einer umschließenden Folge liegen. Ausnahme: Schritte in `on_error.steps` (fallback) dürfen den fehlgeschlagenen Schritt selbst referenzieren (`{{ x.stderr }}`).
+- Bei verschachtelten `foreach` bleiben die `as`-Namen aller umschließenden Schleifen sichtbar; `item` meint die innerste.
 - `layout.nodes` darf nur bekannte ids enthalten (unbekannte werden mit Warnung verworfen, nicht Fehler).
 - Fehlermeldungen tragen Dateipfad, YAML-Zeile (soweit ruamel sie liefert, ab Phase 2), Feldpfad, erwarteten Typ.
 - Beim Zurückschreiben werden Aliase (`else`, `as`) verwendet, sodass validieren → schreiben → validieren identisch bleibt (Round-Trip).
@@ -193,4 +196,16 @@ Merge-Kette je Tool: Katalog-`CommandSpec` → Modul 1 → Modul 2 … in Priori
 - Vom Modul gesetzte Optionen bekommen `confidence: high`; Katalogoptionen behalten ihre Konfidenz.
 - Das Ergebnis ist ein `CommandSpec` (um `display_name`, `category`, `description`, `output`, `examples`, `templates`, `i18n` erweitert). `ToolInfo.module_files` nennt die angewandten Dateien in Reihenfolge.
 
+Kollidiert eine im Modul definierte Eingabe-id mit einer Option-id, die nur der Katalog kennt (Beispiel: Modul-Eingabe `file` gegen Katalog-Option `--file`), gehört die id dem Modul: die Katalog-Option wird mit Suffix `_opt` umbenannt und eine Warnung protokolliert. Mitgelieferte Module vermeiden solche Kollisionen (grep nutzt `files`).
+
 Option-ids kommen aus der Langform (`--ignore-case` → `ignore_case`); nur Optionen ohne Langform bekommen eine id aus der Kurzform (`-C` ohne `--context` → `c_upper`). Kollidiert eine Eingabe-id mit einer Option-id (find: Eingabe `path`, Option `-path`), hängt der Parser an die Eingabe `_arg` an. `wts scaffold TOOL` erzeugt das Gerüst mit allen erkannten ids, damit niemand raten muss.
+
+## 7. Ausführung (Phase 3)
+
+Aus `args` wird eine **argv-Liste**, nie ein Shell-String: Eingaben nach Listenreihenfolge, Optionen als eigene Elemente (`-C`, `2`), bei `attached` als `--context=2`, bei `multiple` je Wert ein Vorkommen, bei `nargs > 1` so viele Elemente je Vorkommen. `extra_args` werden unverändert angehängt. Sonderzeichen (`;`, `$()`, Leerzeichen, Anführungszeichen) sind damit wirkungslos; nur die Anzeige quotet per `shlex`. Ein Wert, der mit `-` beginnt, kann vom Tool als Option gelesen werden: Die Engine fügt kein `--` ein, weil nicht jedes Tool es kennt; die GUI warnt.
+
+`stdin.pipe` übergibt die aufgezeichnete Standardausgabe des Vorgängers (Schritte laufen nacheinander, nicht gleichzeitig). `env` ergänzt die Umgebung des Nutzers, Schlüssel aus der Sperrliste (`LD_*`, `PATH`, `PYTHONPATH`, `BASH_ENV`, `ENV`, `IFS`, `PROMPT_COMMAND`) werden mit Warnung verworfen. Ausgaben werden je Schritt auf ein Byte-Limit gekürzt; Werte von Variablen mit `type: secret` erscheinen in Anzeige und Protokoll als `***`.
+
+Vor dem ersten echten Lauf zeigt die App alle Befehle mit Gefahrenklasse (`dry-run`); `caution` und `dangerous` verlangen je Schritt eine Bestätigung mit dem Klartextbefehl. Die Klasse wird zur Laufzeit auf den gerenderten Werten noch einmal bestimmt (Maximum). Schritte mit `env`, mit `cwd` außerhalb des Workflow-Ordners oder mit `stdin.file` außerhalb gelten mindestens als `caution`; der Bestätigungstext zeigt `env K=V …`, `(in /pfad)` und `< datei`.
+
+`command` (Subbefehl-Pfad) besteht aus Wörtern `^[A-Za-z][A-Za-z0-9_-]*$`. Ein Subbefehl, den weder Katalog noch Modul kennen, wird **nicht** per `--help` abgefragt; der Schritt läuft dann ohne erkannte Optionen (Werte über `extra_args`). Vorbereiten und `--dry-run` starten nie einen Prozess.

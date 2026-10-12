@@ -56,3 +56,14 @@ Hauptsession ist Manager und delegiert an Sonnet-/Haiku-Agenten (siehe `CLAUDE.m
 - **Offen für Phase 3:** Optionen mit mehreren Werten je Vorkommen (jq `--arg name value`) kennt `OptionSpec` nicht (`nargs`). Entscheidung beim argv-Aufbau der Engine.
 - Beispiele der mitgelieferten Module sind bis Phase 3 nur schema-validiert, nicht ausgeführt. Ab Phase 3 läuft jedes Beispiel in der Sandbox als Test.
 - **Lokaler Python-Pin `.python-version` = 3.12.** uv hatte ohne Pin den Free-Threading-Build 3.14t gewählt. Die CI prüft weiter 3.11 bis 3.14; lokal gilt ein GIL-Build, damit Thread-Verhalten (Registry, Watcher) dem Normalfall entspricht.
+
+## D-008 Engine, Sicherheit, Sandbox (Phase 3), 2026-10-12
+
+- **Pipes sind aufgezeichnete Ausgaben**, keine gleichzeitig laufenden Prozesse: `stdin.pipe` übergibt die gespeicherte stdout des Vorgängers (bis zum Ausgabelimit). Einfacher, deterministisch, Live-Ausgabe je Schritt bleibt. Echte Streaming-Pipes erst, wenn ein Anwendungsfall sie braucht.
+- **Gefahrenklasse zweimal**: beim Vorbereiten (für Plan und Übersicht) und noch einmal zur Laufzeit auf den gerenderten Werten; es gilt das Maximum. Grund: Templates (`--var`, Schleifenwerte, Tool-Ausgaben) könnten sonst `--delete` nachschieben (Review-Befund).
+- **Hilfe-Abruf nur für bekannte Subbefehle**: `Catalog.get(tool, command)` fragt `tool sub --help` nur ab, wenn `sub` im Elternbefehl (Katalog oder Modul) bekannt ist; sonst Fallback ohne Prozessstart. Grund: Eine fremde Workflow-Datei konnte sonst beim `--dry-run` über `sh -c` Code starten (Review-Befund). `wts inspect` darf unbekannte Subbefehle abfragen, weil der Nutzer sie selbst eintippt.
+- **`env`, fremdes `cwd`, `stdin.file` heben auf `caution`** und erscheinen im Bestätigungstext. Eine Sperrliste für Umgebungsvariablen bleibt zweite Linie, weil eine Allowlist echte Workflows bricht.
+- **Speicher- und Prozesslimit in der Sandbox über `prlimit`** innerhalb von bwrap statt `preexec_fn` (Fork-Risiko im Mehrthread-Prozess). Fester `PATH` in der Sandbox.
+- **Bestätigung je Schleifeniteration** bleibt vorerst; eine „für alle Iterationen"-Antwort ist eine GUI-Aufgabe (Phase 4).
+- **Unbekannte Tools gelten als `safe`** (Basis aus Katalog), bekannte Wrapper und Interpreter (`timeout`, `busybox`, `awk`, `nc`, `socat`, …) als `caution`. Offen: fremde Workflows generell strenger einstufen (GUI-Entscheidung, Phase 4).
+- Reguläre Ausdrücke aus Dateien laufen nur auf Texten bis zum Ausgabelimit (1 MiB); katastrophales Backtracking ist damit begrenzt, nicht ausgeschlossen.

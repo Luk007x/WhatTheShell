@@ -324,6 +324,11 @@
           ],
           "default": null,
           "title": "Position"
+        },
+        "before_options": {
+          "default": false,
+          "title": "Before Options",
+          "type": "boolean"
         }
       },
       "required": [
@@ -471,6 +476,17 @@
         "type": {
           "$ref": "#/$defs/ValueType",
           "default": "bool"
+        },
+        "attached": {
+          "default": false,
+          "title": "Attached",
+          "type": "boolean"
+        },
+        "nargs": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Nargs",
+          "type": "integer"
         }
       },
       "required": [

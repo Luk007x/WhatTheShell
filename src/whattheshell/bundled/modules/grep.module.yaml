@@ -18,7 +18,7 @@ inputs:
     required: true
     position: 0
     help: "Regulärer Ausdruck oder fester Text."
-  - id: file
+  - id: files
     label: Dateien
     type: path
     multiple: true
@@ -197,7 +197,7 @@ examples:
     args:
       ignore_case: true
       patterns: "error"
-      file: ["app.log"]
+      files: ["app.log"]
     expect:
       exit_code: 0
       stdout_contains: "disk full"
@@ -216,7 +216,7 @@ examples:
       recursive: true
       line_number: true
       patterns: "todo"
-      file: ["projekt"]
+      files: ["projekt"]
     expect:
       exit_code: 0
       stdout_contains: "testen"
@@ -230,7 +230,7 @@ examples:
     args:
       invert_match: true
       patterns: "^#"
-      file: ["konfig.txt"]
+      files: ["konfig.txt"]
     expect:
       exit_code: 0
       stdout_contains: "port=80"

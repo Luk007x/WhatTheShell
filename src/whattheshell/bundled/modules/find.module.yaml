@@ -17,6 +17,7 @@ inputs:
     type: path
     multiple: true
     position: 0
+    before_options: true
     help: "Ordner, in dem die Suche beginnt (Standard: aktueller Ordner)."
 
 options:

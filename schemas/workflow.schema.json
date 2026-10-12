@@ -87,6 +87,7 @@
         "command": {
           "default": [],
           "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
             "type": "string"
           },
           "title": "Command",

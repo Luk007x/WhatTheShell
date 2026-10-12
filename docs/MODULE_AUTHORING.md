@@ -145,7 +145,7 @@ subcommands:
 ## 4. Merge-Regeln
 
 - `merge` (Standard): Nur im Modul **gesetzte** Felder überschreiben die Auto-Erkennung. Nicht gesetzt = Katalogwert bleibt.
-- `options` werden nach `id` zusammengeführt: bekannte id → angegebene Felder überschreiben, unbekannte id → wird angehängt. `inputs` im Modul **ersetzen** die Katalog-Eingaben vollständig: alle Positionsargumente auflisten, frei benennen; die Listenreihenfolge ist die Argumentreihenfolge. `subcommands` nach `name`. `examples`, `templates`, `i18n` werden ergänzt.
+- `options` werden nach `id` zusammengeführt: bekannte id → angegebene Felder überschreiben, unbekannte id → wird angehängt. `inputs` im Modul **ersetzen** die Katalog-Eingaben vollständig: alle Positionsargumente auflisten, frei benennen; die Listenreihenfolge ist die Argumentreihenfolge. `subcommands` nach `name`. `examples`, `templates`, `i18n` werden ergänzt. Beansprucht eine Modul-Eingabe eine id, die eine Katalog-Option trägt, gewinnt die Eingabe: die Katalog-Option heißt dann `<id>_opt` (Warnung im Log); eine Option mit derselben id im Modul selbst ist ein Fehler. Bei Eingaben setzt `before_options: true`, dass das Argument vor den Optionen steht (z. B. `start` bei `find`).
 - `replace`: Katalogdaten werden verworfen, das Modul ist allein maßgeblich. Nur sinnvoll, wenn die Auto-Erkennung für das Tool unbrauchbar ist.
 - Reihenfolge: Katalog → mitgeliefert → Nutzer → projektlokal. Eine fehlerhafte Datei deaktiviert nur sich selbst.
 - Für Verfeinerungen reicht `merge` mit wenigen Feldern (`id`, `label`, `group`, `importance`).

@@ -7,10 +7,10 @@ variables:
 steps:
   - id: finde
     tool: find
-    args: { path: "{{ var.logdir }}", name: "*.log", type: f }
+    args: { start: ["{{ var.logdir }}"], name: "*.log", type: f }
   - id: suche
     tool: grep
-    args: { pattern: ERROR, recursive: true, include: "*.log", files: ["{{ var.logdir }}"] }
+    args: { patterns: ERROR, recursive: true, include: "*.log", files: ["{{ var.logdir }}"] }
     ok_exit_codes: [0, 1]   # grep Exit 1 = keine Treffer
   - id: zaehle
     tool: wc
@@ -22,7 +22,7 @@ steps:
     then:
       - id: bericht
         tool: tee
-        args: { file: bericht.txt }
+        args: { file: [bericht.txt] }
         stdin: { text: "Dateien:\n{{ finde.stdout }}\n\nTreffer:\n{{ suche.stdout }}\n" }
     else:
       - { id: ok, kind: message, text: "Alles in Ordnung." }

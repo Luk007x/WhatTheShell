@@ -256,3 +256,20 @@ def test_foreach_as_reserved() -> None:
     step = {"id": "f", "kind": "foreach", "source": "a.stdout", "as": "var", "body": []}
     with pytest.raises(ValidationError, match="reserviert"):
         Workflow.model_validate(wf(A, step))
+
+
+def test_fallback_may_reference_failed_step_only() -> None:
+    def failing(ref: str) -> dict[str, Any]:
+        steps = [{"id": "m", "kind": "message", "text": "{{ " + ref + " }}"}]
+        return {**A, "on_error": {"action": "fallback", "steps": steps}}
+
+    Workflow.model_validate(wf(failing("a.stderr")))
+    with pytest.raises(ValidationError, match="nicht vorher"):
+        Workflow.model_validate(wf(failing("z.stderr"), {"id": "z", "tool": "ls"}))
+
+
+@pytest.mark.parametrize("word", ["-c", "--x", "a b", "1x", ""])
+def test_subcommand_words_are_restricted(word: str) -> None:
+    with pytest.raises(ValidationError):
+        Workflow.model_validate(wf({**A, "command": [word]}))
+    Workflow.model_validate(wf({**A, "command": ["commit", "sub-cmd"]}))

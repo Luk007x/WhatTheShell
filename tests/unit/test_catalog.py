@@ -180,3 +180,42 @@ def test_replace_module_sets_source(bin_dir: Path, tmp_path: Path) -> None:
     info = Catalog(tmp_path / "cache", registry).get("demo")
     assert info.source == "module"
     assert info.command.options == []
+
+
+def _counting_tool(bin_dir: Path, tmp_path: Path) -> Path:
+    log = tmp_path / "calls.log"
+    body = (
+        f'#!/bin/sh\necho "$@" >> {log}\n'
+        'echo "Usage: demo <command>"\necho\necho "Commands:"\necho "  sub  desc"\n'
+    )
+    make_tool(bin_dir, "demo", body)
+    return log
+
+
+def _calls(log: Path) -> list[str]:
+    return log.read_text().splitlines() if log.exists() else []
+
+
+def test_unknown_subcommand_is_not_probed(bin_dir: Path, tmp_path: Path) -> None:
+    log = _counting_tool(bin_dir, tmp_path)
+    cat = Catalog(tmp_path / "cache")
+    cat.get("demo")
+    before = len(_calls(log))
+    assert cat.get("demo", ("sub",)).source == "help"
+    assert any(call.startswith("sub") for call in _calls(log))
+    after_known = len(_calls(log))
+    assert after_known > before
+    info = cat.get("demo", ("evil",))
+    assert info.source == "fallback"
+    assert info.command.name == ["demo", "evil"]
+    assert info.command.options == []
+    assert len(_calls(log)) == after_known
+    cat.get("demo", ("evil",), probe_unknown=True)
+    assert any(call.startswith("evil") for call in _calls(log))
+
+
+def test_module_subcommand_makes_it_known(bin_dir: Path, tmp_path: Path) -> None:
+    log = _counting_tool(bin_dir, tmp_path)
+    registry = _registry(tmp_path, "schema_version: 1\ntool: demo\nsubcommands:\n  - name: extra\n")
+    Catalog(tmp_path / "cache", registry).get("demo", ("extra",))
+    assert any(call.startswith("extra") for call in _calls(log))

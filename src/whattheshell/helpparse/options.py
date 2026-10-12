@@ -50,6 +50,7 @@ class RawOption:
     cont_lines: list[str] = field(default_factory=list)
     desc_col: int | None = None
     from_usage: bool = False
+    attached: bool = False  # optional value, only valid as --flag=value
 
 
 def split_top(text: str) -> list[str]:
@@ -149,7 +150,10 @@ def parse_option_line(text: str) -> tuple[list[RawOption], str] | None:
             flags, value, metavar = groups[0]
             groups = [([*flags, *extra[0][0]], value or extra[0][1], metavar or extra[0][2])]
             desc = ""
-    return [RawOption(f, m, v, 0) for f, v, m in groups], desc
+    return [
+        RawOption(f, m, v, 0, attached=any(f"{x}[=" in head for x in f if x.startswith("--")))
+        for f, v, m in groups
+    ], desc
 
 
 def collect_options(sections: list[Section]) -> list[RawOption]:
@@ -341,6 +345,7 @@ def build_options(raws: list[RawOption]) -> list[OptionSpec]:
                 choices=choices,
                 default=default,
                 metavar=raw.metavar,
+                attached=raw.attached,
                 multiple=bool(_MULTI_METAVAR_RE.fullmatch(raw.metavar or "")),
                 help=desc or None,
                 confidence=confidence,

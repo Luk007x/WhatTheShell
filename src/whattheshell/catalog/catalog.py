@@ -144,6 +144,7 @@ class Catalog:
         *,
         refresh: bool = False,
         depth: int = 0,
+        probe_unknown: bool = False,
     ) -> ToolInfo:
         """Return the catalog entry of a tool or subcommand.
 
@@ -152,6 +153,9 @@ class Catalog:
             subcommand: Subcommand words.
             refresh: Ignore a valid cache entry.
             depth: Levels of subcommands to resolve as well.
+            probe_unknown: Also run ``--help`` for a subcommand the parent does not list.
+                Off by default: subcommand words may come from untrusted workflow files
+                (``sh -c ...``), so unknown ones get a fallback entry without any process.
 
         Raises:
             ToolNotFound: The tool cannot be found or executed.
@@ -159,6 +163,20 @@ class Catalog:
         path = self._resolve(name)
         base = os.path.basename(path)
         stat = os.stat(path)
+        if subcommand and not probe_unknown:
+            parent = self.get(name, subcommand[:-1])
+            if subcommand[-1] not in (c.name[-1] for c in parent.command.subcommands):
+                command = CommandSpec(
+                    name=[base, *subcommand], raw_help="", confidence=Confidence.low
+                )
+                fallback = ToolInfo(
+                    name=base,
+                    path=path,
+                    help_hash=hashlib.sha256(b"").hexdigest(),
+                    source="fallback",
+                    command=command,
+                )
+                return self._apply_modules(fallback, base, subcommand)
         key = {"path": path, "mtime_ns": stat.st_mtime_ns, "size": stat.st_size}
         cache_file = self._cache_dir / (".".join([base, *subcommand]).replace("/", "_") + ".json")
         info = None if refresh else self._read(cache_file, key)

@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import os
+import threading
 import time
 from pathlib import Path
 
@@ -52,3 +53,44 @@ def test_missing_file(tmp_path: Path) -> None:
 
 def test_sanitized_env() -> None:
     assert sanitized_env()["LC_ALL"] == "C"
+
+
+def test_stdin_passed(tmp_path: Path) -> None:
+    result = run_limited(["/usr/bin/cat"], timeout=5, max_bytes=100, stdin=b"hello")
+    assert result is not None and result.stdout == b"hello"
+
+
+def test_large_stdin_filter_does_not_deadlock() -> None:
+    data = b"x" * 300_000
+    start = time.monotonic()
+    result = run_limited(["/usr/bin/cat"], timeout=5, max_bytes=1_000_000, stdin=data)
+    assert result is not None and result.stdout == data
+    assert time.monotonic() - start < 2
+
+
+def test_large_stdin_timeout() -> None:
+    start = time.monotonic()
+    result = run_limited(["/usr/bin/sleep", "5"], timeout=0.5, max_bytes=100, stdin=b"x" * 300_000)
+    assert result is not None and result.timed_out
+    assert time.monotonic() - start < 2
+
+
+def test_on_chunk_receives_raw_bytes_per_stream(tmp_path: Path) -> None:
+    seen: list[tuple[str, bytes]] = []
+    result = run_limited(
+        [script(tmp_path, "printf out; printf err >&2")],
+        timeout=5,
+        max_bytes=100,
+        on_chunk=lambda stream, data: seen.append((stream, data)),
+    )
+    assert result is not None and not result.cancelled
+    assert sorted(seen) == [("stderr", b"err"), ("stdout", b"out")]
+
+
+def test_cancel_kills_process_group(tmp_path: Path) -> None:
+    cancel = threading.Event()
+    threading.Timer(0.3, cancel.set).start()
+    start = time.monotonic()
+    result = run_limited([script(tmp_path, "sleep 30")], timeout=60, max_bytes=100, cancel=cancel)
+    assert result is not None and result.cancelled and not result.timed_out
+    assert time.monotonic() - start < 2

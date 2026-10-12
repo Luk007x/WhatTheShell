@@ -40,3 +40,10 @@ def test_inspect_json(capsys: pytest.CaptureFixture[str]) -> None:
 def test_inspect_unknown(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["inspect", "nope"]) == 1
     assert "nicht auf PATH" in capsys.readouterr().err
+
+
+def test_inspect_probes_user_typed_subcommand(tmp_path: Path) -> None:
+    log = tmp_path / "calls.log"
+    make_tool(tmp_path / "bin", "probe", f'#!/bin/sh\necho "$@" >> {log}\necho "Usage: probe"\n')
+    assert main(["inspect", "probe", "evil"]) == 0
+    assert any(line.startswith("evil") for line in log.read_text().splitlines())

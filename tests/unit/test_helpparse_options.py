@@ -174,3 +174,8 @@ def test_usage_pipe_alternatives() -> None:
         ["-P"],
         ["--no-pager"],
     ]
+
+
+def test_optional_value_is_attached() -> None:
+    assert one("  --color[=WHEN]   colorize the output").attached
+    assert not one("  --color=WHEN   colorize the output").attached

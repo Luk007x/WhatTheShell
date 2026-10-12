@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 from pathlib import Path
 
+import pytest
+
 from whattheshell import bundled
 from whattheshell.helpparse import parse_help
 from whattheshell.models.catalog import CommandSpec
@@ -171,3 +173,16 @@ def test_input_option_id_collision_gets_arg_suffix() -> None:
     spec = CommandSpec(name=["x"], inputs=[InputSpec(id="a")])
     merged = merge_command(spec, CommandOverride(options=[OptionSpec(id="a")]), replace=False)
     assert [i.id for i in merged.inputs] == ["a_arg"]
+
+
+def test_module_input_displaces_catalog_option(caplog: pytest.LogCaptureFixture) -> None:
+    from whattheshell.models.catalog import CommandSpec
+    from whattheshell.models.common import InputSpec, OptionSpec
+    from whattheshell.models.module import CommandOverride
+    from whattheshell.modules.merge import merge_command
+
+    spec = CommandSpec(name=["tar"], options=[OptionSpec(id="file", flags=["-f"])])
+    merged = merge_command(spec, CommandOverride(inputs=[InputSpec(id="file")]), replace=False)
+    assert [o.id for o in merged.options] == ["file_opt"]
+    assert [i.id for i in merged.inputs] == ["file"]
+    assert "verdrängt Katalog-Option 'file' (jetzt 'file_opt')" in caplog.text

@@ -71,6 +71,11 @@ class Condition(_Model):
                 raise ValueError(f"regex ist kein gültiger regulärer Ausdruck: {err}") from err
         return value
 
+    @property
+    def operator(self) -> str:
+        """Name of the one operator that is set."""
+        return next(op for op in _OPERATORS if getattr(self, op) is not None)
+
     @model_validator(mode="after")
     def _exactly_one_operator(self) -> Condition:
         given = [op for op in _OPERATORS if getattr(self, op) is not None]
@@ -118,7 +123,7 @@ class CommandStep(_Step):
 
     kind: Literal["command"] = "command"
     tool: ToolName
-    command: list[str] = []
+    command: list[Annotated[str, Field(pattern=r"^[A-Za-z][A-Za-z0-9_-]*$")]] = []
     args: dict[str, Any] = {}
     extra_args: list[str] = []
     stdin: Stdin | None = None
@@ -345,7 +350,11 @@ def _check_steps(
         _check_refs(step, visible, names, variables, ids)
         inner = names | {step.as_, "item"} if isinstance(step, ForeachStep) else names
         for child in _children(step):
-            _check_steps(child, visible, inner, variables, ids)
+            # a fallback sequence may reference the failed step itself
+            is_fallback = isinstance(step, CommandStep) and child is step.on_error.steps
+            _check_steps(
+                child, visible | {step.id} if is_fallback else visible, inner, variables, ids
+            )
         visible.add(step.id)
 
 
