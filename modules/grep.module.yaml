@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: grep
+display_name: "grep – Text durchsuchen"
+category: Text
+summary: "Durchsucht Dateien oder Eingaben nach Mustern."
+description: |
+  Gibt alle Zeilen aus, die zu einem Muster passen.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: pattern
+    label: Suchmuster
+    type: string
+    required: true
+    position: 0
+    help: "Regulärer Ausdruck oder fester Text."
+  - id: files
+    label: Dateien
+    type: path
+    multiple: true
+    position: 1
+
+options:
+  - id: ignore_case
+    flags: ["-i", "--ignore-case"]
+    label: Groß-/Kleinschreibung ignorieren
+    type: bool
+    group: Suche
+    importance: common
+    help: "Unterscheidet nicht zwischen Groß- und Kleinbuchstaben."
+  - id: recursive
+    flags: ["-r", "--recursive"]
+    label: Verzeichnisse rekursiv durchsuchen
+    type: bool
+    group: Dateien
+  - id: include
+    flags: ["--include"]
+    label: Nur Dateien mit passendem Namen
+    type: string
+    metavar: GLOB
+    group: Dateien
+  - id: count
+    flags: ["-c", "--count"]
+    label: Treffer zählen
+    type: bool
+    group: Ausgabe
+  - id: line_number
+    flags: ["-n", "--line-number"]
+    label: Zeilennummern anzeigen
+    type: bool
+    group: Ausgabe
+  - id: context
+    flags: ["-C", "--context"]
+    label: Kontextzeilen
+    type: int
+    min: 0
+    metavar: NUM
+    group: Ausgabe
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Treffer gefunden"
+    1: "Keine Treffer"
+    2: "Fehler"
+
+examples:
+  - title: "Fehlerzeilen finden"
+    description: "Sucht error ohne Rücksicht auf Groß-/Kleinschreibung."
+    fixtures:
+      - path: app.log
+        content: |
+          INFO start
+          ERROR disk full
+          error timeout
+    args:
+      ignore_case: true
+      pattern: "error"
+      files: ["app.log"]
+    expect:
+      exit_code: 0
+      stdout_contains: "disk full"

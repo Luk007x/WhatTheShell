@@ -1,0 +1,902 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Confidence": {
+      "description": "How sure the help parser was.",
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "title": "Confidence",
+      "type": "string"
+    },
+    "Example": {
+      "additionalProperties": false,
+      "description": "A runnable example.",
+      "properties": {
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "fixtures": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Fixture"
+          },
+          "title": "Fixtures",
+          "type": "array"
+        },
+        "args": {
+          "additionalProperties": true,
+          "default": {},
+          "title": "Args",
+          "type": "object"
+        },
+        "expect": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Expect"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "title"
+      ],
+      "title": "Example",
+      "type": "object"
+    },
+    "Expect": {
+      "additionalProperties": false,
+      "description": "Expected result of an example.",
+      "properties": {
+        "exit_code": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exit Code"
+        },
+        "stdout_contains": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stdout Contains"
+        },
+        "stderr_contains": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stderr Contains"
+        },
+        "stdout_regex": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stdout Regex"
+        }
+      },
+      "title": "Expect",
+      "type": "object"
+    },
+    "FieldText": {
+      "additionalProperties": false,
+      "description": "Translated label and help.",
+      "properties": {
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "help": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Help"
+        }
+      },
+      "title": "FieldText",
+      "type": "object"
+    },
+    "Fixture": {
+      "additionalProperties": false,
+      "description": "A file created in the sandbox before an example runs.",
+      "properties": {
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "content": {
+          "default": "",
+          "title": "Content",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "title": "Fixture",
+      "type": "object"
+    },
+    "Importance": {
+      "description": "Sorting and collapsing hint for the GUI.",
+      "enum": [
+        "common",
+        "normal",
+        "rare"
+      ],
+      "title": "Importance",
+      "type": "string"
+    },
+    "InputSpec": {
+      "additionalProperties": false,
+      "description": "A positional argument.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "multiple": {
+          "default": false,
+          "title": "Multiple",
+          "type": "boolean"
+        },
+        "required": {
+          "default": false,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "default": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default"
+        },
+        "choices": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Choices",
+          "type": "array"
+        },
+        "min": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min"
+        },
+        "max": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max"
+        },
+        "metavar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metavar"
+        },
+        "group": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Group"
+        },
+        "importance": {
+          "$ref": "#/$defs/Importance",
+          "default": "normal"
+        },
+        "help": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Help"
+        },
+        "safety": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Safety"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "confidence": {
+          "$ref": "#/$defs/Confidence",
+          "default": "high"
+        },
+        "type": {
+          "$ref": "#/$defs/ValueType",
+          "default": "string"
+        },
+        "position": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Position"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "InputSpec",
+      "type": "object"
+    },
+    "OptionSpec": {
+      "additionalProperties": false,
+      "description": "A command line option.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "multiple": {
+          "default": false,
+          "title": "Multiple",
+          "type": "boolean"
+        },
+        "required": {
+          "default": false,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "default": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default"
+        },
+        "choices": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Choices",
+          "type": "array"
+        },
+        "min": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min"
+        },
+        "max": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max"
+        },
+        "metavar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metavar"
+        },
+        "group": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Group"
+        },
+        "importance": {
+          "$ref": "#/$defs/Importance",
+          "default": "normal"
+        },
+        "help": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Help"
+        },
+        "safety": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Safety"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "confidence": {
+          "$ref": "#/$defs/Confidence",
+          "default": "high"
+        },
+        "flags": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array"
+        },
+        "type": {
+          "$ref": "#/$defs/ValueType",
+          "default": "bool"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "OptionSpec",
+      "type": "object"
+    },
+    "OutputKind": {
+      "description": "How stdout is to be interpreted.",
+      "enum": [
+        "lines",
+        "text",
+        "json",
+        "csv",
+        "bytes"
+      ],
+      "title": "OutputKind",
+      "type": "string"
+    },
+    "OutputSpec": {
+      "additionalProperties": false,
+      "description": "Output description of a command.",
+      "properties": {
+        "stdout": {
+          "$ref": "#/$defs/StdoutSpec"
+        },
+        "exit_codes": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "title": "Exit Codes",
+          "type": "object"
+        }
+      },
+      "title": "OutputSpec",
+      "type": "object"
+    },
+    "Safety": {
+      "description": "Safety class of a command or option.",
+      "enum": [
+        "safe",
+        "caution",
+        "dangerous"
+      ],
+      "title": "Safety",
+      "type": "string"
+    },
+    "StdoutSpec": {
+      "additionalProperties": false,
+      "description": "Interpretation of stdout.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/OutputKind",
+          "default": "lines"
+        }
+      },
+      "title": "StdoutSpec",
+      "type": "object"
+    },
+    "Subcommand": {
+      "additionalProperties": false,
+      "description": "Override for one subcommand.",
+      "properties": {
+        "display_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Display Name"
+        },
+        "category": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Category"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Summary"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "safety": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Safety"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "inputs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/InputSpec"
+          },
+          "title": "Inputs",
+          "type": "array"
+        },
+        "options": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/OptionSpec"
+          },
+          "title": "Options",
+          "type": "array"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OutputSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "subcommands": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Subcommand"
+          },
+          "title": "Subcommands",
+          "type": "array"
+        },
+        "examples": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Example"
+          },
+          "title": "Examples",
+          "type": "array"
+        },
+        "i18n": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Translation"
+          },
+          "default": {},
+          "title": "I18N",
+          "type": "object"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Subcommand",
+      "type": "object"
+    },
+    "TemplateRef": {
+      "additionalProperties": false,
+      "description": "Reference to a workflow template, path relative to the module file.",
+      "properties": {
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "workflow": {
+          "title": "Workflow",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "workflow"
+      ],
+      "title": "TemplateRef",
+      "type": "object"
+    },
+    "Translation": {
+      "additionalProperties": false,
+      "description": "Translations for one language.",
+      "properties": {
+        "display_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Display Name"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Summary"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "options": {
+          "additionalProperties": {
+            "$ref": "#/$defs/FieldText"
+          },
+          "default": {},
+          "title": "Options",
+          "type": "object"
+        },
+        "inputs": {
+          "additionalProperties": {
+            "$ref": "#/$defs/FieldText"
+          },
+          "default": {},
+          "title": "Inputs",
+          "type": "object"
+        }
+      },
+      "title": "Translation",
+      "type": "object"
+    },
+    "ValueType": {
+      "description": "Type of an input field.",
+      "enum": [
+        "string",
+        "int",
+        "float",
+        "bool",
+        "path",
+        "enum",
+        "secret"
+      ],
+      "title": "ValueType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A tool module file.",
+  "properties": {
+    "display_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Display Name"
+    },
+    "category": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Category"
+    },
+    "summary": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Summary"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Description"
+    },
+    "safety": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Safety"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "inputs": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/InputSpec"
+      },
+      "title": "Inputs",
+      "type": "array"
+    },
+    "options": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/OptionSpec"
+      },
+      "title": "Options",
+      "type": "array"
+    },
+    "output": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/OutputSpec"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "subcommands": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Subcommand"
+      },
+      "title": "Subcommands",
+      "type": "array"
+    },
+    "examples": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Example"
+      },
+      "title": "Examples",
+      "type": "array"
+    },
+    "i18n": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Translation"
+      },
+      "default": {},
+      "title": "I18N",
+      "type": "object"
+    },
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "tool": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$",
+      "title": "Tool",
+      "type": "string"
+    },
+    "override_mode": {
+      "default": "merge",
+      "enum": [
+        "merge",
+        "replace"
+      ],
+      "title": "Override Mode",
+      "type": "string"
+    },
+    "templates": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/TemplateRef"
+      },
+      "title": "Templates",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "tool"
+  ],
+  "title": "Module",
+  "type": "object"
+}

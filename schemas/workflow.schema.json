@@ -1,0 +1,1014 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "AbortStep": {
+      "additionalProperties": false,
+      "description": "End the workflow.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "kind": {
+          "const": "abort",
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        },
+        "exit_code": {
+          "default": 1,
+          "title": "Exit Code",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "kind"
+      ],
+      "title": "AbortStep",
+      "type": "object"
+    },
+    "CommandStep": {
+      "additionalProperties": false,
+      "description": "Runs an external program.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "kind": {
+          "const": "command",
+          "default": "command",
+          "title": "Kind",
+          "type": "string"
+        },
+        "tool": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$",
+          "title": "Tool",
+          "type": "string"
+        },
+        "command": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Command",
+          "type": "array"
+        },
+        "args": {
+          "additionalProperties": true,
+          "default": {},
+          "title": "Args",
+          "type": "object"
+        },
+        "extra_args": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Extra Args",
+          "type": "array"
+        },
+        "stdin": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stdin"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "cwd": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cwd"
+        },
+        "env": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "title": "Env",
+          "type": "object"
+        },
+        "timeout": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timeout"
+        },
+        "ok_exit_codes": {
+          "default": [
+            0
+          ],
+          "items": {
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": "Ok Exit Codes",
+          "type": "array"
+        },
+        "on_error": {
+          "$ref": "#/$defs/OnError"
+        }
+      },
+      "required": [
+        "id",
+        "tool"
+      ],
+      "title": "CommandStep",
+      "type": "object"
+    },
+    "Condition": {
+      "additionalProperties": false,
+      "description": "Condition with exactly one operator.",
+      "properties": {
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "eq": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Eq"
+        },
+        "ne": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ne"
+        },
+        "contains": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Contains"
+        },
+        "regex": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Regex"
+        },
+        "is_empty": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Is Empty"
+        },
+        "line_count_gt": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line Count Gt"
+        },
+        "line_count_eq": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line Count Eq"
+        },
+        "number_gt": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Number Gt"
+        },
+        "number_lt": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Number Lt"
+        },
+        "number_eq": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Number Eq"
+        },
+        "json_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Json Path"
+        },
+        "file_exists": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "File Exists"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "title": "Condition",
+      "type": "object"
+    },
+    "ForeachStep": {
+      "additionalProperties": false,
+      "description": "Iterate over the lines of a source.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "kind": {
+          "const": "foreach",
+          "title": "Kind",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "as": {
+          "default": "item",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "As",
+          "type": "string"
+        },
+        "body": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "abort": "#/$defs/AbortStep",
+                "command": "#/$defs/CommandStep",
+                "foreach": "#/$defs/ForeachStep",
+                "if": "#/$defs/IfStep",
+                "message": "#/$defs/MessageStep",
+                "set": "#/$defs/SetStep",
+                "wait": "#/$defs/WaitStep"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/CommandStep"
+              },
+              {
+                "$ref": "#/$defs/IfStep"
+              },
+              {
+                "$ref": "#/$defs/ForeachStep"
+              },
+              {
+                "$ref": "#/$defs/SetStep"
+              },
+              {
+                "$ref": "#/$defs/WaitStep"
+              },
+              {
+                "$ref": "#/$defs/MessageStep"
+              },
+              {
+                "$ref": "#/$defs/AbortStep"
+              }
+            ]
+          },
+          "title": "Body",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "source",
+        "body"
+      ],
+      "title": "ForeachStep",
+      "type": "object"
+    },
+    "IfStep": {
+      "additionalProperties": false,
+      "description": "Branch on a condition.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "kind": {
+          "const": "if",
+          "title": "Kind",
+          "type": "string"
+        },
+        "condition": {
+          "$ref": "#/$defs/Condition"
+        },
+        "then": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "abort": "#/$defs/AbortStep",
+                "command": "#/$defs/CommandStep",
+                "foreach": "#/$defs/ForeachStep",
+                "if": "#/$defs/IfStep",
+                "message": "#/$defs/MessageStep",
+                "set": "#/$defs/SetStep",
+                "wait": "#/$defs/WaitStep"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/CommandStep"
+              },
+              {
+                "$ref": "#/$defs/IfStep"
+              },
+              {
+                "$ref": "#/$defs/ForeachStep"
+              },
+              {
+                "$ref": "#/$defs/SetStep"
+              },
+              {
+                "$ref": "#/$defs/WaitStep"
+              },
+              {
+                "$ref": "#/$defs/MessageStep"
+              },
+              {
+                "$ref": "#/$defs/AbortStep"
+              }
+            ]
+          },
+          "title": "Then",
+          "type": "array"
+        },
+        "else": {
+          "anyOf": [
+            {
+              "items": {
+                "discriminator": {
+                  "mapping": {
+                    "abort": "#/$defs/AbortStep",
+                    "command": "#/$defs/CommandStep",
+                    "foreach": "#/$defs/ForeachStep",
+                    "if": "#/$defs/IfStep",
+                    "message": "#/$defs/MessageStep",
+                    "set": "#/$defs/SetStep",
+                    "wait": "#/$defs/WaitStep"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/CommandStep"
+                  },
+                  {
+                    "$ref": "#/$defs/IfStep"
+                  },
+                  {
+                    "$ref": "#/$defs/ForeachStep"
+                  },
+                  {
+                    "$ref": "#/$defs/SetStep"
+                  },
+                  {
+                    "$ref": "#/$defs/WaitStep"
+                  },
+                  {
+                    "$ref": "#/$defs/MessageStep"
+                  },
+                  {
+                    "$ref": "#/$defs/AbortStep"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Else"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "condition",
+        "then"
+      ],
+      "title": "IfStep",
+      "type": "object"
+    },
+    "Layout": {
+      "additionalProperties": false,
+      "description": "Graph view positions, kept apart from the logic.",
+      "properties": {
+        "nodes": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Position"
+          },
+          "default": {},
+          "title": "Nodes",
+          "type": "object"
+        }
+      },
+      "title": "Layout",
+      "type": "object"
+    },
+    "MessageStep": {
+      "additionalProperties": false,
+      "description": "Message to the user.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "kind": {
+          "const": "message",
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "text"
+      ],
+      "title": "MessageStep",
+      "type": "object"
+    },
+    "OnError": {
+      "additionalProperties": false,
+      "description": "Error handling of a command step.",
+      "properties": {
+        "action": {
+          "default": "abort",
+          "enum": [
+            "abort",
+            "continue",
+            "retry",
+            "fallback"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "retries": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retries"
+        },
+        "steps": {
+          "anyOf": [
+            {
+              "items": {
+                "discriminator": {
+                  "mapping": {
+                    "abort": "#/$defs/AbortStep",
+                    "command": "#/$defs/CommandStep",
+                    "foreach": "#/$defs/ForeachStep",
+                    "if": "#/$defs/IfStep",
+                    "message": "#/$defs/MessageStep",
+                    "set": "#/$defs/SetStep",
+                    "wait": "#/$defs/WaitStep"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/CommandStep"
+                  },
+                  {
+                    "$ref": "#/$defs/IfStep"
+                  },
+                  {
+                    "$ref": "#/$defs/ForeachStep"
+                  },
+                  {
+                    "$ref": "#/$defs/SetStep"
+                  },
+                  {
+                    "$ref": "#/$defs/WaitStep"
+                  },
+                  {
+                    "$ref": "#/$defs/MessageStep"
+                  },
+                  {
+                    "$ref": "#/$defs/AbortStep"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Steps"
+        }
+      },
+      "title": "OnError",
+      "type": "object"
+    },
+    "Position": {
+      "additionalProperties": false,
+      "description": "Node position in the graph view.",
+      "properties": {
+        "x": {
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "title": "Y",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "Position",
+      "type": "object"
+    },
+    "SetStep": {
+      "additionalProperties": false,
+      "description": "Set a variable.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "kind": {
+          "const": "set",
+          "title": "Kind",
+          "type": "string"
+        },
+        "variable": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Variable",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "variable",
+        "value"
+      ],
+      "title": "SetStep",
+      "type": "object"
+    },
+    "Stdin": {
+      "additionalProperties": false,
+      "description": "Standard input of a command: exactly one of pipe, text, file.",
+      "properties": {
+        "pipe": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pipe"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        },
+        "file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "File"
+        }
+      },
+      "title": "Stdin",
+      "type": "object"
+    },
+    "ValueType": {
+      "description": "Type of an input field.",
+      "enum": [
+        "string",
+        "int",
+        "float",
+        "bool",
+        "path",
+        "enum",
+        "secret"
+      ],
+      "title": "ValueType",
+      "type": "string"
+    },
+    "VariableSpec": {
+      "additionalProperties": false,
+      "description": "A workflow variable.",
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/ValueType",
+          "default": "string"
+        },
+        "default": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "help": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Help"
+        },
+        "required": {
+          "default": false,
+          "title": "Required",
+          "type": "boolean"
+        }
+      },
+      "title": "VariableSpec",
+      "type": "object"
+    },
+    "WaitStep": {
+      "additionalProperties": false,
+      "description": "Delay.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "kind": {
+          "const": "wait",
+          "title": "Kind",
+          "type": "string"
+        },
+        "seconds": {
+          "minimum": 0,
+          "title": "Seconds",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "seconds"
+      ],
+      "title": "WaitStep",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A workflow file.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Description"
+    },
+    "variables": {
+      "default": {},
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*$": {
+          "$ref": "#/$defs/VariableSpec"
+        }
+      },
+      "title": "Variables",
+      "type": "object"
+    },
+    "steps": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "abort": "#/$defs/AbortStep",
+            "command": "#/$defs/CommandStep",
+            "foreach": "#/$defs/ForeachStep",
+            "if": "#/$defs/IfStep",
+            "message": "#/$defs/MessageStep",
+            "set": "#/$defs/SetStep",
+            "wait": "#/$defs/WaitStep"
+          },
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/CommandStep"
+          },
+          {
+            "$ref": "#/$defs/IfStep"
+          },
+          {
+            "$ref": "#/$defs/ForeachStep"
+          },
+          {
+            "$ref": "#/$defs/SetStep"
+          },
+          {
+            "$ref": "#/$defs/WaitStep"
+          },
+          {
+            "$ref": "#/$defs/MessageStep"
+          },
+          {
+            "$ref": "#/$defs/AbortStep"
+          }
+        ]
+      },
+      "title": "Steps",
+      "type": "array"
+    },
+    "layout": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Layout"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "schema_version",
+    "name",
+    "steps"
+  ],
+  "title": "Workflow",
+  "type": "object"
+}
