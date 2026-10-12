@@ -2,3 +2,4 @@ schemas/
 .claude/
 uv.lock
 graphify-out/
+tests/corpus/
