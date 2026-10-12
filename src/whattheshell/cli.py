@@ -103,7 +103,11 @@ def main(argv: list[str] | None = None) -> int:
     scaffold = commands.add_parser("scaffold", help="Modul-Gerüst aus der Hilfe eines Tools")
     scaffold.add_argument("tool")
     scaffold.add_argument("sub", nargs="*", help="Subbefehle")
-    scaffold.add_argument("--out", type=Path, help="Zieldatei statt stdout")
+    target = scaffold.add_mutually_exclusive_group()
+    target.add_argument("--out", type=Path, help="Zieldatei statt stdout (Ordner werden angelegt)")
+    target.add_argument(
+        "--user", action="store_true", help="In den Modulordner des Benutzers schreiben"
+    )
     scaffold.add_argument("--force", action="store_true", help="Zieldatei überschreiben")
     modules = commands.add_parser("modules", help="Geladene Module auflisten")
     modules.add_argument("--watch", action="store_true", help="Änderungen live neu laden")
@@ -189,12 +193,17 @@ def _validate(files: list[Path]) -> int:
 
 
 def _scaffold(args: argparse.Namespace) -> int:
+    out: Path | None = args.out
+    if args.user:
+        name = ".".join([Path(args.tool).name, *args.sub])
+        out = paths.config_dir() / "modules" / f"{name}.module.yaml"
     try:
         text = scaffold_module(Catalog().get(args.tool, args.sub))
-        if args.out is not None:
-            with args.out.open("w" if args.force else "x", encoding="utf-8") as handle:
+        if out is not None:
+            out.parent.mkdir(parents=True, exist_ok=True)
+            with out.open("w" if args.force else "x", encoding="utf-8") as handle:
                 handle.write(text)
-            print(f"geschrieben: {args.out}")
+            print(f"geschrieben: {out}")
             return 0
     except ToolNotFound as err:
         print(err, file=sys.stderr)
@@ -202,7 +211,7 @@ def _scaffold(args: argparse.Namespace) -> int:
     except FileExistsError:
         suggestion = paths.config_dir() / "modules" / f"{args.tool}.module.yaml"
         print(
-            f"{args.out} existiert bereits. Nutze --force zum Überschreiben oder "
+            f"{out} existiert bereits. Nutze --force zum Überschreiben oder "
             f"wähle einen anderen Namen, z. B. {suggestion}.",
             file=sys.stderr,
         )
@@ -216,6 +225,12 @@ def _scaffold(args: argparse.Namespace) -> int:
 
 def _modules(follow: bool) -> int:
     registry = _registry()
+    for directory in registry.dirs:
+        if not directory.is_dir():
+            print(f"Suchpfad: {directory} (fehlt)")
+        else:
+            count = sum(1 for m in registry.all() if m.path.parent == directory)
+            print(f"Suchpfad: {directory} ({count} Module)")
     for loaded in sorted(registry.all(), key=lambda m: (m.priority, m.module.tool)):
         print(f"{loaded.priority}\t{loaded.module.tool}\t{loaded.path}")
     for err in registry.errors:

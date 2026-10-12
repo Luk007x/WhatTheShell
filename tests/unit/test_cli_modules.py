@@ -58,6 +58,7 @@ def test_modules_lists_and_reports(mod_dir: Path, capsys: pytest.CaptureFixture[
     (mod_dir / "bad.module.yaml").write_text("schema_version: 1\n")
     assert main(["modules"]) == 0
     captured = capsys.readouterr()
+    assert f"Suchpfad: {mod_dir} (1 Module)" in captured.out
     assert f"0\tdemo\t{mod_dir / 'demo.module.yaml'}" in captured.out
     assert captured.err.startswith("FEHLER ") and "bad.module.yaml" in captured.err
 
@@ -97,3 +98,33 @@ def test_validate_backup_suffix_unknown(tmp_path: Path, capsys: pytest.CaptureFi
     path.write_text("schema_version: 1\ntool: x\n")
     assert main(["validate", str(path)]) == 1
     assert "Unbekannter Dateityp" in capsys.readouterr().err
+
+
+def test_scaffold_creates_parents_and_user(
+    mod_dir: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    out = tmp_path / "a" / "b" / "wc.module.yaml"
+    assert main(["scaffold", "demo", "--out", str(out)]) == 0
+    assert out.exists()
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
+    user_file = tmp_path / "cfg" / "whattheshell" / "modules" / "demo.module.yaml"
+    assert main(["scaffold", "demo", "--user"]) == 0
+    assert user_file.exists()
+    assert main(["scaffold", "demo", "--user"]) == 1
+    assert main(["scaffold", "demo", "--user", "--force"]) == 0
+    assert "geschrieben" in capsys.readouterr().out
+
+
+def test_modules_missing_dir(
+    mod_dir: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    missing = tmp_path / "nix"
+    monkeypatch.setattr(paths, "module_dirs", lambda root=None: [missing])
+    assert main(["modules"]) == 0
+    assert f"Suchpfad: {missing} (fehlt)" in capsys.readouterr().out

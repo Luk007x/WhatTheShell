@@ -7,7 +7,8 @@ Suchpfade, aufsteigende Priorität: mitgeliefert (`whattheshell/bundled/modules/
 
 ```bash
 mkdir -p ~/.config/whattheshell/modules
-wts scaffold grep > ~/.config/whattheshell/modules/grep.module.yaml   # Gerüst mit allen erkannten ids
+wts scaffold grep --user   # Gerüst mit allen erkannten ids nach ~/.config/whattheshell/modules/grep.module.yaml (Ordner wird angelegt)
+wts scaffold grep --out pfad/grep.module.yaml   # oder in eine andere Datei; --force überschreibt
 $EDITOR ~/.config/whattheshell/modules/grep.module.yaml
 wts validate ~/.config/whattheshell/modules/grep.module.yaml
 wts inspect grep          # zeigt das zusammengeführte Ergebnis
