@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import { ApiError, confirmRun, controlRun, createRun, getRun, startRun, wsUrl } from "../api";
+import { ApiError, confirmRun, errMsg, controlRun, createRun, getRun, startRun, wsUrl } from "../api";
 import { useDebounced } from "../hooks";
 import { t } from "../i18n";
 import { Modal } from "../Modal";
@@ -12,7 +12,6 @@ type Action = { kind: "event"; ev: RunEvent } | { kind: "reset"; events?: RunEve
 const reducer = (s: RunView, a: Action): RunView =>
   a.kind === "event" ? reduceEvents(s, a.ev) : a.kind === "reset" ? (a.events ?? []).reduce(reduceEvents, initialRun) : { ...s, confirm: null };
 
-const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const finishedStatus = (s: RunView) => s.status === "success" || s.status === "failed" || s.status === "aborted";
 
 function convert(type: string | undefined, text: string): unknown {
@@ -25,7 +24,7 @@ function Problem({ error }: { error: unknown }) {
   const errors = error instanceof ApiError ? error.errors : [];
   return (
     <div role="alert" className="error">
-      <p>{msg(error)}</p>
+      <p>{errMsg(error)}</p>
       {errors.length > 0 && <ul>{errors.map((e, i) => <li key={i}><code>{e.path}</code> {e.message}</li>)}</ul>}
     </div>
   );
@@ -90,19 +89,25 @@ export function RunPanel({ wf, onCapture, onEvaluate, onSelectStep }: {
   };
 
   const execute = async () => {
+    let id: string;
     try {
-      const r = await createRun(request(false));
-      setDialog(false);
-      setPlan(null);
-      setError(null);
-      setLost(false);
-      setPaused(false);
-      setRunId(r.run_id);
-      dispatch({ kind: "reset" });
-      connect(r.run_id);
-      await startRun(r.run_id);
+      id = (await createRun(request(false))).run_id;
     } catch (e) {
-      setPrepError(e);
+      setPrepError(e); // dialog is still open
+      return;
+    }
+    setDialog(false);
+    setPlan(null);
+    setError(null);
+    setLost(false);
+    setPaused(false);
+    setRunId(id);
+    dispatch({ kind: "reset" });
+    connect(id);
+    try {
+      await startRun(id);
+    } catch (e) {
+      setError(e); // dialog is closed: show the error in the visible error line
     }
   };
 
@@ -134,25 +139,26 @@ export function RunPanel({ wf, onCapture, onEvaluate, onSelectStep }: {
         <button onClick={() => control(paused ? "resume" : "pause")} disabled={!running}>{paused ? t("run.resume") : t("run.pause")}</button>
         <button onClick={() => control("step")} disabled={!running}>{t("run.step")}</button>
         <button onClick={() => control("abort")} disabled={!running}>{t("run.abort")}</button>
-        <span role="status" className="runstatus">
+        <span role="status" className="runstatus" data-testid="run-status">
           {t(`run.status.${view.status}`)}{view.message ? `: ${view.message}` : ""}{view.exitCode !== null && finishedStatus(view) ? ` (${t("prev.exit")} ${view.exitCode})` : ""}
         </span>
       </div>
       {error !== null && <Problem error={error} />}
       {lost && <p role="alert" className="error">{t("run.lost")} <button onClick={loadHistory}>{t("run.history")}</button></p>}
-      {plan !== null && <><h3>{t("run.plan")}</h3><pre className="plan">{plan}</pre></>}
+      {plan !== null && <><h3>{t("run.plan")}</h3><pre className="plan" data-testid="plan">{plan}</pre></>}
       {view.status === "idle" && plan === null && <p className="muted">{t("output.placeholder")}</p>}
       {view.blocks.map((b) => (
         <details key={b.key} open className="block">
           <summary>
-            <button className="linklike" onClick={(e) => { e.preventDefault(); onSelectStep(b.id); }}>{b.id}</button>{" "}
+            <strong>{b.id}</strong>{" "}
             <code>{b.command}</code>{" "}
             <span className={`dot ${b.safety}`} aria-hidden="true" /> {t(`safety.${b.safety}`)}
             {b.finish && <strong> · {b.finish.ok ? t("run.ok") : t("run.failed")}</strong>}
             {b.skipped !== undefined && <strong> · {t("run.skipped")}</strong>}
           </summary>
+          <p><button onClick={() => onSelectStep(b.id)}>{t("run.select")}</button></p>
           {b.lines.map((l, i) => (
-            <pre key={i} className={l.stream} aria-label={l.stream}>{l.stream === "stderr" && <strong>stderr: </strong>}{l.text}</pre>
+            <pre key={i} className={l.stream} aria-label={t(`stream.${l.stream}`)}>{l.stream === "stderr" && <strong>{t("stream.stderr")}: </strong>}{l.text}</pre>
           ))}
           {b.messages.map((m, i) => <p key={i} role="note">{m}</p>)}
           {b.skipped !== undefined && <p className="muted">{b.skipped}</p>}
@@ -186,7 +192,7 @@ export function RunPanel({ wf, onCapture, onEvaluate, onSelectStep }: {
           <input id="run-cwd" value={cwd} placeholder={t("run.cwd.placeholder")} onChange={(e) => setCwd(e.target.value)} />
         </div>
         <div className="actions">
-          <button autoFocus onClick={() => setDialog(false)}>{t("run.cancel")}</button>
+          <button data-autofocus onClick={() => setDialog(false)}>{t("run.cancel")}</button>
           <button onClick={() => void execute()} disabled={prep === null}>{t("run.confirm")}</button>
         </div>
       </Modal>
@@ -198,7 +204,7 @@ export function RunPanel({ wf, onCapture, onEvaluate, onSelectStep }: {
             <p><span className={`dot ${view.confirm.safety}`} aria-hidden="true" /> {t("cmd.safety")}: <strong>{t(`safety.${view.confirm.safety}`)}</strong></p>
             {view.confirm.reasons.length > 0 && <ul>{view.confirm.reasons.map((r) => <li key={r}>{r}</li>)}</ul>}
             <div className="actions">
-              <button autoFocus onClick={() => answer(false)}>{t("run.reject")}</button>
+              <button data-autofocus onClick={() => answer(false)}>{t("run.reject")}</button>
               <button onClick={() => answer(true)}>{t("run.accept")}</button>
             </div>
           </>

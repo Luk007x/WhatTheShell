@@ -17,13 +17,15 @@ export function FileMenu({ wf, fileId, dirty, onLoad, onSaved, onDeleted, onNew 
   const [list, setList] = useState<WorkflowListItem[]>([]);
   const [error, setError] = useState<unknown>(null);
   const [id, setId] = useState("");
+  const [loaded, setLoaded] = useState(false); // saving waits for the list (overwrite check)
   const discard = () => !dirty || window.confirm(t("file.discard"));
-  const refresh = () => listWorkflows().then(setList, setError);
+  const refresh = () => listWorkflows().then(setList, setError).finally(() => setLoaded(true));
 
   const open = (m: Exclude<Mode, null>, prefill = "") => {
     setError(null);
     setId(prefill);
     setMode(m);
+    setLoaded(false);
     void refresh();
   };
   const load = (item: WorkflowListItem) => {
@@ -60,13 +62,13 @@ export function FileMenu({ wf, fileId, dirty, onLoad, onSaved, onDeleted, onNew 
             </li>
           ))}
         </ul>
-        <div className="actions"><button autoFocus onClick={() => setMode(null)}>{t("run.cancel")}</button></div>
+        <div className="actions"><button data-autofocus onClick={() => setMode(null)}>{t("run.cancel")}</button></div>
       </Modal>
 
       <Modal open={mode === "save"} title={t("file.save")} onCancel={() => setMode(null)}>
         <div className="field">
           <label htmlFor="file-id">{t("file.id")}</label>
-          <input id="file-id" value={id} autoFocus onChange={(e) => setId(e.target.value)} aria-invalid={!FILE_ID_PATTERN.test(id)} />
+          <input id="file-id" value={id} data-autofocus onChange={(e) => setId(e.target.value)} aria-invalid={!FILE_ID_PATTERN.test(id)} />
           <small className="muted">{t("file.id.help")}</small>
         </div>
         {error instanceof ApiError && error.errors.length > 0 ? (
@@ -74,7 +76,7 @@ export function FileMenu({ wf, fileId, dirty, onLoad, onSaved, onDeleted, onNew 
         ) : err && <p role="alert" className="error">{err.message}</p>}
         <div className="actions">
           <button onClick={() => setMode(null)}>{t("run.cancel")}</button>
-          <button onClick={save} disabled={!FILE_ID_PATTERN.test(id)}>{t("file.save")}</button>
+          <button onClick={save} disabled={!loaded || !FILE_ID_PATTERN.test(id)}>{t("file.save")}</button>
         </div>
       </Modal>
     </span>

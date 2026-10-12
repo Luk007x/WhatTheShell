@@ -68,3 +68,34 @@ test("setLayout, visibleSteps, error paths", () => {
   expect(stepIdAtErrorPath(wf, "steps[3].if.else[0].message.text")).toBe("ok");
   expect(stepIdAtErrorPath(wf, "steps[3].if.condition")).toBe("pruefe");
 });
+
+const withFallback = {
+  schema_version: 1 as const,
+  name: "f",
+  steps: [
+    { id: "a", tool: "ls", on_error: { action: "fallback" as const, steps: [{ id: "b", kind: "message" as const, text: "{{ a.stderr }}" }] } },
+    { id: "c", kind: "if" as const, condition: { source: "a.stdout", is_empty: true }, then: [], else: [] },
+  ],
+};
+
+test("removing the last fallback step drops on_error", () => {
+  const r = removeStep(withFallback, "b").wf;
+  expect(findStep(r, "a")?.step).not.toHaveProperty("on_error");
+});
+
+test("rename touches only references (empty else stays)", () => {
+  const r = renameStep(withFallback, "a", "z").wf;
+  expect(JSON.parse(JSON.stringify(r).replaceAll('"z"', '"a"').replaceAll("z.", "a."))).toEqual(withFallback);
+  expect(findStep(r, "c")?.step).toHaveProperty("else", []);
+});
+
+test("rename keeps escaped literal braces but renames after an escaped backslash", () => {
+  const w = { schema_version: 1 as const, name: "e", steps: [{ id: "a", tool: "ls" }, { id: "m", kind: "message" as const, text: "\\{{ a.x }} \\\\{{ a.y }} {{ a.z }}" }] };
+  const text = (findStep(renameStep(w, "a", "q").wf, "m")?.step as { text: string }).text;
+  expect(text).toBe("\\{{ a.x }} \\\\{{ q.y }} {{ q.z }}");
+});
+
+test("error paths into on_error.steps resolve to the fallback step", () => {
+  expect(stepIdAtErrorPath(withFallback, "steps[0].command.on_error.steps[0].message.text")).toBe("b");
+  expect(stepIdAtErrorPath(withFallback, "steps[0].command.tool")).toBe("a");
+});

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { useEffect, useState } from "react";
-import { ApiError, getTool, postCommand, postPreview, postSelftest } from "../api";
+import { useEffect, useRef, useState } from "react";
+import { ApiError, errMsg, getTool, postCommand, postPreview } from "../api";
 import { useDebounced } from "../hooks";
 import { t } from "../i18n";
 import {
@@ -13,7 +13,8 @@ import type { CommandStep, Workflow } from "../types/workflow";
 
 export type Update = (patch: Record<string, unknown>, key?: string) => void;
 
-const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
+const msg = errMsg;
+const ON_ERROR = ["abort", "continue", "retry", "fallback"] as const;
 const toolCache = new Map<string, Promise<ToolInfo>>();
 function loadTool(tool: string, sub: string[]): Promise<ToolInfo> {
   const key = `${tool}\u0000${sub.join("/")}`;
@@ -163,7 +164,7 @@ function CommandForm({ step, wf, sandbox, onRetest, update }: {
       </div>
       <StdinAndErrors step={step} wf={wf} update={update} />
       <CommandView step={step} />
-      <Preview step={step} info={info} sandbox={sandbox} onRetest={onRetest} />
+      <Preview step={step} info={info} sandbox={sandbox} onRetest={onRetest} update={update} />
     </>
   );
 }
@@ -176,9 +177,19 @@ function StdinAndErrors({ step, wf, update }: { step: CommandStep; wf: Workflow;
   const setMode = (m: string) =>
     update({ stdin: m === "pipe" ? { pipe: before[before.length - 1] ?? "" } : m === "text" ? { text: "" } : m === "file" ? { file: "" } : undefined });
   const action = step.on_error?.action ?? "abort";
-  const setOnError = (patch: Record<string, unknown>) => {
-    const next = { ...step.on_error, ...patch };
-    update({ on_error: next.action === undefined || (next.action === "abort" && !next.steps && next.retries == null) ? undefined : next });
+  const [okText, setOkText] = useState((step.ok_exit_codes ?? [0]).join(", "));
+  const okCodes = okText.split(",").map((x) => x.trim()).filter(Boolean).map(Number);
+  const okValid = okCodes.every(Number.isInteger);
+  // rebuilt per action so no leftovers (retries, steps) survive a switch
+  const setOnError = (a: string, retries?: number) => {
+    const next = ON_ERROR.find((x) => x === a);
+    update({
+      on_error:
+        next === undefined || next === "abort" ? undefined
+        : next === "retry" ? { action: next, ...(retries !== undefined ? { retries } : {}) }
+        : next === "fallback" ? { action: next, steps: step.on_error?.steps ?? [] }
+        : { action: next },
+    });
   };
   return (
     <>
@@ -202,10 +213,11 @@ function StdinAndErrors({ step, wf, update }: { step: CommandStep; wf: Workflow;
       </div>
       <div className="field">
         <label htmlFor={`${p}-ok`}>{t("step.okcodes")}</label>
-        <input id={`${p}-ok`} defaultValue={(step.ok_exit_codes ?? [0]).join(", ")}
+        <input id={`${p}-ok`} value={okText} aria-invalid={!okValid}
           onChange={(e) => {
+            setOkText(e.target.value);
             const codes = e.target.value.split(",").map((x) => x.trim()).filter(Boolean).map(Number);
-            update({ ok_exit_codes: codes.length > 0 && codes.every(Number.isInteger) && codes.join() !== "0" ? codes : undefined }, "ok");
+            if (codes.every(Number.isInteger)) update({ ok_exit_codes: codes.length > 0 && codes.join() !== "0" ? codes : undefined }, "ok");
           }} />
       </div>
       <div className="field">
@@ -214,11 +226,11 @@ function StdinAndErrors({ step, wf, update }: { step: CommandStep; wf: Workflow;
       </div>
       <div className="field">
         <label htmlFor={`${p}-err`}>{t("step.onerror")}</label>
-        <select id={`${p}-err`} value={action} onChange={(e) => setOnError({ action: e.target.value, ...(e.target.value === "fallback" ? { steps: step.on_error?.steps ?? [] } : {}) })}>
-          {["abort", "continue", "retry", "fallback"].map((a) => <option key={a} value={a}>{t(`onerror.${a}`)}</option>)}
+        <select id={`${p}-err`} value={action} onChange={(e) => setOnError(e.target.value)}>
+          {ON_ERROR.map((a) => <option key={a} value={a}>{t(`onerror.${a}`)}</option>)}
         </select>
         {action === "retry" && (
-          <input type="number" min={1} aria-label={t("onerror.retries")} value={step.on_error?.retries ?? ""} onChange={(e) => setOnError({ retries: e.target.value === "" ? null : Number(e.target.value) })} />
+          <input type="number" min={1} aria-label={t("onerror.retries")} value={step.on_error?.retries ?? ""} onChange={(e) => setOnError("retry", e.target.value === "" ? undefined : Number(e.target.value))} />
         )}
       </div>
     </>
@@ -238,14 +250,16 @@ function CommandView({ step }: { step: CommandStep }) {
       .catch((e: unknown) => { if (!stale) { setRes(null); setErr(msg(e)); } });
     return () => { stale = true; };
   }, [req]);
-  const copy = () => res && navigator.clipboard.writeText(res.display).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }, (e: unknown) => setErr(msg(e)));
+  const stdin = step.stdin;
+  const suffix = stdin?.pipe ? ` < pipe: ${stdin.pipe}` : stdin?.text !== undefined ? " < text" : stdin?.file ? ` < datei: ${stdin.file}` : "";
+  const copy = () => res && navigator.clipboard.writeText(res.display + suffix).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }, (e: unknown) => setErr(msg(e)));
   return (
     <section aria-label={t("cmd.title")}>
       <h4>{t("cmd.title")}</h4>
       {err && <p role="alert" className="error">{err}</p>}
       {res && (
         <>
-          <code className="cmd">{res.display}</code>{" "}
+          <code className="cmd" data-testid="cmd-display">{res.display + suffix}</code>{" "}
           <button onClick={copy}>{copied ? t("cmd.copied") : t("cmd.copy")}</button>
           <p>
             <span className={`dot ${res.safety}`} aria-hidden="true" />
@@ -259,22 +273,27 @@ function CommandView({ step }: { step: CommandStep }) {
 }
 
 /** F-12 to F-15: sandbox preview with example data. */
-function Preview({ step, info, sandbox, onRetest }: { step: CommandStep; info: ToolInfo | null; sandbox: SandboxStatus | null; onRetest: () => void }) {
+function Preview({ step, info, sandbox, onRetest, update }: { step: CommandStep; info: ToolInfo | null; sandbox: SandboxStatus | null; onRetest: () => void; update: Update }) {
   const examples = info?.command.examples ?? [];
   const [example, setExample] = useState<number | null>(null);
+  const [applied, setApplied] = useState(false);
   const [res, setRes] = useState<PreviewResult | null>(null);
   const [err, setErr] = useState<ApiError | Error | null>(null);
   const [safety, setSafety] = useState<string | null>(null);
   const body = JSON.stringify({ tool: step.tool, command: step.command ?? [], args: step.args ?? {}, extra_args: step.extra_args ?? [], example, stdin: step.stdin?.text ?? null });
   const debounced = useDebounced(body, 600);
 
+  const seq = useRef(0); // only the latest preview request may set state
   const run = (payload: string) => {
+    const mine = ++seq.current;
     postPreview(JSON.parse(payload) as Parameters<typeof postPreview>[0]) // own JSON.stringify above
-      .then((r) => { setRes(r); setErr(null); })
-      .catch((e: unknown) => setErr(e instanceof Error ? e : new Error(String(e))));
+      .then((r) => { if (mine === seq.current) { setRes(r); setErr(null); } })
+      .catch((e: unknown) => { if (mine === seq.current) setErr(e instanceof Error ? e : new Error(String(e))); });
   };
   useEffect(() => {
-    postCommand(JSON.parse(debounced) as Parameters<typeof postCommand>[0]).then((r) => setSafety(r.safety), () => setSafety(null));
+    let stale = false;
+    postCommand(JSON.parse(debounced) as Parameters<typeof postCommand>[0]).then((r) => { if (!stale) setSafety(r.safety); }, () => { if (!stale) setSafety(null); });
+    return () => { stale = true; };
   }, [debounced]);
   const auto = sandbox?.available === true && safety === "safe" && example !== null;
   useEffect(() => { if (auto) run(debounced); }, [debounced, auto]); // eslint-disable-line -- run is stable in effect
@@ -285,11 +304,17 @@ function Preview({ step, info, sandbox, onRetest }: { step: CommandStep; info: T
       <h4>{t("prev.title")}</h4>
       <label>
         {t("prev.example")}{" "}
-        <select value={example ?? ""} onChange={(e) => setExample(e.target.value === "" ? null : Number(e.target.value))}>
+        <select value={example ?? ""} onChange={(e) => {
+          const i = e.target.value === "" ? null : Number(e.target.value);
+          setExample(i);
+          const args = i === null ? undefined : examples[i]?.args;
+          if (args) { update({ args: { ...args } }); setApplied(true); } else setApplied(false);
+        }}>
           <option value="">{t("prev.none")}</option>
           {examples.map((x, i) => <option key={i} value={i}>{x.title}</option>)}
         </select>
       </label>{" "}
+      {applied && <small className="muted">{t("prev.applied")} </small>}
       <button disabled={sandbox?.available === false} onClick={() => run(body)}>{t("prev.run")}</button>
       {unavailable && (
         <p role="alert" className="error">
@@ -300,8 +325,8 @@ function Preview({ step, info, sandbox, onRetest }: { step: CommandStep; info: T
       {res && (
         <div className="preview">
           <code className="cmd">{res.command}</code>
-          {res.stdout && <pre className="stdout" aria-label="stdout">{res.stdout}</pre>}
-          {res.stderr && <pre className="stderr" aria-label="stderr"><strong>stderr: </strong>{res.stderr}</pre>}
+          {res.stdout && <pre className="stdout" aria-label={t("stream.stdout")}>{res.stdout}</pre>}
+          {res.stderr && <pre className="stderr" aria-label={t("stream.stderr")}><strong>{t("stream.stderr")}: </strong>{res.stderr}</pre>}
           <p>
             {t("prev.exit")}: <strong>{res.exit_code}</strong> · {t("prev.duration")}: {res.duration.toFixed(2)} s
             {res.truncated && ` · ${t("prev.truncated")}`}{res.timed_out && ` · ${t("prev.timeout")}`}
@@ -397,7 +422,6 @@ export function StepPanel(props: {
 }) {
   const { step } = props;
   const [idDraft, setIdDraft] = useState(step.id);
-  const retest = () => { postSelftest().then(props.onRetest, () => props.onRetest()); };
   return (
     <div className="step-panel">
       <h3>{step.label ?? step.id}</h3>
@@ -405,7 +429,7 @@ export function StepPanel(props: {
       {idDraft !== step.id && <button onClick={() => props.rename(idDraft)}>{t("step.rename")}</button>}
       <Text id={`f-${step.id}-label`} label={t("step.label")} value={step.label ?? ""} onChange={(v) => props.update({ label: v || undefined }, "label")} />
       {isCommand(step) ? (
-        <CommandForm step={step} wf={props.wf} sandbox={props.sandbox} onRetest={retest} update={props.update} />
+        <CommandForm step={step} wf={props.wf} sandbox={props.sandbox} onRetest={props.onRetest} update={props.update} />
       ) : (
         <ControlForm step={step} wf={props.wf} update={props.update} />
       )}

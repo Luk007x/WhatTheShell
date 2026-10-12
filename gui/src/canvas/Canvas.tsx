@@ -27,7 +27,7 @@ function StepNodeView({ data, selected }: NodeProps<StepNode>) {
   return (
     <div className={`node kind-${kind}${safety ? ` safety-${safety}` : ""}${selected ? " sel" : ""}`}>
       <Handle type="target" position={Position.Top} id="in" aria-label={t("port.in")} />
-      {kind === "command" && <Handle type="target" position={Position.Left} id="stdin" aria-label="stdin" title="stdin" />}
+      {kind === "command" && <Handle type="target" position={Position.Left} id="stdin" aria-label={t("stream.stdin")} title={t("stream.stdin")} />}
       <div className="node-title">{s.label ?? s.id}</div>
       <div className="node-sub">
         {subtitle(s)}
@@ -42,7 +42,7 @@ function StepNodeView({ data, selected }: NodeProps<StepNode>) {
       {kind === "foreach" && <Handle type="source" position={Position.Right} id="body" title={t("port.body")} aria-label={t("port.body")} />}
       {kind === "command" && (
         <>
-          <Handle type="source" position={Position.Right} id="stdout" style={{ top: "30%" }} title="stdout" aria-label="stdout" />
+          <Handle type="source" position={Position.Right} id="stdout" style={{ top: "30%" }} title={t("stream.stdout")} aria-label={t("stream.stdout")} />
           <Handle type="source" position={Position.Right} id="fallback" style={{ top: "70%" }} title={t("port.fallback")} aria-label={t("port.fallback")} />
         </>
       )}
@@ -61,7 +61,6 @@ export function Canvas(props: {
   edit: Edit;
   catalogTool: string | null;
   safetyOf: (tool: string) => string | null;
-  onNew: () => void;
 }) {
   const { wf, selected, onSelect, edit, catalogTool, safetyOf } = props;
   const [hint, setHint] = useState<string | null>(null);
@@ -94,7 +93,7 @@ export function Canvas(props: {
   const selHit = selected ? findStep(wf, selected) : undefined;
   const targets = selHit ? portsOf(selHit.step).filter((p): p is Exclude<Port, "fallback"> => p !== "fallback") : [];
   const path = selected && targets.some((p) => p === target) ? [selected, target] : [];
-  const add = (step: Step) => edit((w) => addStep(w, step, path));
+  const add = (step: Step) => { edit((w) => addStep(w, step, path)); onSelect(step.id); };
   const base = (kind: string) => ({ id: newId(wf, kind) });
   const last = wf.steps[wf.steps.length - 1]?.id;
   const src = last ? `${last}.stdout` : "";
@@ -112,7 +111,6 @@ export function Canvas(props: {
     <section className="panel canvas" aria-labelledby="canvas-h">
       <h2 id="canvas-h" className="sr-only">{t("canvas.title")}</h2>
       <div className="toolbar" role="toolbar" aria-label={t("canvas.toolbar")}>
-        <button onClick={props.onNew}>{t("canvas.new")}</button>
         <label>
           {t("canvas.name")} <input value={wf.name} onChange={(e) => edit((w) => ({ ...w, name: e.target.value }), "name")} />
         </label>
@@ -145,11 +143,13 @@ export function Canvas(props: {
           onNodeClick={(_, n) => { setHint(null); onSelect(n.id); }}
           onPaneClick={() => { setHint(null); onSelect(null); }}
           onNodeDragStop={(_, n) => edit((w) => setLayout(w, n.id, n.position))}
-          onNodesDelete={(ns) => edit((w) => ns.reduce<OpResult>((r, n) => removeStep(r.wf, n.id), { wf: w, warnings: [] }))}
-          onEdgesDelete={(es) => {
+          onDelete={({ nodes: ns, edges: es }) => {
+            const gone = new Set(ns.map((n) => n.id));
+            if (ns.length > 0) edit((w) => ns.reduce<OpResult>((r, n) => removeStep(r.wf, n.id), { wf: w, warnings: [] }));
             for (const e of es) {
+              if (gone.has(e.source) || gone.has(e.target)) continue; // edges of deleted nodes vanish silently
               if (e.data?.kind === "pipe") edit((w) => updateStep(w, e.target, { stdin: undefined }));
-              else if (findStep(wf, e.source) && findStep(wf, e.target)) setHint(t("canvas.flowHint"));
+              else setHint(t("canvas.flowHint"));
             }
           }}
           nodesFocusable

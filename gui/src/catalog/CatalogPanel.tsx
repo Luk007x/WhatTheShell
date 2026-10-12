@@ -44,7 +44,11 @@ export function CatalogPanel({ selected, onSelect, onLoaded }: { selected: strin
   const toggle = (name: string) => {
     const next = favorites.includes(name) ? favorites.filter((n) => n !== name) : [...favorites, name];
     setFavorites(next);
-    localStorage.setItem(FAV_KEY, JSON.stringify(next));
+    try {
+      localStorage.setItem(FAV_KEY, JSON.stringify(next));
+    } catch {
+      /* storage unavailable: favorites last for this session only */
+    }
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {

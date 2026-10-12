@@ -4,6 +4,8 @@ import type {
   RunState, SandboxStatus, Status, ToolInfo, ToolSummary, ValidationResult, Workflow, WorkflowDoc, WorkflowListItem,
 } from "./types/api";
 
+export const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
+
 export class ApiError extends Error {
   constructor(public status: number, public error: string, message: string, public errors: { path: string; message: string }[] = []) {
     super(message);
@@ -38,12 +40,19 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (res.status === 204) return undefined as T; // ponytail: 204 has no body, callers declare void
-  const data: unknown = await res.json().catch(() => null);
+  if (res.status === 204) return undefined as T; // no body, callers declare void
+  const text = await res.text();
+  let data: unknown = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    if (res.ok) throw new ApiError(res.status, "body", `HTTP ${res.status}: ungültige JSON-Antwort`);
+  }
   if (!res.ok) {
     const e = (data ?? {}) as { error?: string; message?: string; errors?: { path: string; message: string }[] };
     throw new ApiError(res.status, e.error ?? "http", e.message ?? `HTTP ${res.status}`, Array.isArray(e.errors) ? e.errors : []);
   }
+  if (data === null && res.status !== 202) throw new ApiError(res.status, "body", `HTTP ${res.status}: leere Antwort`);
   return data as T; // the server contract in docs/API.md is the trust boundary
 }
 

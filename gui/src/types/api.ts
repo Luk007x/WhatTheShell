@@ -103,7 +103,7 @@ export interface WorkflowDoc {
 
 export interface ValidationResult {
   ok: boolean;
-  errors: unknown[];
+  errors: { path: string; message: string }[];
 }
 
 export interface RunRequest {

@@ -1,6 +1,6 @@
 # Architektur
 
-Stand: Phase 3. Pakete, die noch nicht existieren, sind als „geplant" markiert und tragen den Phasenbezug aus dem Projektauftrag (Abschnitt 16).
+Stand: Phase 4. Pakete, die noch nicht existieren, sind als „geplant" markiert und tragen den Phasenbezug aus dem Projektauftrag (Abschnitt 16).
 
 ## Datenfluss
 
@@ -17,7 +17,7 @@ Die Datenmodelle sind die einzige Quelle der Wahrheit; `schemas/` wird daraus ge
 | Paket | Zweck | Öffentliche Schnittstelle | Nicht zuständig für | Phase |
 |---|---|---|---|---|
 | `models` | Pydantic-Modelle für Katalog, Modul und Workflow, Validierung, Migration, Schema-Export | `Module`, `Workflow`, `iter_steps`, `migrate`, `export_schemas`, `format_validation_error`, `CommandSpec`, `ToolInfo` | Laden von Dateien, Mergen, Ausführen | 0 |
-| `cli` | `wts`-Einstieg, argparse-Subcommands (`schema export`, `tools`, `inspect`, `validate`, `scaffold`, `modules`, `run`, `example`, `sandbox`) | `main(argv) -> int` | Fachlogik; ruft nur Paketfunktionen | 0 |
+| `cli` | `wts`-Einstieg, argparse-Subcommands (`schema export`, `tools`, `inspect`, `validate`, `scaffold`, `modules`, `run`, `example`, `sandbox`, `gui`) | `main(argv) -> int` | Fachlogik; ruft nur Paketfunktionen | 0 |
 | `subproc` | Begrenzter Prozessstart: argv, eigene Prozessgruppe, Timeout, Byte-Limit, bereinigte Umgebung | `run_limited`, `sanitized_env` | Entscheidung, was gestartet wird | 1 |
 | `catalog` | PATH durchsuchen, Hilfe lazy holen (`--help`, `-h`, `man`), Cache nach `path + mtime + size` (innen `help_hash`, `version`), Subbefehle mit Tiefenlimit, interaktive Tools markieren, Modul-Overrides nach dem Cache anwenden (`Catalog(registry=…)`) | `scan_path`, `Catalog.tools/get`, `fetch_help`, `ToolNotFound`, `INTERACTIVE`, `NEVER_PROBE` | Parsen der Hilfe | 1 |
 | `helpparse` | Reiner Text → `CommandSpec` mit Konfidenz je Option, Fallback „Freie Argumente" (`raw_help`); Golden-Korpus in `tests/corpus/` | `parse_help`, `clean_text` | Prozessstart, Cache | 1 |
@@ -27,13 +27,18 @@ Die Datenmodelle sind die einzige Quelle der Wahrheit; `schemas/` wird daraus ge
 | `safety` | Gefahrenklasse je Befehl und Option: Basis aus Katalog/Modul, Tool-Listen, Flag-Muster, `extra_args` | `classify_command`, `Verdict`, `summarize`, `needs_confirmation` | Ausführung, Prozesse | 3 |
 | `sandbox` | `bwrap`-Aufruf (ro-root, tmpfs für /home /tmp /run, `--unshare-all`, `--clearenv`, Workdir unter `/tmp/work`), Selbsttest mit Distro-Hinweis, Zeit-/Speicher-/Ausgabelimit, Beispiel-Läufer | `self_test`, `SandboxStatus`, `run_sandboxed`, `build_bwrap_argv`, `run_example`, `iter_examples` | Entscheidung, was ausgeführt wird; Fallback ohne bwrap (gibt es nicht) | 3 |
 | `engine` | argv-Aufbau aus Spec + args (nie Shell), Templates (`{{ }}`, eingeschränkt), Evaluatoren, Runner (Schritte, Pipe als aufgezeichnete Ausgabe, if/foreach/set/wait/message/abort, on_error, Bestätigung, Maskierung, env-Sperrliste, Events, Controller mit Abbruch/Pause/Einzelschritt), Plan (Dry-Run) | `build_argv`, `render`, `evaluate`, `Runner.prepare/run`, `plan`, `plan_text`, `Controller`, Events | Sandbox, GUI, Katalog-Cache | 3 |
-| `api` | FastAPI + WebSocket auf 127.0.0.1 mit Token, liefert das vorgebaute Frontend aus | geplant | Fachlogik | 4 |
+| `api` | FastAPI auf 127.0.0.1: Sicherheits-Middleware (Host, Origin, Token, Body-Limit), REST für Status/Tools/Module/Befehl/Vorschau/Workflows, Lauf-Manager mit Thread, Events, Bestätigung, Steuerung und WebSocket; liefert das gebaute Frontend aus | `create_app`, `Session`, `SecurityMiddleware`, `RunManager`, Router in `rest`, `workflows`, `runs` | Fachlogik (ruft Kern-Pakete), Hilfe-Abruf unbekannter Subbefehle (nie) | 4 |
+| `gui/` (TypeScript) | Vite + React + React Flow: Katalog, Arbeitsfläche als abgeleiteter Graph des kanonischen Workflow-Dokuments (`model/ops.ts`, `model/graph.ts`), Baustein-Formulare, Befehlsanzeige, Vorschau, Laufpanel über WebSocket, Datei-Menü, i18n de/en; Typen aus `schemas/` generiert; Playwright-Smoke in `gui/e2e/` | – | Eigene Fachlogik (nur Darstellung und Editieroperationen) | 4 |
 | `ai` | Optionale Provider (lokal, API, Agenten-CLI), standardmäßig nicht importiert | geplant | Ausführen von Ergebnissen | 6 |
 | `terminal` | Eingebettetes Terminal (PTY) | geplant | – | 7 |
 
 ## Ausführungspfad (Phase 3)
 
 `wts run` → `load_workflow_file` (nichts wird ausgeführt) → `Runner.prepare` (Variablen, alle Tools auflösen, Gefahrenklasse je Schritt) → Planübersicht und Bestätigung (10.6) → `Runner.run` (je Schritt: Templates rendern → `build_argv` → Bestätigung bei caution/dangerous → `subproc.run_limited` mit Live-Chunks → Evaluatoren/Fehlerbehandlung). Vorschau/Beispiele laufen ausschließlich über `sandbox.run_sandboxed` in `bwrap`.
+
+## GUI-Pfad (Phase 4)
+
+`wts gui` bindet einen Socket auf 127.0.0.1, erzeugt ein Sitzungstoken, öffnet den Browser über eine 0600-Weiterleitungsdatei und startet uvicorn. Die SPA hält das Token im Speicher und ruft die REST-Endpunkte auf; ein Lauf wird mit `POST /api/runs` vorbereitet (Plan, Klassen), nach Bestätigung gestartet und über `/ws/runs/{id}` live verfolgt; Bestätigungen für `caution`/`dangerous` laufen als Dialog über denselben Kanal. Der Zustand der GUI ist das Workflow-Dokument; der Knoten-Graph wird daraus berechnet (`toGraph`), Editieraktionen sind reine Operationen auf dem Dokument.
 
 ## Modell-Invarianten (Kurzfassung, Details in `FORMATS.md`)
 

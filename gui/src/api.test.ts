@@ -32,3 +32,9 @@ test("token is read, fragment removed, header sent, errors typed", async () => {
   await expect(putWorkflow("a", wf)).rejects.toMatchObject({ status: 401, error: "token", message: "kaputt" });
   await expect(Promise.reject(new ApiError(1, "e", "m"))).rejects.toBeInstanceOf(ApiError);
 });
+
+test("ok response without body is an error", async () => {
+  vi.stubGlobal("location", { hash: "", pathname: "/", search: "" });
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status: 200 })));
+  await expect(getTool("ls")).rejects.toMatchObject({ error: "body" });
+});

@@ -1,6 +1,6 @@
 # Sicherheitskonzept
 
-Stand: Phase 3 nach Review-Fixes (D-008). Maßgeblich ist `PROJEKTAUFTRAG.md` Abschnitt 10 und 11. Dieses Dokument beschreibt, was im Code **umgesetzt** ist (mit Datei und Funktion), und kennzeichnet alles andere als „geplant (Phase N)“ oder „nicht umgesetzt“.
+Stand: Phase 4 (D-008, D-009). Maßgeblich ist `PROJEKTAUFTRAG.md` Abschnitt 10 und 11. Dieses Dokument beschreibt, was im Code **umgesetzt** ist (mit Datei und Funktion), und kennzeichnet alles andere als „geplant (Phase N)“ oder „nicht umgesetzt“.
 
 ## 1. Bedrohungsmodell
 
@@ -15,7 +15,7 @@ WhatTheShell startet beliebige Befehle des Nutzers; ein Fehler hat damit sofort 
 | Gilt | Befehle sind immer eine argv-Liste. Der Befehlstext dient nur der Anzeige. |
 | Umsetzung | `subproc.run_limited` ruft `subprocess.Popen(list(argv))` ohne Shell. `engine/argv.py:build_argv` baut die Liste aus Spec und Werten (Reihenfolge, `multiple`, `nargs`, `attached`); `display` quotet nur zur Anzeige (`shlex.join`). Unbekannte Feld-ids, falsche Typen und Enum-Werte werden mit `ArgvError` abgelehnt (`_convert`). |
 | Test | `tests/unit/test_injection.py` (Nutzlasten mit `;`, `$()`, Backticks, Quotes, Newline, Unicode in `args`, `extra_args`, Variablen, `stdin.text`, `env`; prüft, dass keine Datei entsteht), `test_engine_argv.py`. |
-| Grenzen | Ein Wert mit führendem `-` kann vom Zieltool als Option gelesen werden. Die Engine fügt kein `--` ein, weil nicht jedes Tool es kennt (FORMATS §7). Eine GUI-Warnung ist **geplant (Phase 4)**. Ein aufgerufenes Programm, das selbst eine Shell startet (`sh -c`, `xargs`), wird dadurch nicht entschärft; solche Tools sind `caution`. |
+| Grenzen | Ein Wert mit führendem `-` kann vom Zieltool als Option gelesen werden. Die Engine fügt kein `--` ein, weil nicht jedes Tool es kennt (FORMATS §7). Eine GUI-Warnung ist **nicht umgesetzt**. Ein aufgerufenes Programm, das selbst eine Shell startet (`sh -c`, `xargs`), wird dadurch nicht entschärft; solche Tools sind `caution`. |
 
 ### 2.2 Sicherheitsklassen
 
@@ -33,7 +33,7 @@ WhatTheShell startet beliebige Befehle des Nutzers; ein Fehler hat damit sofort 
 | Gilt | Kein ungeschützter Ersatzmodus. Nur ein beschreibbares Arbeitsverzeichnis, kein Netz, bereinigte Umgebung, Zeit-, Speicher- und Ausgabelimit. |
 | Umsetzung | `sandbox/__init__.py:build_bwrap_argv`: `--ro-bind / /`, `--tmpfs` für `/tmp`, `/var/tmp`, `/home`, `/root`, `/run`, Workdir als einzige Schreibstelle unter `/tmp/work`, `--unshare-all` (inkl. Netz und PID), `--die-with-parent`, `--new-session`, `--clearenv`. `run_sandboxed` liefert `None`, wenn `bwrap` fehlt, und startet nie ohne bwrap; Limits: Timeout 10 s und 1 MiB Ausgabe über `run_limited`; Speicher und Prozesse über `prlimit --as=512 MiB --nproc=256` **innerhalb** von bwrap (kein `preexec_fn`, wegen Fork-Risiko in Mehrthread-Prozessen). Fester `PATH` (`SANDBOX_PATH`), nicht überschreibbar. `self_test` prüft Start, Schreiben im Workdir, Netzisolation (`ip link`, nur wenn `/usr/sbin/ip` existiert) und Schreibschutz (`/etc`); bei Fehler `SandboxStatus(available=False, reason, install_hint)`, Installationsbefehl je Distribution aus `/etc/os-release` (`install_hint_for_distro`). Eingesetzt wird die Sandbox für Modul-Beispiele (`sandbox/examples.py:run_example`, bei `available=False` übersprungen). |
 | Test | `tests/unit/test_sandbox.py` (Aufbau der Argumente, Schreibschutz, Workdir, Umgebung, kein Netz, Timeout, Selbsttest, Installationshinweise), `test_examples_sandbox.py`. |
-| Grenzen | (a) bwrap braucht unprivilegierte User-Namespaces; wo sie gesperrt sind (AppArmor, Sysctl), ist die Vorschau aus. (b) Das Dateisystem ist **lesbar** (`--ro-bind / /`): `~/.ssh` ist zwar durch `--tmpfs /home` verdeckt, andere Pfade (`/etc`, `/usr`, Daten außerhalb von `/home`) sind lesbar. (c) Das Arbeitsverzeichnis liegt unter `/tmp/work`, weil auf dem schreibgeschützten Root kein `/work` angelegt werden kann. (d) `--as` begrenzt Adressraum, nicht tatsächlichen Speicher; `nproc` zählt je Benutzer im User-Namespace (256), keine CPU-Grenze. Fehlt `prlimit` (util-linux), läuft die Sandbox mit Warnung **ohne** Speicher- und Prozesslimit; der Selbsttest meldet das. (e) Die Netzisolation im Selbsttest wird übersprungen, wenn `ip` fehlt. (f) Die GUI-Anbindung (Vorschau-Knopf, Meldung mit „Erneut testen“, automatische Vorschau nur für `safe`) ist **geplant (Phase 4)**; heute gibt es nur `self_test` und die Beispiel-Läufe, keinen CLI-Befehl für eine Vorschau beliebiger Befehle. Der Schalter „Geschützter Lauf“ für ganze Workflows ist **geplant (Phase 3, optional)**: **nicht umgesetzt**. |
+| Grenzen | (a) bwrap braucht unprivilegierte User-Namespaces; wo sie gesperrt sind (AppArmor, Sysctl), ist die Vorschau aus. (b) Das Dateisystem ist **lesbar** (`--ro-bind / /`): `~/.ssh` ist zwar durch `--tmpfs /home` verdeckt, andere Pfade (`/etc`, `/usr`, Daten außerhalb von `/home`) sind lesbar. (c) Das Arbeitsverzeichnis liegt unter `/tmp/work`, weil auf dem schreibgeschützten Root kein `/work` angelegt werden kann. (d) `--as` begrenzt Adressraum, nicht tatsächlichen Speicher; `nproc` zählt je Benutzer im User-Namespace (256), keine CPU-Grenze. Fehlt `prlimit` (util-linux), läuft die Sandbox mit Warnung **ohne** Speicher- und Prozesslimit; der Selbsttest meldet das. (e) Die Netzisolation im Selbsttest wird übersprungen, wenn `ip` fehlt. (f) Die Web-UI bietet `POST /api/preview` (nur Sandbox, 409 ohne bwrap) und `POST /api/sandbox/selftest` („Erneut testen“); ob eine automatische Vorschau nur für `safe` gesperrt wird, habe ich im Frontend nicht geprüft. Einen CLI-Befehl für eine Vorschau beliebiger Befehle gibt es nicht. Der Schalter „Geschützter Lauf“ für ganze Workflows ist **geplant (Phase 3, optional)**: **nicht umgesetzt**. |
 
 ### 2.4 Bestätigung vor echter Ausführung
 
@@ -42,7 +42,7 @@ WhatTheShell startet beliebige Befehle des Nutzers; ein Fehler hat damit sofort 
 | Gilt | `caution` und `dangerous` verlangen eine Bestätigung mit Klartext-Befehl. Dry-Run ist immer verfügbar. |
 | Umsetzung | `safety/classify.py:needs_confirmation`; `engine/runner.py:Runner._command` ruft vor dem Start `confirm(ConfirmRequest(step_id, Befehlstext, Klasse, Gründe))`. Bei Ablehnung endet der Lauf mit Status `aborted`, ohne Prozessstart. Die Klasse wird **zweimal** bestimmt, es gilt das Maximum (`merge_verdicts`, D-008): in `Runner.prepare` für Plan und Übersicht, und in `Runner._build` zur Laufzeit auf den gerenderten Werten (Variablen, Schleifenwerte, Tool-Ausgaben könnten sonst `--delete` nachschieben). Zusätzlich heben `env`, ein `cwd` oder `stdin.file` außerhalb des Workflow-Ordners auf `caution` (`extra_risks`); der Bestätigungstext zeigt Umgebung, Verzeichnis und stdin (`describe`). `Runner.prepare` startet keinen Prozess für die Klassifizierung. CLI: `cli.py` zeigt vor jedem Lauf die Übersicht (`engine/plan.py`), `--dry-run` führt nichts aus (siehe 2.9: Hilfe-Abruf nur für bekannte Subbefehle), ohne Terminal ohne `--yes` Abbruch (Exit 2). |
 | Test | `tests/unit/test_engine_runner.py` (`test_confirmation_refused_starts_no_process`), `test_engine_plan.py`, `test_cli_run.py`. |
-| Grenzen | `--yes` bestätigt alles ohne Rückfrage (bewusst, für Skripte). Die Bestätigung gilt je Schritt (und je Schleifeniteration, eine „für alle“-Antwort ist eine GUI-Aufgabe, Phase 4); variablenabhängige Befehle werden mit den eingesetzten Werten angezeigt. Die GUI-Bestätigung ist **geplant (Phase 4)**. |
+| Grenzen | `--yes` bestätigt alles ohne Rückfrage (bewusst, für Skripte). Die Bestätigung gilt je Schritt (und je Schleifeniteration, eine „für alle“-Antwort ist weiterhin offen); variablenabhängige Befehle werden mit den eingesetzten Werten angezeigt. In der Web-UI läuft die Bestätigung als `confirm_request` über WebSocket/REST (Abschnitt 4). |
 
 ### 2.5 Kein stilles Sudo
 
@@ -60,7 +60,7 @@ WhatTheShell startet beliebige Befehle des Nutzers; ein Fehler hat damit sofort 
 | Gilt | Beim Öffnen wird nichts ausgeführt; vor dem ersten Lauf sieht der Nutzer alle Befehle mit Gefahrenklasse. |
 | Umsetzung | `modules/loader.py:load_workflow_file` liest und validiert nur. `Runner.prepare` führt nichts aus (löst Tools auf, klassifiziert). CLI zeigt `plan_text(plan(prepared))` vor jedem echten Lauf (siehe 2.4). Beim Auflösen eines Tools kann der Hilfe-Abruf `--help` des Tools starten (siehe 2.9). |
 | Test | `test_engine_plan.py`, `test_cli_run.py`, `test_modules_loader.py`. |
-| Grenzen | Die Zusammenfassung erscheint im CLI automatisch, aber nur bei `caution`/`dangerous` wird zusätzlich ausdrücklich gefragt. Eine Herkunftsmarkierung („fremde Datei, noch nie bestätigt“) gibt es nicht: **nicht umgesetzt**. Die Übersicht in der GUI ist **geplant (Phase 4)**. |
+| Grenzen | Die Zusammenfassung erscheint im CLI automatisch, aber nur bei `caution`/`dangerous` wird zusätzlich ausdrücklich gefragt. Eine Herkunftsmarkierung („fremde Datei, noch nie bestätigt“) gibt es nicht: **nicht umgesetzt**. In der Web-UI liefert `POST /api/runs` den Plan vor `/start` (Abschnitt 4). |
 
 ### 2.7 Template-Ausdrücke ohne Codeausführung
 
@@ -127,20 +127,34 @@ Grenzen:
 - Module aus `./.whattheshell/modules/` (projektlokal) werden beim Scan automatisch geladen. Eine Rückfrage vor dem Laden fremder Projektmodule gibt es nicht: **nicht umgesetzt**.
 - Module werden beim Laden nie ausgeführt; Beispiele laufen nur in der Sandbox (2.3).
 
-## 4. Web-UI (geplant, Phase 4)
+## 4. Web-UI (umgesetzt, Phase 4)
 
-**Nicht umgesetzt.** Das Paket `api/` existiert noch nicht. Diese Punkte sind verbindlich (Abschnitt 11) und Abnahmekriterium für Phase 4:
+`wts gui` startet den lokalen Server (`cli.py:_gui`, `_serve`); Vertrag in `docs/API.md`, Entscheidung D-009. Tests: `tests/unit/test_api_security.py`, `test_api_rest.py`, `test_api_runs.py`. Jeder Punkt der Checkliste aus Abschnitt 11 ist umgesetzt:
 
-- [ ] Server bindet nur an `127.0.0.1` (kein `0.0.0.0`, kein IPv6-Wildcard).
-- [ ] Zufälliges Sitzungstoken pro Start; jede HTTP-Anfrage und jeder WebSocket-Aufbau prüft es.
-- [ ] `Host`-Prüfung gegen DNS-Rebinding (nur `127.0.0.1:port` / `localhost:port`).
-- [ ] `Origin`-Prüfung bei HTTP und WebSocket gegen CSRF und Cross-Site-WebSocket-Hijacking.
-- [ ] Keine offenen CORS-Regeln (kein `*`, keine Reflexion des Origin).
-- [ ] Kein Start als root (Abbruch mit Meldung).
-- [ ] Token nicht in URLs/Logs hinterlassen (Weitergabe per Fragment oder Header, nicht per Query im Verlauf).
-- [ ] Ausführungsendpunkte verwenden dieselbe Bestätigungs- und Sandbox-Logik wie der Kern; die API umgeht `needs_confirmation` nicht.
-- [ ] Eingaben der API laufen durch dieselben Modelle und `build_argv` wie die CLI.
-- [ ] Tests: Anfrage ohne Token, mit falschem Host, mit fremdem Origin werden abgelehnt.
+- [x] **Nur `127.0.0.1`, selbst gebundener Socket.** `cli.py:_gui` bindet `socket.bind(("127.0.0.1", port))` selbst und übergibt den Socket an uvicorn (`_serve`, `serve(sockets=[sock])`): kein Port-Race, kein Browserstart auf einen fremden Dienst. Kein `0.0.0.0`, kein IPv6.
+- [x] **Kein Start als root.** `cli.py:_gui` bricht bei `os.geteuid() == 0` mit Meldung ab.
+- [x] **Sitzungstoken.** `api/security.py:Session` erzeugt `secrets.token_urlsafe(32)` pro Start. `wts gui` gibt `http://127.0.0.1:PORT/#token=…` aus; das Fragment geht nie an den Server. Die SPA sendet den Header `X-WTS-Token`; beim WebSocket Query `?token=`. Prüfung in `SecurityMiddleware._violation` mit `secrets.compare_digest` für alles unter `/api/` und `/ws/` (401). Kein Access-Log (`access_log=False` in `_serve`), damit die WebSocket-Query nicht im Log landet.
+- [x] **Host-Prüfung** gegen DNS-Rebinding: `_violation` erlaubt nur `127.0.0.1:PORT` und `localhost:PORT` (400), für alle Pfade inklusive statischer Dateien.
+- [x] **Origin-Prüfung** gegen CSRF und Cross-Site-WebSocket: `_violation` prüft `Origin` bei allen Nicht-GET/HEAD/OPTIONS-Anfragen und bei WebSocket (403). Ein fehlender Origin (z. B. `curl`) wird zugelassen; dort schützt das Token.
+- [x] **Keine CORS-Header.** Es gibt keine CORS-Middleware (`api/app.py:create_app`); die Seite wird von derselben Origin ausgeliefert.
+- [x] **Keine Doku-Endpunkte.** `create_app`: `docs_url=None, redoc_url=None, openapi_url=None`.
+- [x] **Body-Limit** 1 MiB: `MAX_BODY_BYTES`, per `Content-Length` und für Körper ohne Länge im Zähler `SecurityMiddleware._limited` (413). WebSocket-Nachrichten: `ws_max_size=1_048_576` in `_serve`.
+- [x] **Vorschau-Semaphore.** `api/rest.py:PREVIEW_SLOTS = Semaphore(2)`; Wartezeit über 15 s gibt 429. Die Vorschau läuft nur über `run_sandboxed`, ohne Sandbox 409.
+- [x] **Laufgrenzen.** `api/runs.py`: `MAX_RUNNING_RUNS = 4` (429), `MAX_CREATED_RUNS = 20`, `MAX_FINISHED_RUNS = 50` (älteste werden verworfen), `MAX_EVENTS = 10_000` je Verlauf. `cwd` muss ein existierender absoluter Ordner sein (422), sonst `config_dir()/runs/<id>`.
+- [x] **Subbefehle werden nie abgefragt.** Die API ruft `Catalog.get` ohne `probe_unknown` (Standard `False`); Subbefehl-Wörter und `command` müssen `^[A-Za-z][A-Za-z0-9_-]*$` genügen (`rest.py:SubWord`, 422). Unbekannte Subbefehle liefern einen Fallback-Eintrag ohne Prozessstart (siehe 2.9, D-009).
+- [x] **Browserstart ohne Token in der Prozessliste.** `cli.py:_write_redirect` schreibt eine Weiterleitungsseite (`O_EXCL`, Modus 0600, Ordner 0700 unter `cache_dir()/gui`); `webbrowser.open` bekommt nur die `file://`-URL. Die Datei wird beim Beenden gelöscht (`finally` in `_gui`).
+- [x] **Einheitliches Fehlerformat.** `api/errors.py:error_response` und die Handler in `app.py` (`_http_error`, `_validation_error`) liefern `{"error", "message"[, "errors"]}`; keine Stacktraces in Antworten (Stacktraces gehen nur ins Log).
+- [x] **Gleiche Logik wie das CLI.** Ausführung läuft über `Runner` (Klassifizierung, Bestätigung als `confirm_request`, Maskierung in `_emit`), Befehle über `build_argv`; die API umgeht `needs_confirmation` nicht.
+
+Bekannte Grenzen:
+
+- Jeder Client mit gültigem Token, also auch ein zweiter Tab desselben Nutzers, kann Bestätigungen beantworten. Es ist derselbe Nutzer; eine Bindung an eine Verbindung gibt es nicht.
+- Die erste URL mit `#token=…` steht im Browserverlauf und in der Terminalausgabe. Das Token gilt nur für diese Sitzung.
+- Wird `wts gui` mit SIGKILL beendet, bleibt die Weiterleitungsdatei mit dem Token liegen (0600, nur für den Nutzer lesbar, Token wertlos nach Ende des Servers).
+- XSS-Fläche der SPA: im Frontend gibt es kein `dangerouslySetInnerHTML` und kein `innerHTML` (per `grep` in `gui/src` geprüft); Tool-Ausgaben werden als Text gerendert. Ein XSS-Fehler hätte wegen des Tokens im Speicher der Seite die Rechte der API. Eine Content-Security-Policy ist **nicht umgesetzt**.
+- Fehlermeldungen können Texte des Betriebssystems und Pfade enthalten (z. B. `Workflow nicht schreibbar: …`, `Interner Fehler: …` bei einem abgestürzten Lauf in `runs.py:_run`), nur lokal sichtbar.
+- Hilfe-Abruf in der bwrap-Sandbox ist **geplant (Phase 5)**; heute läuft er auf dem Host (2.9).
+- Ein Prozess desselben Nutzers kann den Port erreichen und die Token-Datei lesen; Schutz vor lokalen Angreifern mit Nutzerrechten gehört nicht zum Modell.
 
 ## 5. KI-Funktionen (geplant, Phase 6)
 

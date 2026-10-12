@@ -44,27 +44,32 @@ function setChild(step: Step, port: Port, seq: Step[]): Step {
   }
   if (isForeach(step)) return port === "body" ? { ...step, body: seq } : step;
   if (isCommand(step) && port === "fallback") {
-    const { steps: _drop, ...onError } = step.on_error ?? {};
     const { on_error: _oe, ...rest } = step;
-    if (seq.length > 0) return { ...rest, on_error: { ...onError, steps: seq } };
-    return Object.keys(onError).length > 0 ? { ...rest, on_error: onError } : rest;
+    // empty fallback sequence: drop the whole on_error (a leftover `action: fallback` without steps is invalid)
+    return seq.length > 0 ? { ...rest, on_error: { ...step.on_error, steps: seq } } : rest;
   }
   return step;
 }
 
 const sameSeq = (a: Step[], b: Step[]) => a.length === b.length && a.every((s, i) => s === b[i]);
 
+/** Apply `fn` to every child sequence of `step`; sequences that did not change are left untouched. */
+function mapChildren(step: Step, fn: (seq: Step[], port: Port) => Step[]): Step {
+  let out = step;
+  for (const port of portsOf(step)) {
+    const cur = childSeq(out, port);
+    if (!cur) continue;
+    const next = fn(cur, port);
+    if (!sameSeq(cur, next)) out = setChild(out, port, next);
+  }
+  return out;
+}
+
 /** Rebuild the tree; `fn` sees each step with the ids visible to it (earlier siblings in own and enclosing sequences). */
 function rebuild(steps: Step[], visible: string[], fn: (s: Step, visible: string[]) => Step): Step[] {
   const seen = [...visible];
   return steps.map((orig) => {
-    let step = fn(orig, seen);
-    for (const port of portsOf(step)) {
-      const cur = childSeq(step, port);
-      if (!cur) continue;
-      const next = rebuild(cur, port === "fallback" ? [...seen, step.id] : seen, fn);
-      if (!sameSeq(cur, next)) step = setChild(step, port, next);
-    }
+    const step = mapChildren(fn(orig, seen), (cur, port) => rebuild(cur, port === "fallback" ? [...seen, orig.id] : seen, fn));
     seen.push(step.id);
     return step;
   });
@@ -165,7 +170,7 @@ export function removeStep(wf: Workflow, id: string): OpResult {
 export function moveStep(wf: Workflow, id: string, path: SeqPath, index?: number): OpResult {
   const hit = findStep(wf, id);
   if (!hit) return { wf, warnings: [] };
-  if (path.includes(id)) return refuse(wf, `cycle:${id}`);
+  if (path.some((p, i) => i % 2 === 0 && p === id)) return refuse(wf, `cycle:${id}`);
   if (!getSeq(wf, path)) return refuse(wf, `path:${path.join("/")}`);
   const removed = editSeq(wf.steps, hit.path, (s) => s.filter((x) => x.id !== id));
   return done({ ...wf, steps: editSeq(removed, path, (s) => insertAt(s, hit.step, index)) });
@@ -223,10 +228,12 @@ export function renameStep(wf: Workflow, oldId: string, newName: string): OpResu
   if (!findStep(wf, oldId)) return { wf, warnings: [] };
   if (!ID_PATTERN.test(newName) || RESERVED.has(newName)) return refuse(wf, `invalid:${newName}`);
   if (findStep(wf, newName)) return refuse(wf, `duplicate:${newName}`);
-  const tpl = new RegExp(`(\\{\\{\\s*)${oldId}(?=\\.)`, "g");
+  // `\{{` is an escaped literal and stays; `\\{{` is an escaped backslash plus a real template
+  const tpl = new RegExp(`(\\\\*)(\\{\\{\\s*)${oldId}(?=\\.)`, "g");
+  const retemplate = (x: string) => x.replace(tpl, (m, bs: string, open: string) => (bs.length % 2 === 1 ? m : `${bs}${open}${newName}`));
   const ref = (s: string) => (s.startsWith(`${oldId}.`) ? newName + s.slice(oldId.length) : s);
   const fix = (s: Step): Step => {
-    const o = mapStrings(s, (x) => x.replace(tpl, `$1${newName}`)) as Record<string, unknown>; // same shape, strings only
+    const o = mapStrings(s, retemplate) as Record<string, unknown>; // same shape, strings only
     if (o.id === oldId) o.id = newName;
     if (typeof o.source === "string") o.source = ref(o.source);
     const c = o.condition as { source: string } | undefined;
@@ -237,9 +244,7 @@ export function renameStep(wf: Workflow, oldId: string, newName: string): OpResu
   };
   const deep = (steps: Step[]): Step[] =>
     steps.map((s) => {
-      let n = fix(s);
-      for (const p of portsOf(n)) n = setChild(n, p, deep(childSeq(n, p) ?? []));
-      return n;
+      return mapChildren(fix(s), (cur) => deep(cur));
     });
   let next: Workflow = { ...wf, steps: deep(wf.steps) };
   const nodes = wf.layout?.nodes;
@@ -255,7 +260,9 @@ export function stepIdAtErrorPath(wf: Workflow, path: string): string | undefine
   let found: string | undefined;
   for (const m of path.matchAll(/(?:^|\.)(steps|then|else|body)\[(\d+)\]/g)) {
     const kw = m[1];
-    const seq = kw === "steps" ? wf.steps : step && isPort(kw) ? childSeq(step, kw) : undefined;
+    // `steps` after a step is on_error.steps, i.e. the fallback port
+    const port = kw === "steps" ? (step ? "fallback" : undefined) : kw;
+    const seq = !step && kw === "steps" ? wf.steps : step && isPort(port) ? childSeq(step, port) : undefined;
     step = seq?.[Number(m[2])];
     if (!step) break;
     found = step.id;

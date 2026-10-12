@@ -70,7 +70,7 @@ uv run ruff check . && uv run ruff format --check .
 uv run mypy src
 uv run pytest
 uv run wts --help             # CLI: tools, inspect, validate, scaffold, modules, sandbox, example, run, schema export
-cd gui && npm ci && npm run build && npm run typecheck   # Frontend (nur Entwicklung, Build wird ins Paket kopiert)
+cd gui && npm ci && npm run build && npm run typecheck && npm test   # Frontend; npm run e2e = Playwright-Smoke gegen wts gui
 ```
 
 ## Struktur

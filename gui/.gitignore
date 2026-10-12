@@ -1,1 +1,3 @@
 *.tsbuildinfo
+e2e-results/
+playwright-report/

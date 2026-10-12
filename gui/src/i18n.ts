@@ -29,7 +29,7 @@ const de = {
   "output.hide": "Ausgabe ausblenden",
   "output.placeholder": "Noch keine Ausgabe.",
   "error.prefix": "Fehler",
-  "error.network": "Server nicht erreichbar: {message}",
+  "stream.stdout": "stdout", "stream.stderr": "stderr", "stream.stdin": "stdin", "run.select": "Im Graph auswählen", "error.network": "Server nicht erreichbar: {message}",
   "port.in": "Eingang", "port.next": "Nächster Schritt", "port.then": "Dann", "port.else": "Sonst", "port.body": "Für jede Zeile", "port.fallback": "Ersatzschritte bei Fehler",
   "canvas.toolbar": "Werkzeugleiste", "canvas.new": "Neu", "canvas.name": "Name", "canvas.add.tool": "Hinzufügen: {name}", "canvas.add.pick": "Werkzeug im Katalog wählen",
   "canvas.delete": "Löschen", "canvas.flowHint": "Die Reihenfolge bleibt bestehen. Ziehe den Schritt stattdessen an einen anderen Anschluss, um sie zu ändern.",
@@ -52,7 +52,7 @@ const de = {
   "foreach.as": "Name des Elements", "set.variable": "Variable", "set.value": "Wert", "wait.seconds": "Sekunden", "message.text": "Text", "abort.exit": "Exitcode",
   "cmd.title": "Befehl", "cmd.copy": "Kopieren", "cmd.copied": "Kopiert", "cmd.safety": "Sicherheitsklasse",
   "prev.title": "Vorschau", "prev.example": "Beispiel", "prev.none": "ohne Beispieldaten", "prev.run": "Beispiel ausführen", "prev.exit": "Exitcode", "prev.duration": "Dauer",
-  "prev.truncated": "Ausgabe gekürzt", "prev.timeout": "Zeitlimit erreicht", "prev.sandbox": "Sandbox nicht verfügbar", "prev.retest": "Erneut testen",
+  "prev.truncated": "Ausgabe gekürzt", "prev.timeout": "Zeitlimit erreicht", "prev.sandbox": "Sandbox nicht verfügbar", "prev.retest": "Erneut testen", "prev.applied": "Beispielwerte übernommen",
   "run.dry": "Trockenlauf", "run.execute": "Ausführen", "run.pause": "Pause", "run.resume": "Weiter", "run.step": "Einzelschritt", "run.abort": "Abbrechen",
   "run.status.idle": "Bereit", "run.status.running": "Läuft", "run.status.success": "Erfolgreich beendet", "run.status.failed": "Fehlgeschlagen", "run.status.aborted": "Abgebrochen",
   "run.lost": "Verbindung zum Lauf verloren.", "run.history": "Verlauf laden", "run.plan": "Plan", "run.ok": "ok", "run.failed": "Fehler", "run.skipped": "übersprungen",
@@ -96,7 +96,7 @@ const en: Record<keyof typeof de, string> = {
   "output.hide": "Hide output",
   "output.placeholder": "No output yet.",
   "error.prefix": "Error",
-  "error.network": "Server unreachable: {message}",
+  "stream.stdout": "stdout", "stream.stderr": "stderr", "stream.stdin": "stdin", "run.select": "Select in graph", "error.network": "Server unreachable: {message}",
   "port.in": "Input", "port.next": "Next step", "port.then": "Then", "port.else": "Else", "port.body": "For each line", "port.fallback": "Fallback steps on error",
   "canvas.toolbar": "Toolbar", "canvas.new": "New", "canvas.name": "Name", "canvas.add.tool": "Add: {name}", "canvas.add.pick": "Pick a tool in the catalog",
   "canvas.delete": "Delete", "canvas.flowHint": "The order stays. Drag the step to another port to change it.",
@@ -119,7 +119,7 @@ const en: Record<keyof typeof de, string> = {
   "foreach.as": "Element name", "set.variable": "Variable", "set.value": "Value", "wait.seconds": "Seconds", "message.text": "Text", "abort.exit": "Exit code",
   "cmd.title": "Command", "cmd.copy": "Copy", "cmd.copied": "Copied", "cmd.safety": "Safety class",
   "prev.title": "Preview", "prev.example": "Example", "prev.none": "without example data", "prev.run": "Run example", "prev.exit": "Exit code", "prev.duration": "Duration",
-  "prev.truncated": "output truncated", "prev.timeout": "timed out", "prev.sandbox": "Sandbox unavailable", "prev.retest": "Test again",
+  "prev.truncated": "output truncated", "prev.timeout": "timed out", "prev.sandbox": "Sandbox unavailable", "prev.retest": "Test again", "prev.applied": "Example values applied",
   "run.dry": "Dry run", "run.execute": "Run", "run.pause": "Pause", "run.resume": "Resume", "run.step": "Single step", "run.abort": "Abort",
   "run.status.idle": "Ready", "run.status.running": "Running", "run.status.success": "Finished successfully", "run.status.failed": "Failed", "run.status.aborted": "Aborted",
   "run.lost": "Connection to the run lost.", "run.history": "Load history", "run.plan": "Plan", "run.ok": "ok", "run.failed": "failed", "run.skipped": "skipped",
@@ -150,7 +150,11 @@ export const getLang = (): Lang => lang;
 
 export function setLang(next: Lang): void {
   lang = next;
-  if (typeof localStorage !== "undefined") localStorage.setItem("wts.lang", next);
+  try {
+    if (typeof localStorage !== "undefined") localStorage.setItem("wts.lang", next);
+  } catch {
+    /* storage unavailable (private mode): the choice just lasts for this session */
+  }
 }
 
 /** Translate `key`; unknown keys return the key itself. `{name}` placeholders come from `params`. */
