@@ -102,6 +102,7 @@ class CommandOverride(StrictModel):
     summary: str | None = None
     description: str | None = None
     safety: Safety | None = None
+    interactive: bool | None = None
     inputs: list[InputSpec] = []
     options: list[OptionSpec] = []
     output: OutputSpec | None = None

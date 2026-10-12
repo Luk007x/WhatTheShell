@@ -595,6 +595,18 @@
           ],
           "default": null
         },
+        "interactive": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Interactive"
+        },
         "inputs": {
           "default": [],
           "items": {
@@ -813,6 +825,18 @@
         }
       ],
       "default": null
+    },
+    "interactive": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Interactive"
     },
     "inputs": {
       "default": [],

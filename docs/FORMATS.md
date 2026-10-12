@@ -180,3 +180,17 @@ Ein literales `{{` (z. B. `docker --format '{{.Names}}'`) wird als `\{{` geschri
 ## 5. Migration
 
 `schema_version` ist Pflicht. `migrate(doc: dict) -> dict` in `models/migrate.py` hebt ältere Versionen an; aktuell nur Version 1, Funktion ist Platzhalter mit Test.
+
+## 6. Modul-Suche und Merge (Phase 2)
+
+Suchpfade, aufsteigende Priorität: mitgelieferte Module im Paket (`whattheshell/bundled/modules/`) → Nutzer (`~/.config/whattheshell/modules/`) → projektlokal (`./.whattheshell/modules/`). Dateinamen `*.module.yaml`, `*.module.yml`, `*.module.json`. Eine Datei mit Fehler deaktiviert nur sich selbst; der Fehler wird mit Pfad, Zeile und Feldpfad gemeldet (F-23).
+
+Merge-Kette je Tool: Katalog-`CommandSpec` → Modul 1 → Modul 2 … in Prioritätsreihenfolge. Regeln:
+
+- `override_mode: merge` (Standard): nur im Modul **gesetzte** Felder (`model_fields_set`) überschreiben. `options` werden **nach `id`** zusammengeführt: bekannte id → Felder überschreiben, unbekannte id → anhängen. `inputs` (Positionsargumente) **ersetzen** die Katalogliste vollständig, sobald das Modul sie setzt: Autoren listen alle Positionsargumente, dürfen sie frei benennen, und die Reihenfolge der Liste ist die Argumentreihenfolge. `subcommands` rekursiv nach `name`. `examples`, `templates`, `i18n` ergänzen (anhängen bzw. Schlüssel überschreiben). `interactive` wird übernommen, wenn gesetzt.
+- `override_mode: replace`: Katalogdaten werden verworfen, das Modul ist allein die Wahrheit (nur `raw_help` bleibt erhalten). Spätere Module in der Kette mergen darauf. `replace` wirkt nur auf der Wurzelebene des Tools; Overrides für Subbefehle (`subcommands[]`) mergen immer.
+- Dateien über 1 MiB, YAML-Aliase/-Anker und zu tiefe Verschachtelung werden abgelehnt (Schutz vor YAML-Bomben; Modul-Ordner sind fremder Input).
+- Vom Modul gesetzte Optionen bekommen `confidence: high`; Katalogoptionen behalten ihre Konfidenz.
+- Das Ergebnis ist ein `CommandSpec` (um `display_name`, `category`, `description`, `output`, `examples`, `templates`, `i18n` erweitert). `ToolInfo.module_files` nennt die angewandten Dateien in Reihenfolge.
+
+Option-ids kommen aus der Langform (`--ignore-case` → `ignore_case`); nur Optionen ohne Langform bekommen eine id aus der Kurzform (`-C` ohne `--context` → `c_upper`). Kollidiert eine Eingabe-id mit einer Option-id (find: Eingabe `path`, Option `-path`), hängt der Parser an die Eingabe `_arg` an. `wts scaffold TOOL` erzeugt das Gerüst mit allen erkannten ids, damit niemand raten muss.

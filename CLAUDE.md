@@ -76,12 +76,12 @@ cd gui && npm ci && npm run build && npm run typecheck   # Frontend (nur Entwick
 ## Struktur
 
 ```
-src/whattheshell/{catalog,helpparse,models,modules,engine,sandbox,safety,api,ai,cli.py}
+src/whattheshell/{catalog,helpparse,models,modules,subproc.py,paths.py,engine,sandbox,safety,api,ai,cli.py}
+src/whattheshell/bundled/{modules,workflows}/   mitgelieferte Module und Workflows (CC0), landen so im Wheel
 gui/            TypeScript-Frontend, Build nach src/whattheshell/api/static/
-modules/        mitgelieferte Module      workflows/   mitgelieferte Workflows
 schemas/        generierte JSON-Schemas
 docs/           ARCHITECTURE.md, DECISIONS.md, FORMATS.md, MODULE_AUTHORING.md, SECURITY.md, DEPENDENCIES.md
-tests/          unit/, corpus/ (Golden Files), e2e/
+tests/          unit/, corpus/ (29 echte Hilfetexte + expected.json, Schwelle 90 % Recall), e2e/
 ```
 
 `docs/ARCHITECTURE.md` listet jedes Paket mit Zweck, öffentlicher Schnittstelle und „nicht zuständig für" in wenigen Zeilen.

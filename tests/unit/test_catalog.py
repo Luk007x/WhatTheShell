@@ -10,6 +10,7 @@ from whattheshell import catalog as catalog_module
 from whattheshell.catalog import Catalog, ToolNotFound, scan_path
 from whattheshell.catalog import catalog as impl
 from whattheshell.catalog.fetch import HelpText, fetch_help
+from whattheshell.modules.registry import ModuleRegistry
 
 DEMO = """#!/bin/sh
 echo "Usage: demo [-a] [-b N]"
@@ -139,3 +140,43 @@ def test_depth_one(bin_dir: Path, cat: Catalog) -> None:
 
 def test_package_exports() -> None:
     assert "vim" in catalog_module.INTERACTIVE
+
+
+def _registry(tmp_path: Path, *texts: str) -> ModuleRegistry:
+    directory = tmp_path / "mods"
+    directory.mkdir()
+    for index, text in enumerate(texts):
+        (directory / f"m{index}.module.yaml").write_text(text)
+    registry = ModuleRegistry([directory])
+    registry.scan()
+    return registry
+
+
+def test_get_with_modules(bin_dir: Path, tmp_path: Path) -> None:
+    make_tool(bin_dir, "grouped", GROUPED)
+    registry = _registry(
+        tmp_path,
+        "schema_version: 1\ntool: grouped\nsummary: Top\n"
+        "subcommands:\n  - name: sub\n    summary: Sub\n"
+        "    options:\n      - id: x\n        label: Extra\n",
+    )
+    cat = Catalog(tmp_path / "cache", registry)
+    info = cat.get("grouped")
+    assert info.command.summary == "Top"
+    assert info.module_files == [str(registry.all()[0].path)]
+    assert info.source == "help"
+    sub = cat.get("grouped", ["sub"])
+    assert sub.command.summary == "Sub"
+    assert [o.label for o in sub.command.options if o.id == "x"] == ["Extra"]
+    deep = cat.get("grouped", depth=1).command.subcommands[0]
+    assert deep.summary == "Sub" and any(o.label == "Extra" for o in deep.options)
+    assert Catalog(tmp_path / "cache").get("grouped").command.summary != "Top"
+
+
+def test_replace_module_sets_source(bin_dir: Path, tmp_path: Path) -> None:
+    registry = _registry(
+        tmp_path, "schema_version: 1\ntool: demo\noverride_mode: replace\nsummary: Only\n"
+    )
+    info = Catalog(tmp_path / "cache", registry).get("demo")
+    assert info.source == "module"
+    assert info.command.options == []

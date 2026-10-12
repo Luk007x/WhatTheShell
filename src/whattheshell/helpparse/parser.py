@@ -15,12 +15,20 @@ from whattheshell.helpparse.options import (
     split_top,
 )
 from whattheshell.helpparse.sections import USAGE_INLINE_RE, Section, indent_of, split_sections
-from whattheshell.models.catalog import CommandSpec
+from whattheshell.models.catalog import CommandSpec, unique_input_ids
 from whattheshell.models.common import Confidence, InputSpec, ValueType
 
 logger = logging.getLogger(__name__)
 
+_MAX_SUMMARY = 300
 _SKIP_PLACEHOLDERS = frozenset({"option", "options", "flags", "command", "subcommand"})
+
+
+def _shorten(text: str) -> str:
+    """Cut at a word boundary to at most `_MAX_SUMMARY` characters, marked with an ellipsis."""
+    if len(text) <= _MAX_SUMMARY:
+        return text
+    return text[: _MAX_SUMMARY - 1].rsplit(" ", 1)[0].rstrip(",;:") + "…"
 
 
 def _summary(sections: list[Section], name: Sequence[str]) -> str | None:
@@ -32,12 +40,18 @@ def _summary(sections: list[Section], name: Sequence[str]) -> str | None:
     for section in sections:
         if section.kind in ("usage", "options", "commands"):
             continue
-        for line in section.lines:
+        for index, line in enumerate(section.lines):
             stripped = line.strip()
             if stripped.startswith("-"):
                 return None  # options start here, no prose before them
             if stripped and ":=" not in stripped and stripped.split()[0] != name[-1]:
-                return stripped
+                paragraph = [stripped]
+                for following in section.lines[index + 1 :]:
+                    text = following.strip()
+                    if not text or text.startswith("-"):
+                        break
+                    paragraph.append(text)
+                return _shorten(" ".join(paragraph))
     return None
 
 
@@ -105,11 +119,13 @@ def _parse(text: str, name: Sequence[str]) -> CommandSpec:
     options = build_options([*raws, *options_from_usage(usage_text)])
     subcommands = find_subcommands(sections, text, name)
     usage = USAGE_INLINE_RE.sub(r"\2", usage_lines[0]).strip() if usage_lines else None
+    inputs = [] if subcommands else _inputs(_first_statement(usage_lines, name))
+    inputs = unique_input_ids(inputs, options)
     return CommandSpec(
         name=list(name),
         summary=_summary(sections, name),
         usage=usage or None,
-        inputs=[] if subcommands else _inputs(_first_statement(usage_lines, name)),
+        inputs=inputs,
         options=options,
         subcommands=subcommands,
         raw_help=text,

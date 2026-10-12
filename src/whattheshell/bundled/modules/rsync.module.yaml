@@ -1,0 +1,220 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: rsync
+display_name: "rsync – Dateien synchronisieren"
+category: Dateien
+summary: "Kopiert und synchronisiert Dateien und Ordner, lokal oder über das Netzwerk."
+description: |
+  rsync überträgt nur die Teile von Dateien, die sich geändert haben, und ist deshalb ideal für Backups und das Spiegeln von Ordnern. Mit -a (Archivmodus) bleiben Rechte, Zeiten und Unterordner erhalten. Stolperfalle: Ein Schrägstrich am Quellpfad ändert das Ergebnis. "quelle/" kopiert den Inhalt des Ordners, "quelle" kopiert den Ordner selbst. Optionen wie --delete löschen Dateien im Ziel; zuerst mit --dry-run testen.
+override_mode: merge
+safety: caution
+
+inputs:
+  - id: src
+    label: Quelle
+    type: path
+    multiple: true
+    required: true
+    position: 0
+    help: "Eine oder mehrere Quellen; ein Schrägstrich am Ende kopiert nur den Inhalt."
+  - id: dest
+    label: Ziel
+    type: path
+    required: true
+    position: 1
+    help: "Zielordner oder Ziel auf einem anderen Rechner (benutzer@host:pfad)."
+
+options:
+  - id: archive
+    flags: ["-a", "--archive"]
+    label: Archivmodus
+    group: Kopieren
+    importance: common
+    help: "Kopiert rekursiv und behält Rechte, Zeiten, Besitzer und Links bei."
+  - id: recursive
+    flags: ["-r", "--recursive"]
+    label: Unterordner einbeziehen
+    group: Kopieren
+    help: "Kopiert Ordner samt Inhalt."
+  - id: dry_run
+    flags: ["-n", "--dry-run"]
+    label: Nur simulieren
+    group: Sicherheit
+    importance: common
+    help: "Zeigt, was passieren würde, ohne etwas zu ändern."
+  - id: verbose
+    flags: ["-v", "--verbose"]
+    label: Ausführlich
+    group: Ausgabe
+    importance: common
+    help: "Listet die übertragenen Dateien auf."
+  - id: progress
+    flags: ["--progress"]
+    label: Fortschritt anzeigen
+    group: Ausgabe
+    importance: common
+    help: "Zeigt den Fortschritt je Datei an."
+  - id: human_readable
+    flags: ["-h", "--human-readable"]
+    label: Lesbare Größen
+    group: Ausgabe
+    help: "Gibt Größen in KB, MB und GB statt in Bytes aus."
+  - id: stats
+    flags: ["--stats"]
+    label: Statistik am Ende
+    group: Ausgabe
+    help: "Gibt eine Zusammenfassung der Übertragung aus."
+  - id: itemize_changes
+    flags: ["-i", "--itemize-changes"]
+    label: Änderungen auflisten
+    group: Ausgabe
+    help: "Zeigt je Datei, was sich genau geändert hat."
+  - id: compress
+    flags: ["-z", "--compress"]
+    label: Beim Übertragen komprimieren
+    group: Übertragung
+    importance: common
+    help: "Spart bei langsamen Netzwerken Bandbreite."
+  - id: partial
+    flags: ["--partial"]
+    label: Teilweise Dateien behalten
+    group: Übertragung
+    help: "Behält abgebrochene Übertragungen, damit sie später fortgesetzt werden."
+  - id: bwlimit
+    flags: ["--bwlimit"]
+    label: Geschwindigkeit begrenzen
+    group: Übertragung
+    help: "Begrenzt die Übertragungsrate, z. B. 1m für 1 MB/s."
+  - id: rsh
+    flags: ["-e", "--rsh"]
+    label: Remote-Shell
+    group: Übertragung
+    help: "Legt den Befehl für die Verbindung fest, z. B. \"ssh -p 2222\"."
+  - id: exclude
+    flags: ["--exclude"]
+    label: Ausschließen
+    group: Auswahl
+    importance: common
+    help: "Überspringt Dateien, die zum Muster passen, z. B. \"*.tmp\"."
+  - id: include
+    flags: ["--include"]
+    label: Einschließen
+    group: Auswahl
+    help: "Nimmt Dateien trotz einer Ausschlussregel mit auf."
+  - id: update
+    flags: ["-u", "--update"]
+    label: Neuere Zieldateien nicht überschreiben
+    group: Auswahl
+    help: "Überspringt Dateien, die im Ziel neuer sind als in der Quelle."
+  - id: ignore_existing
+    flags: ["--ignore-existing"]
+    label: Vorhandene Dateien überspringen
+    group: Auswahl
+    help: "Aktualisiert keine Dateien, die im Ziel schon existieren."
+  - id: checksum
+    flags: ["-c", "--checksum"]
+    label: Per Prüfsumme vergleichen
+    group: Auswahl
+    help: "Vergleicht Dateien über Prüfsummen statt Größe und Zeit (langsamer, genauer)."
+  - id: max_size
+    flags: ["--max-size"]
+    label: Maximale Dateigröße
+    group: Auswahl
+    help: "Überspringt Dateien, die größer sind, z. B. 10m."
+  - id: delete
+    flags: ["--delete"]
+    label: Im Ziel überzählige Dateien löschen
+    group: Sicherheit
+    safety: dangerous
+    help: "Löscht Dateien im Ziel, die in der Quelle nicht (mehr) existieren."
+  - id: remove_source_files
+    flags: ["--remove-source-files"]
+    label: Quelldateien nach dem Kopieren löschen
+    group: Sicherheit
+    safety: dangerous
+    help: "Entfernt jede erfolgreich übertragene Datei aus der Quelle (verschieben statt kopieren)."
+  - id: backup
+    flags: ["-b", "--backup"]
+    label: Überschriebenes sichern
+    group: Sicherheit
+    help: "Benennt überschriebene oder gelöschte Zieldateien um, statt sie zu verlieren."
+
+output:
+  stdout:
+    kind: text
+  exit_codes:
+    0: "Erfolg"
+    1: "Syntax- oder Verwendungsfehler"
+    2: "Protokoll-Inkompatibilität"
+    10: "Fehler beim Aufbau der Socket-Verbindung"
+    11: "Fehler bei Datei-Ein-/Ausgabe"
+    23: "Teilweise Übertragung wegen eines Fehlers"
+    24: "Teilweise Übertragung, Quelldateien sind verschwunden"
+    30: "Zeitüberschreitung bei Datenübertragung"
+
+examples:
+  - title: "Ordner sichern"
+    description: "Kopiert den Inhalt von quelle/ im Archivmodus nach ziel/."
+    fixtures:
+      - path: quelle/a.txt
+        content: |
+          Datei A
+      - path: quelle/b.txt
+        content: |
+          Datei B
+    args:
+      archive: true
+      verbose: true
+      src: ["quelle/"]
+      dest: "ziel/"
+    expect:
+      exit_code: 0
+      stdout_contains: "a.txt"
+  - title: "Probelauf"
+    description: "Zeigt nur, was kopiert würde, ohne zu schreiben."
+    fixtures:
+      - path: quelle/a.txt
+        content: |
+          Datei A
+      - path: quelle/b.txt
+        content: |
+          Datei B
+    args:
+      archive: true
+      dry_run: true
+      verbose: true
+      src: ["quelle/"]
+      dest: "ziel/"
+    expect:
+      exit_code: 0
+      stdout_contains: "b.txt"
+  - title: "Dateien ausschließen"
+    description: "Kopiert alles außer b.txt."
+    fixtures:
+      - path: quelle/a.txt
+        content: |
+          Datei A
+      - path: quelle/b.txt
+        content: |
+          Datei B
+    args:
+      archive: true
+      verbose: true
+      exclude: "b.txt"
+      src: ["quelle/"]
+      dest: "ziel/"
+    expect:
+      exit_code: 0
+      stdout_contains: "a.txt"
+
+i18n:
+  en:
+    display_name: "rsync – Synchronize files"
+    summary: "Copies and synchronizes files and folders, locally or over the network."
+    options:
+      archive: {label: "Archive mode", help: "Copies recursively and keeps permissions, times, owners and links."}
+      dry_run: {label: "Dry run", help: "Shows what would happen without changing anything."}
+      verbose: {label: "Verbose", help: "Lists the transferred files."}
+      progress: {label: "Show progress", help: "Shows progress for each file."}
+      compress: {label: "Compress during transfer", help: "Saves bandwidth on slow networks."}
+      exclude: {label: "Exclude", help: "Skips files matching the pattern, e.g. \"*.tmp\"."}

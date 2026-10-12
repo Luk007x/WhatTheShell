@@ -1,0 +1,124 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: wc
+display_name: "wc – Zeilen, Wörter und Zeichen zählen"
+category: Text
+summary: "Zählt Zeilen, Wörter und Bytes in Dateien oder Eingaben."
+description: |
+  wc steht für "word count" und gibt standardmäßig Zeilen, Wörter und Bytes aus. Mit einzelnen Optionen bekommt man nur die gewünschte Zahl, etwa die Anzahl der Zeilen einer Datei. Stolperfalle: Bei Umlauten und anderen Sonderzeichen unterscheiden sich Bytes (-c) und Zeichen (-m).
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: file
+    label: Dateien
+    type: path
+    multiple: true
+    position: 0
+    help: "Dateien, die gezählt werden; ohne Angabe wird die Standardeingabe gelesen."
+
+options:
+  - id: lines
+    flags: ["-l", "--lines"]
+    label: Zeilen zählen
+    group: Zählen
+    importance: common
+    help: "Gibt die Anzahl der Zeilenumbrüche aus."
+  - id: words
+    flags: ["-w", "--words"]
+    label: Wörter zählen
+    group: Zählen
+    importance: common
+    help: "Gibt die Anzahl der durch Leerraum getrennten Wörter aus."
+  - id: chars
+    flags: ["-m", "--chars"]
+    label: Zeichen zählen
+    group: Zählen
+    importance: common
+    help: "Gibt die Anzahl der Zeichen aus (Umlaute zählen einfach)."
+  - id: bytes
+    flags: ["-c", "--bytes"]
+    label: Bytes zählen
+    group: Zählen
+    importance: common
+    help: "Gibt die Dateigröße in Bytes aus."
+  - id: max_line_length
+    flags: ["-L", "--max-line-length"]
+    label: Längste Zeile
+    group: Zählen
+    help: "Gibt die Länge der längsten Zeile aus."
+  - id: total
+    flags: ["--total"]
+    label: Gesamtsumme
+    type: enum
+    choices: [auto, always, only, never]
+    group: Ausgabe
+    help: "Steuert, ob eine Summenzeile ausgegeben wird (auto, always, only, never)."
+  - id: files0_from
+    flags: ["--files0-from"]
+    label: Dateiliste aus Datei
+    type: path
+    metavar: F
+    group: Eingabe
+    help: "Liest nullbyte-getrennte Dateinamen aus einer Datei, z. B. von find -print0."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolg"
+    1: "Fehler, z. B. Datei nicht lesbar oder ungültige Option"
+
+examples:
+  - title: "Zeilen zählen"
+    description: "Zählt die Zeilen einer Datei."
+    fixtures:
+      - path: liste.txt
+        content: |
+          eins
+          zwei
+          drei
+    args:
+      lines: true
+      file: ["liste.txt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "3"
+  - title: "Wörter zählen"
+    description: "Zählt die Wörter eines Satzes."
+    fixtures:
+      - path: satz.txt
+        content: |
+          Das ist ein kurzer Satz
+    args:
+      words: true
+      file: ["satz.txt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "5"
+  - title: "Mehrere Dateien"
+    description: "Zählt Zeilen in zwei Dateien und zeigt die Summe."
+    fixtures:
+      - path: a.txt
+        content: |
+          a
+          b
+      - path: b.txt
+        content: |
+          c
+    args:
+      lines: true
+      file: ["a.txt", "b.txt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "total"
+
+i18n:
+  en:
+    display_name: "wc – Count lines, words and characters"
+    summary: "Counts lines, words and bytes in files or input."
+    options:
+      lines: {label: "Count lines", help: "Prints the number of newlines."}
+      words: {label: "Count words", help: "Prints the number of whitespace-separated words."}
+      chars: {label: "Count characters", help: "Prints the number of characters (umlauts count once)."}
+      bytes: {label: "Count bytes", help: "Prints the file size in bytes."}

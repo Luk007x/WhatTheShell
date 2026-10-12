@@ -1,0 +1,218 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: tar
+display_name: "tar – Archive erstellen und entpacken"
+category: Archive
+summary: "Packt Dateien in ein Archiv, listet oder entpackt Archive."
+description: |
+  tar bündelt viele Dateien und Ordner in einer einzigen Archivdatei (oft .tar, .tar.gz oder .tgz) und entpackt sie wieder. Sie wählen genau eine Aktion: Erstellen, Entpacken oder Inhalt anzeigen.
+  Das Archiv selbst geben Sie mit "Archivdatei" an. Für Komprimierung kommt z. B. gzip dazu, beim Entpacken erkennt tar das Format meist automatisch.
+  Stolperfallen: Beim Erstellen wird eine vorhandene Archivdatei ohne Nachfrage überschrieben, beim Entpacken ebenso vorhandene Dateien. Archive aus unbekannter Quelle zuerst mit "Inhalt anzeigen" prüfen.
+override_mode: merge
+safety: caution
+
+inputs:
+  - id: paths
+    label: Dateien oder Ordner
+    type: path
+    multiple: true
+    position: 0
+    help: "Was ins Archiv soll (beim Erstellen) bzw. welche Einträge entpackt werden (optional)."
+
+options:
+  - id: create
+    flags: ["-c", "--create"]
+    label: Archiv erstellen
+    group: Aktion
+    importance: common
+    help: "Packt die angegebenen Dateien in ein neues Archiv."
+  - id: extract
+    flags: ["-x", "--extract", "--get"]
+    label: Archiv entpacken
+    group: Aktion
+    importance: common
+    help: "Entpackt das Archiv in den aktuellen oder den gewählten Ordner."
+  - id: list
+    flags: ["-t", "--list"]
+    label: Inhalt anzeigen
+    group: Aktion
+    importance: common
+    help: "Listet den Inhalt des Archivs, ohne etwas zu entpacken."
+  - id: append
+    flags: ["-r", "--append"]
+    label: An Archiv anhängen
+    group: Aktion
+    importance: normal
+    help: "Hängt Dateien ans Ende eines bestehenden unkomprimierten Archivs an."
+  - id: file
+    flags: ["-f", "--file"]
+    label: Archivdatei
+    type: path
+    metavar: ARCHIV
+    group: Dateien
+    importance: common
+    help: "Name der Archivdatei, die erstellt oder gelesen wird."
+  - id: directory
+    flags: ["-C", "--directory"]
+    label: In Ordner wechseln
+    type: path
+    metavar: ORDNER
+    group: Dateien
+    importance: normal
+    help: "Wechselt vor der Arbeit in diesen Ordner, z. B. als Zielordner beim Entpacken."
+  - id: verbose
+    flags: ["-v", "--verbose"]
+    label: Dateien auflisten
+    group: Ausgabe
+    importance: common
+    help: "Zeigt jede verarbeitete Datei an."
+  - id: gzip
+    flags: ["-z", "--gzip", "--gunzip", "--ungzip"]
+    label: gzip-Kompression
+    group: Kompression
+    importance: common
+    help: "Komprimiert mit gzip (.tar.gz); beim Entpacken nötig, falls nicht automatisch erkannt."
+  - id: bzip2
+    flags: ["-j", "--bzip2"]
+    label: bzip2-Kompression
+    group: Kompression
+    importance: normal
+    help: "Komprimiert mit bzip2 (.tar.bz2)."
+  - id: xz
+    flags: ["-J", "--xz"]
+    label: xz-Kompression
+    group: Kompression
+    importance: normal
+    help: "Komprimiert mit xz (.tar.xz), klein aber langsamer."
+  - id: zstd
+    flags: ["--zstd"]
+    label: zstd-Kompression
+    group: Kompression
+    importance: normal
+    help: "Komprimiert mit zstd (.tar.zst), schnell und gut."
+  - id: auto_compress
+    flags: ["-a", "--auto-compress"]
+    label: Kompression nach Dateiendung
+    group: Kompression
+    importance: normal
+    help: "Wählt das Verfahren anhand der Endung der Archivdatei (.tar.gz, .tar.xz ...)."
+  - id: exclude
+    flags: ["--exclude"]
+    label: Dateien ausschließen
+    type: string
+    metavar: MUSTER
+    multiple: true
+    group: Dateien
+    importance: normal
+    help: "Lässt Einträge weg, deren Name zum Muster passt, z. B. *.tmp."
+  - id: strip_components
+    flags: ["--strip-components"]
+    label: Führende Ordner abschneiden
+    type: int
+    min: 0
+    metavar: ANZAHL
+    group: Entpacken
+    importance: normal
+    help: "Entfernt beim Entpacken diese Anzahl Ordnerebenen vom Pfad jeder Datei."
+  - id: keep_old_files
+    flags: ["-k", "--keep-old-files"]
+    label: Vorhandene nicht überschreiben
+    group: Entpacken
+    importance: normal
+    help: "Bricht mit Fehler ab, statt vorhandene Dateien zu ersetzen."
+  - id: skip_old_files
+    flags: ["--skip-old-files"]
+    label: Vorhandene überspringen
+    group: Entpacken
+    importance: normal
+    help: "Überspringt Dateien, die schon existieren, ohne Fehler."
+  - id: overwrite
+    flags: ["--overwrite"]
+    label: Vorhandene überschreiben
+    group: Entpacken
+    importance: normal
+    safety: dangerous
+    help: "Ersetzt vorhandene Dateien beim Entpacken ohne Nachfrage."
+  - id: absolute_names
+    flags: ["-P", "--absolute-names"]
+    label: Absolute Pfade beibehalten
+    group: Entpacken
+    importance: normal
+    safety: dangerous
+    help: "Behält führende / bei, wodurch beim Entpacken beliebige Systempfade überschrieben werden können."
+  - id: to_stdout
+    flags: ["-O", "--to-stdout"]
+    label: Auf Standardausgabe entpacken
+    group: Entpacken
+    importance: normal
+    help: "Schreibt den Dateiinhalt in die Ausgabe statt in Dateien."
+  - id: preserve_permissions
+    flags: ["-p", "--preserve-permissions", "--same-permissions"]
+    label: Rechte beibehalten
+    group: Entpacken
+    importance: normal
+    help: "Stellt beim Entpacken die gespeicherten Dateirechte wieder her."
+  - id: version
+    flags: ["--version"]
+    label: Version anzeigen
+    group: Ausgabe
+    importance: normal
+    help: "Zeigt die Version von tar an."
+
+output:
+  stdout:
+    kind: text
+  exit_codes:
+    0: "Erfolgreich"
+    1: "Einige Dateien haben sich beim Archivieren geändert oder unterscheiden sich"
+    2: "Schwerer Fehler, z. B. Archiv nicht lesbar oder Datei nicht gefunden"
+
+examples:
+  - title: "Archiv erstellen"
+    description: "Packt einen Ordner in ein unkomprimiertes Archiv und listet die Dateien."
+    fixtures:
+      - path: projekt/a.txt
+        content: "a\n"
+      - path: projekt/unter/b.txt
+        content: "b\n"
+    args:
+      create: true
+      verbose: true
+      file: "backup.tar"
+      paths: ["projekt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "projekt/unter/b.txt"
+  - title: "Komprimiertes Archiv erstellen"
+    description: "Erstellt ein gzip-komprimiertes Archiv (.tar.gz) einer Datei."
+    fixtures:
+      - path: notiz.txt
+        content: "hallo\n"
+    args:
+      create: true
+      gzip: true
+      verbose: true
+      file: "notiz.tar.gz"
+      paths: ["notiz.txt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "notiz.txt"
+  - title: "Version anzeigen"
+    description: "Prüft, dass tar installiert ist."
+    args:
+      version: true
+    expect:
+      exit_code: 0
+      stdout_contains: "tar"
+
+i18n:
+  en:
+    display_name: "tar – create and extract archives"
+    summary: "Packs files into an archive, lists or extracts archives."
+    options:
+      create: {label: "Create archive", help: "Packs the given files into a new archive."}
+      extract: {label: "Extract archive", help: "Extracts the archive into the current or chosen folder."}
+      list: {label: "List contents", help: "Lists the archive contents without extracting anything."}
+      file: {label: "Archive file", help: "Name of the archive file to create or read."}
+      verbose: {label: "List files", help: "Shows each processed file."}
+      gzip: {label: "gzip compression", help: "Compresses with gzip (.tar.gz)."}

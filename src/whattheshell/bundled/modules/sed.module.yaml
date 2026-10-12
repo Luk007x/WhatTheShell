@@ -1,0 +1,173 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: sed
+display_name: "sed – Text umformen"
+category: Text
+summary: "Ersetzt und bearbeitet Text zeilenweise mit einem kurzen Skript."
+description: |
+  sed liest Text Zeile für Zeile und wendet ein Skript darauf an. Am häufigsten ersetzt man damit Text (s/alt/neu/g), löscht Zeilen oder gibt nur bestimmte Zeilen aus. Ohne weitere Optionen schreibt sed das Ergebnis nur auf den Bildschirm und lässt die Datei unverändert. Stolperfalle: Mit -i wird die Datei direkt überschrieben; ein Suffix wie .bak legt vorher eine Sicherung an.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: script
+    label: Skript
+    type: string
+    position: 0
+    help: "Sed-Befehl, z. B. s/alt/neu/g; entfällt, wenn -e oder -f benutzt wird."
+  - id: input_file
+    label: Eingabedateien
+    type: path
+    multiple: true
+    position: 1
+    help: "Dateien, die bearbeitet werden; ohne Angabe wird die Standardeingabe gelesen."
+
+options:
+  - id: quiet
+    flags: ["-n", "--quiet", "--silent"]
+    label: Automatische Ausgabe abschalten
+    type: bool
+    group: Ausgabe
+    importance: common
+    help: "Gibt nur Zeilen aus, die ein Befehl wie p ausdrücklich druckt."
+  - id: regexp_extended
+    flags: ["-E", "-r", "--regexp-extended"]
+    label: Erweiterte reguläre Ausdrücke
+    type: bool
+    group: Skript
+    importance: common
+    help: "Erlaubt Gruppen und Alternativen ohne Backslashes, z. B. (a|b)+."
+  - id: expression
+    flags: ["-e", "--expression"]
+    label: Skript direkt angeben
+    type: string
+    multiple: true
+    group: Skript
+    importance: common
+    help: "Fügt einen Sed-Befehl hinzu; kann mehrfach vorkommen."
+  - id: file
+    flags: ["-f", "--file"]
+    label: Skript aus Datei
+    type: path
+    group: Skript
+    importance: common
+    help: "Liest die Sed-Befehle aus einer Datei."
+  - id: in_place
+    flags: ["-i", "--in-place"]
+    label: Datei direkt ändern
+    type: string
+    metavar: SUFFIX
+    group: Dateien
+    importance: common
+    safety: dangerous
+    help: "Überschreibt die Eingabedatei; ein Suffix (z. B. .bak) legt eine Sicherungskopie an."
+  - id: separate
+    flags: ["-s", "--separate"]
+    label: Dateien getrennt behandeln
+    type: bool
+    group: Dateien
+    help: "Zeilennummern und Adressen beginnen in jeder Datei neu."
+  - id: follow_symlinks
+    flags: ["--follow-symlinks"]
+    label: Symlinks folgen
+    type: bool
+    group: Dateien
+    help: "Bearbeitet bei -i die Zieldatei eines Symlinks statt den Link zu ersetzen."
+  - id: null_data
+    flags: ["-z", "--null-data"]
+    label: Null-getrennte Zeilen
+    type: bool
+    group: Eingabe
+    help: "Trennt Zeilen mit einem Nullbyte statt mit Zeilenumbruch."
+  - id: line_length
+    flags: ["-l", "--line-length"]
+    label: Zeilenlänge für l
+    type: int
+    min: 0
+    metavar: N
+    group: Ausgabe
+    help: "Legt die Umbruchbreite des Befehls l fest."
+  - id: unbuffered
+    flags: ["-u", "--unbuffered"]
+    label: Ungepuffert
+    type: bool
+    group: Ausgabe
+    help: "Liest und schreibt in kleinen Häppchen, nützlich bei Live-Eingaben."
+  - id: posix
+    flags: ["--posix"]
+    label: Strikt POSIX
+    type: bool
+    group: Skript
+    help: "Schaltet GNU-Erweiterungen ab."
+  - id: sandbox
+    flags: ["--sandbox"]
+    label: Sandbox-Modus
+    type: bool
+    group: Skript
+    help: "Verbietet die Befehle e, r und w."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolg"
+    1: "Ungültiger Befehl, ungültige Syntax oder ungültiges Muster"
+    2: "Eine Eingabedatei konnte nicht geöffnet werden"
+    4: "Ein-/Ausgabefehler oder ein nicht behebbarer Fehler bei der Verarbeitung"
+
+examples:
+  - title: "Text ersetzen"
+    description: "Ersetzt in jeder Zeile Katze durch Hund."
+    fixtures:
+      - path: tiere.txt
+        content: |
+          Die Katze schläft.
+          Eine Katze und ein Vogel.
+    args:
+      script: "s/Katze/Hund/g"
+      input_file: ["tiere.txt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "Die Hund schläft."
+  - title: "Bestimmte Zeilen ausgeben"
+    description: "Gibt nur die Zeilen 2 bis 3 aus."
+    fixtures:
+      - path: liste.txt
+        content: |
+          eins
+          zwei
+          drei
+          vier
+    args:
+      quiet: true
+      script: "2,3p"
+      input_file: ["liste.txt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "drei"
+  - title: "Zeilen löschen"
+    description: "Entfernt alle Kommentarzeilen, die mit # beginnen."
+    fixtures:
+      - path: konfig.txt
+        content: |
+          # Kommentar
+          name=wts
+          # noch einer
+          modus=an
+    args:
+      expression: ["/^#/d"]
+      input_file: ["konfig.txt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "modus=an"
+
+i18n:
+  en:
+    display_name: "sed – Transform text"
+    summary: "Replaces and edits text line by line with a short script."
+    options:
+      quiet: {label: "Suppress automatic output", help: "Prints only lines explicitly printed by a command such as p."}
+      regexp_extended: {label: "Extended regular expressions", help: "Allows groups and alternatives without backslashes, e.g. (a|b)+."}
+      expression: {label: "Script on the command line", help: "Adds a sed command; may be repeated."}
+      file: {label: "Script from file", help: "Reads the sed commands from a file."}
+      in_place: {label: "Edit file in place", help: "Overwrites the input file; a suffix such as .bak keeps a backup copy."}

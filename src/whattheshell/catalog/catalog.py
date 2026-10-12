@@ -19,6 +19,9 @@ from whattheshell.catalog.fetch import NEVER_PROBE, fetch_help
 from whattheshell.helpparse import parse_help
 from whattheshell.models.catalog import CommandSpec, ToolInfo
 from whattheshell.models.common import Confidence
+from whattheshell.models.module import CommandOverride
+from whattheshell.modules.merge import merge_command
+from whattheshell.modules.registry import ModuleRegistry
 from whattheshell.subproc import run_limited
 
 logger = logging.getLogger(__name__)
@@ -109,7 +112,10 @@ def _probe_version(path: str) -> str | None:
 class Catalog:
     """Resolves tools and builds `ToolInfo` entries with an on-disk cache."""
 
-    def __init__(self, cache_dir: Path | None = None) -> None:
+    def __init__(
+        self, cache_dir: Path | None = None, registry: ModuleRegistry | None = None
+    ) -> None:
+        self._registry = registry
         self._cache_dir = cache_dir or paths.cache_dir() / "catalog"
         self._tools: list[Executable] | None = None
 
@@ -159,9 +165,37 @@ class Catalog:
         if info is None:
             info = self._build(path, base, subcommand)
             self._write(cache_file, key, info)
+        info = self._apply_modules(info, base, subcommand)
         if depth > 0:
             info = self._expand(info, name, subcommand, depth)
         return info
+
+    def _apply_modules(self, info: ToolInfo, base: str, subcommand: Sequence[str]) -> ToolInfo:
+        """Merge module overrides for this command path; the cached raw info stays untouched."""
+        if self._registry is None:
+            return info
+        command, files, replaced = info.command, [], False
+        for loaded in self._registry.for_tool(base):
+            node: CommandOverride = loaded.module
+            for word in subcommand:
+                child = next((s for s in node.subcommands if s.name == word), None)
+                if child is None:
+                    break
+                node = child
+            else:
+                replace = not subcommand and loaded.module.override_mode == "replace"
+                command = merge_command(command, node, replace=replace)
+                files.append(str(loaded.path))
+                replaced = replaced or replace
+        if not files:
+            return info
+        return info.model_copy(
+            update={
+                "command": command,
+                "module_files": files,
+                "source": "module" if replaced else info.source,
+            }
+        )
 
     def _read(self, cache_file: Path, key: dict[str, object]) -> ToolInfo | None:
         try:

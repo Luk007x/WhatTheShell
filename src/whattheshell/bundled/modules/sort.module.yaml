@@ -1,0 +1,190 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: sort
+display_name: "sort – Zeilen sortieren"
+category: Text
+summary: "Sortiert die Zeilen von Dateien oder Eingaben."
+description: |
+  sort ordnet Zeilen alphabetisch, numerisch oder nach einer bestimmten Spalte. Typisch ist es in Kombination mit uniq oder zum Aufräumen von Listen. Stolperfalle: Standardmäßig wird Text verglichen, "10" steht dann vor "9"; für Zahlen braucht es -n. Die Sortierung hängt außerdem von der eingestellten Sprache ab.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: file
+    label: Dateien
+    type: path
+    multiple: true
+    position: 0
+    help: "Dateien, die sortiert werden; ohne Angabe wird die Standardeingabe gelesen."
+
+options:
+  - id: numeric_sort
+    flags: ["-n", "--numeric-sort"]
+    label: Numerisch sortieren
+    group: Reihenfolge
+    importance: common
+    help: "Vergleicht den Zahlenwert am Zeilenanfang statt den Text."
+  - id: reverse
+    flags: ["-r", "--reverse"]
+    label: Umgekehrte Reihenfolge
+    group: Reihenfolge
+    importance: common
+    help: "Dreht das Sortierergebnis um."
+  - id: unique
+    flags: ["-u", "--unique"]
+    label: Doppelte Zeilen entfernen
+    group: Ausgabe
+    importance: common
+    help: "Gibt von mehreren gleichen Zeilen nur die erste aus."
+  - id: key
+    flags: ["-k", "--key"]
+    label: Nach Spalte sortieren
+    type: string
+    multiple: true
+    metavar: KEYDEF
+    group: Spalten
+    importance: common
+    help: "Sortiert nach einem Feld, z. B. 2 oder 2,2n für die zweite Spalte numerisch."
+  - id: field_separator
+    flags: ["-t", "--field-separator"]
+    label: Trennzeichen
+    type: string
+    metavar: SEP
+    group: Spalten
+    importance: common
+    help: "Trennzeichen zwischen Feldern, z. B. , bei CSV."
+  - id: ignore_case
+    flags: ["-f", "--ignore-case"]
+    label: Groß-/Kleinschreibung ignorieren
+    group: Reihenfolge
+    importance: common
+    help: "Behandelt Groß- und Kleinbuchstaben als gleich."
+  - id: human_numeric_sort
+    flags: ["-h", "--human-numeric-sort"]
+    label: Größen wie 2K, 1G sortieren
+    group: Reihenfolge
+    help: "Versteht Einheiten wie K, M und G, wie sie in ls -lh oder du -h vorkommen."
+  - id: version_sort
+    flags: ["-V", "--version-sort"]
+    label: Versionsnummern sortieren
+    group: Reihenfolge
+    help: "Sortiert natürlich, sodass v1.2 vor v1.10 steht."
+  - id: month_sort
+    flags: ["-M", "--month-sort"]
+    label: Monatsnamen sortieren
+    group: Reihenfolge
+    help: "Sortiert JAN bis DEC in Kalenderreihenfolge."
+  - id: general_numeric_sort
+    flags: ["-g", "--general-numeric-sort"]
+    label: Allgemein numerisch
+    group: Reihenfolge
+    help: "Versteht auch Fließkommazahlen mit Exponent wie 1e3."
+  - id: random_sort
+    flags: ["-R", "--random-sort"]
+    label: Zufällig mischen
+    group: Reihenfolge
+    help: "Mischt die Zeilen in zufälliger Reihenfolge."
+  - id: ignore_leading_blanks
+    flags: ["-b", "--ignore-leading-blanks"]
+    label: Führende Leerzeichen ignorieren
+    group: Reihenfolge
+    help: "Überspringt Leerzeichen am Anfang eines Feldes beim Vergleich."
+  - id: dictionary_order
+    flags: ["-d", "--dictionary-order"]
+    label: Nur Buchstaben und Ziffern beachten
+    group: Reihenfolge
+    help: "Ignoriert Sonderzeichen beim Vergleich."
+  - id: stable
+    flags: ["-s", "--stable"]
+    label: Stabil sortieren
+    group: Ausgabe
+    help: "Behält die ursprüngliche Reihenfolge gleicher Zeilen bei."
+  - id: check
+    flags: ["-c", "--check"]
+    label: Nur prüfen, ob sortiert
+    type: bool
+    group: Ausgabe
+    help: "Sortiert nicht, sondern meldet die erste unsortierte Zeile."
+  - id: merge
+    flags: ["-m", "--merge"]
+    label: Sortierte Dateien mischen
+    group: Ausgabe
+    help: "Führt bereits sortierte Dateien zusammen, ohne neu zu sortieren."
+  - id: output
+    flags: ["-o", "--output"]
+    label: Ausgabedatei
+    group: Ausgabe
+    help: "Schreibt das Ergebnis in eine Datei; sie darf die Eingabedatei sein."
+  - id: zero_terminated
+    flags: ["-z", "--zero-terminated"]
+    label: Null-getrennte Zeilen
+    group: Ausgabe
+    help: "Trennt Zeilen mit einem Nullbyte statt mit Zeilenumbruch."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolg (mit -c: Eingabe ist sortiert)"
+    1: "Mit -c: Eingabe ist nicht sortiert"
+    2: "Fehler"
+
+examples:
+  - title: "Namen alphabetisch sortieren"
+    description: "Sortiert eine Namensliste und entfernt doppelte Einträge."
+    fixtures:
+      - path: namen.txt
+        content: |
+          Clara
+          Anna
+          Berta
+          Anna
+    args:
+      unique: true
+      file: ["namen.txt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "Berta"
+  - title: "Zahlen absteigend sortieren"
+    description: "Sortiert numerisch und dreht die Reihenfolge um."
+    fixtures:
+      - path: zahlen.txt
+        content: |
+          9
+          10
+          2
+          100
+    args:
+      numeric_sort: true
+      reverse: true
+      file: ["zahlen.txt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "100"
+  - title: "Nach Spalte sortieren"
+    description: "Sortiert eine CSV-Datei numerisch nach der zweiten Spalte."
+    fixtures:
+      - path: werte.csv
+        content: |
+          a,30
+          b,5
+          c,12
+    args:
+      field_separator: ","
+      key: ["2,2n"]
+      file: ["werte.csv"]
+    expect:
+      exit_code: 0
+      stdout_contains: "b,5"
+
+i18n:
+  en:
+    display_name: "sort – Sort lines"
+    summary: "Sorts the lines of files or input."
+    options:
+      numeric_sort: {label: "Sort numerically", help: "Compares the numeric value at the start of the line instead of text."}
+      reverse: {label: "Reverse order", help: "Reverses the sort result."}
+      unique: {label: "Remove duplicate lines", help: "Prints only the first of several equal lines."}
+      key: {label: "Sort by column", help: "Sorts by a field, e.g. 2 or 2,2n for the second column numerically."}
+      field_separator: {label: "Field separator", help: "Separator between fields, e.g. , for CSV."}
+      ignore_case: {label: "Ignore case", help: "Treats upper and lower case letters as equal."}

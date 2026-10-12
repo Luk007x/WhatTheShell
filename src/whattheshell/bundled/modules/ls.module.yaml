@@ -1,0 +1,205 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: ls
+display_name: "ls – Ordnerinhalt anzeigen"
+category: Dateien
+summary: "Listet Dateien und Ordner auf."
+description: |
+  ls zeigt, was in einem Ordner liegt. Mit der Langform sehen Sie zusätzlich Rechte, Besitzer, Größe und Änderungsdatum.
+  Versteckte Dateien (Name beginnt mit einem Punkt) erscheinen nur mit "Versteckte anzeigen". Größen in Bytes werden mit "Lesbare Größen" zu KB, MB usw.
+  ls ändert nichts an den Dateien und ist deshalb unkritisch.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: file
+    label: Dateien oder Ordner
+    type: path
+    multiple: true
+    position: 0
+    help: "Was aufgelistet werden soll (Standard: aktueller Ordner)."
+
+options:
+  - id: l
+    flags: ["-l"]
+    label: Langform
+    type: bool
+    group: Ausgabe
+    importance: common
+    help: "Zeigt Rechte, Besitzer, Größe und Datum je Eintrag."
+  - id: all
+    flags: ["-a", "--all"]
+    label: Versteckte anzeigen
+    group: Auswahl
+    importance: common
+    help: "Zeigt auch Einträge, deren Name mit einem Punkt beginnt."
+  - id: almost_all
+    flags: ["-A", "--almost-all"]
+    label: Versteckte anzeigen (ohne . und ..)
+    group: Auswahl
+    importance: normal
+    help: "Wie Versteckte anzeigen, aber ohne die Einträge . und .."
+  - id: human_readable
+    flags: ["-h", "--human-readable"]
+    label: Lesbare Größen
+    group: Ausgabe
+    importance: common
+    help: "Gibt Größen als KB, MB, GB aus; wirkt zusammen mit der Langform."
+  - id: recursive
+    flags: ["-R", "--recursive"]
+    label: Unterordner mit auflisten
+    group: Auswahl
+    importance: common
+    help: "Listet auch den Inhalt aller Unterordner auf."
+  - id: directory
+    flags: ["-d", "--directory"]
+    label: Ordner selbst anzeigen
+    group: Auswahl
+    importance: normal
+    help: "Zeigt den Ordner selbst statt seines Inhalts."
+  - id: ignore
+    flags: ["-I", "--ignore"]
+    label: Muster ausblenden
+    type: string
+    metavar: MUSTER
+    group: Auswahl
+    importance: normal
+    help: "Blendet Einträge aus, deren Name zum Muster passt, z. B. *.tmp."
+  - id: group_directories_first
+    flags: ["--group-directories-first"]
+    label: Ordner zuerst
+    group: Sortierung
+    importance: normal
+    help: "Zeigt Ordner vor den Dateien an."
+  - id: t
+    flags: ["-t"]
+    label: Nach Änderungszeit sortieren
+    group: Sortierung
+    importance: common
+    help: "Sortiert die neuesten Einträge nach oben."
+  - id: s_upper
+    flags: ["-S"]
+    label: Nach Größe sortieren
+    group: Sortierung
+    importance: normal
+    help: "Sortiert die größten Einträge nach oben."
+  - id: reverse
+    flags: ["-r", "--reverse"]
+    label: Reihenfolge umkehren
+    group: Sortierung
+    importance: normal
+    help: "Dreht die Sortierreihenfolge um."
+  - id: sort
+    flags: ["--sort"]
+    label: Sortieren nach
+    type: enum
+    choices: [none, size, time, version, extension]
+    group: Sortierung
+    importance: normal
+    help: "Wählt das Sortierkriterium statt des Namens."
+  - id: classify
+    flags: ["-F", "--classify"]
+    label: Typ-Zeichen anhängen
+    type: bool
+    group: Ausgabe
+    importance: normal
+    help: "Hängt / an Ordner und * an ausführbare Dateien."
+  - id: opt_1
+    flags: ["-1"]
+    label: Ein Eintrag pro Zeile
+    group: Ausgabe
+    importance: normal
+    help: "Gibt jeden Eintrag in einer eigenen Zeile aus."
+  - id: inode
+    flags: ["-i", "--inode"]
+    label: Inode-Nummer anzeigen
+    group: Ausgabe
+    importance: normal
+    help: "Zeigt die interne Nummer jeder Datei im Dateisystem."
+  - id: size
+    flags: ["-s", "--size"]
+    label: Belegten Platz anzeigen
+    group: Ausgabe
+    importance: normal
+    help: "Zeigt den belegten Speicher jeder Datei in Blöcken."
+  - id: color
+    flags: ["--color"]
+    label: Farbige Ausgabe
+    type: enum
+    choices: [always, never, auto]
+    group: Ausgabe
+    importance: normal
+    help: "Färbt Dateitypen ein: immer, nie oder nur im Terminal."
+  - id: time_style
+    flags: ["--time-style"]
+    label: Zeitformat
+    type: string
+    metavar: STIL
+    group: Ausgabe
+    importance: normal
+    help: "Format des Datums in der Langform, z. B. long-iso."
+  - id: dereference
+    flags: ["-L", "--dereference"]
+    label: Links auflösen
+    group: Auswahl
+    importance: normal
+    help: "Zeigt bei symbolischen Links das Ziel statt des Links."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolgreich"
+    1: "Kleinere Probleme, z. B. ein Unterordner war nicht lesbar"
+    2: "Schwerer Fehler, z. B. Startpfad existiert nicht"
+
+examples:
+  - title: "Ordnerinhalt auflisten"
+    description: "Listet alle Einträge in einem Ordner, einen pro Zeile."
+    fixtures:
+      - path: ordner/a.txt
+        content: "a\n"
+      - path: ordner/b.txt
+        content: "b\n"
+    args:
+      opt_1: true
+      file: ["ordner"]
+    expect:
+      exit_code: 0
+      stdout_contains: "b.txt"
+  - title: "Versteckte Dateien zeigen"
+    description: "Zeigt auch Dateien, deren Name mit einem Punkt beginnt."
+    fixtures:
+      - path: proj/.geheim
+        content: "x\n"
+      - path: proj/sichtbar.txt
+        content: "y\n"
+    args:
+      all: true
+      file: ["proj"]
+    expect:
+      exit_code: 0
+      stdout_contains: ".geheim"
+  - title: "Langform mit lesbaren Größen"
+    description: "Zeigt Rechte, Größe und Datum in lesbarer Form."
+    fixtures:
+      - path: daten/zahlen.csv
+        content: "1,2,3\n"
+    args:
+      l: true
+      human_readable: true
+      file: ["daten"]
+    expect:
+      exit_code: 0
+      stdout_contains: "zahlen.csv"
+
+i18n:
+  en:
+    display_name: "ls – list directory contents"
+    summary: "Lists files and folders."
+    options:
+      l: {label: "Long format", help: "Shows permissions, owner, size and date for each entry."}
+      all: {label: "Show hidden", help: "Also shows entries whose names start with a dot."}
+      human_readable: {label: "Readable sizes", help: "Prints sizes as KB, MB, GB; works together with the long format."}
+      recursive: {label: "Include subfolders", help: "Also lists the contents of all subfolders."}
+      t: {label: "Sort by modification time", help: "Puts the newest entries first."}

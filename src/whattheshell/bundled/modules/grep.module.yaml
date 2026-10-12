@@ -1,0 +1,248 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: grep
+display_name: "grep – Text durchsuchen"
+category: Text
+summary: "Durchsucht Dateien oder Eingaben nach Mustern und zeigt die passenden Zeilen."
+description: |
+  grep gibt alle Zeilen aus, die zu einem Suchmuster passen. Typisch ist die Suche nach Fehlern in Logdateien oder nach einem Begriff in einem ganzen Projektordner (mit "rekursiv").
+  Das Muster ist standardmäßig ein regulärer Ausdruck: Zeichen wie . * [ ] haben dann eine Sonderbedeutung. Für normalen Text hilft "Festen Text suchen".
+  Stolperfallen: Ohne Dateiangabe wartet grep auf Eingaben von der Tastatur. Exit-Code 1 bedeutet nur "keine Treffer", nicht Fehler.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: patterns
+    label: Suchmuster
+    type: string
+    required: true
+    position: 0
+    help: "Regulärer Ausdruck oder fester Text."
+  - id: file
+    label: Dateien
+    type: path
+    multiple: true
+    position: 1
+    help: "Dateien oder Ordner, die durchsucht werden."
+
+options:
+  - id: ignore_case
+    flags: ["-i", "--ignore-case"]
+    label: Groß-/Kleinschreibung ignorieren
+    type: bool
+    group: Suche
+    importance: common
+    help: "Unterscheidet nicht zwischen Groß- und Kleinbuchstaben."
+  - id: invert_match
+    flags: ["-v", "--invert-match"]
+    label: Treffer umkehren
+    group: Suche
+    importance: common
+    help: "Zeigt nur die Zeilen, die das Muster nicht enthalten."
+  - id: word_regexp
+    flags: ["-w", "--word-regexp"]
+    label: Nur ganze Wörter
+    group: Suche
+    importance: normal
+    help: "Das Muster muss als eigenes Wort vorkommen, nicht nur als Teil eines Wortes."
+  - id: fixed_strings
+    flags: ["-F", "--fixed-strings"]
+    label: Festen Text suchen
+    group: Suche
+    importance: normal
+    help: "Behandelt das Muster als normalen Text ohne Sonderzeichen."
+  - id: extended_regexp
+    flags: ["-E", "--extended-regexp"]
+    label: Erweiterter regulärer Ausdruck
+    group: Suche
+    importance: normal
+    help: "Erlaubt Schreibweisen wie a|b oder (ab)+ ohne Backslashes."
+  - id: recursive
+    flags: ["-r", "--recursive"]
+    label: Verzeichnisse rekursiv durchsuchen
+    type: bool
+    group: Dateien
+    importance: common
+    help: "Durchsucht Ordner samt allen Unterordnern."
+  - id: include
+    flags: ["--include"]
+    label: Nur Dateien mit passendem Namen
+    type: string
+    metavar: GLOB
+    group: Dateien
+    importance: normal
+    help: "Durchsucht nur Dateien, deren Name zum Muster passt, z. B. *.py."
+  - id: exclude
+    flags: ["--exclude"]
+    label: Dateien mit passendem Namen überspringen
+    group: Dateien
+    importance: normal
+    help: "Überspringt Dateien, deren Name zum Muster passt, z. B. *.log."
+  - id: exclude_dir
+    flags: ["--exclude-dir"]
+    label: Ordner überspringen
+    group: Dateien
+    importance: normal
+    help: "Überspringt Ordner mit passendem Namen, z. B. node_modules."
+  - id: files_with_matches
+    flags: ["-l", "--files-with-matches"]
+    label: Nur Dateinamen anzeigen
+    group: Ausgabe
+    importance: common
+    help: "Listet nur die Namen der Dateien mit Treffern statt der Zeilen."
+  - id: count
+    flags: ["-c", "--count"]
+    label: Treffer zählen
+    type: bool
+    group: Ausgabe
+    importance: normal
+    help: "Zeigt je Datei nur die Anzahl der passenden Zeilen."
+  - id: line_number
+    flags: ["-n", "--line-number"]
+    label: Zeilennummern anzeigen
+    type: bool
+    group: Ausgabe
+    importance: common
+    help: "Setzt jeder Trefferzeile ihre Zeilennummer voran."
+  - id: only_matching
+    flags: ["-o", "--only-matching"]
+    label: Nur den passenden Teil ausgeben
+    group: Ausgabe
+    importance: normal
+    help: "Gibt statt der ganzen Zeile nur den Teil aus, der zum Muster passt."
+  - id: with_filename
+    flags: ["-H", "--with-filename"]
+    label: Dateinamen anzeigen
+    group: Ausgabe
+    importance: normal
+    help: "Setzt jeder Trefferzeile den Dateinamen voran."
+  - id: no_filename
+    flags: ["-h", "--no-filename"]
+    label: Dateinamen unterdrücken
+    group: Ausgabe
+    importance: normal
+    help: "Zeigt bei mehreren Dateien keine Dateinamen vor den Zeilen."
+  - id: max_count
+    flags: ["-m", "--max-count"]
+    label: Höchstens so viele Treffer
+    type: int
+    min: 1
+    metavar: NUM
+    group: Ausgabe
+    importance: normal
+    help: "Hört pro Datei nach dieser Anzahl passender Zeilen auf."
+  - id: quiet
+    flags: ["-q", "--quiet", "--silent"]
+    label: Keine Ausgabe
+    group: Ausgabe
+    importance: normal
+    help: "Gibt nichts aus; nur der Exit-Code zeigt, ob es Treffer gab."
+  - id: colour
+    flags: ["--colour"]
+    label: Farbige Ausgabe
+    type: enum
+    choices: [always, never, auto]
+    group: Ausgabe
+    importance: normal
+    help: "Hebt Treffer farbig hervor: immer, nie oder nur im Terminal."
+  - id: color
+    flags: ["--color"]
+    label: Farbige Ausgabe
+    type: enum
+    choices: [always, never, auto]
+    group: Ausgabe
+    importance: normal
+    help: "Hebt Treffer farbig hervor: immer, nie oder nur im Terminal."
+  - id: context
+    flags: ["-C", "--context"]
+    label: Kontextzeilen
+    type: int
+    min: 0
+    metavar: NUM
+    group: Kontext
+    importance: common
+    help: "Zeigt zusätzlich diese Anzahl Zeilen vor und nach jedem Treffer."
+  - id: before_context
+    flags: ["-B", "--before-context"]
+    label: Zeilen davor
+    group: Kontext
+    importance: normal
+    min: 0
+    help: "Zeigt diese Anzahl Zeilen vor jedem Treffer."
+  - id: after_context
+    flags: ["-A", "--after-context"]
+    label: Zeilen danach
+    group: Kontext
+    importance: normal
+    min: 0
+    help: "Zeigt diese Anzahl Zeilen nach jedem Treffer."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Treffer gefunden"
+    1: "Keine Treffer"
+    2: "Fehler, z. B. Datei nicht lesbar oder ungültiges Muster"
+
+examples:
+  - title: "Fehlerzeilen finden"
+    description: "Sucht error ohne Rücksicht auf Groß-/Kleinschreibung."
+    fixtures:
+      - path: app.log
+        content: |
+          INFO start
+          ERROR disk full
+          error timeout
+    args:
+      ignore_case: true
+      patterns: "error"
+      file: ["app.log"]
+    expect:
+      exit_code: 0
+      stdout_contains: "disk full"
+  - title: "Ordner durchsuchen mit Zeilennummern"
+    description: "Sucht rekursiv in einem Ordner und zeigt Zeilennummern."
+    fixtures:
+      - path: projekt/a.txt
+        content: |
+          eins
+          todo: aufräumen
+      - path: projekt/unter/b.txt
+        content: |
+          nichts
+          todo: testen
+    args:
+      recursive: true
+      line_number: true
+      patterns: "todo"
+      file: ["projekt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "testen"
+  - title: "Zeilen ausschließen"
+    description: "Zeigt alle Zeilen, die kein Kommentar-Zeichen am Anfang haben."
+    fixtures:
+      - path: konfig.txt
+        content: |
+          # Kommentar
+          port=80
+    args:
+      invert_match: true
+      patterns: "^#"
+      file: ["konfig.txt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "port=80"
+
+i18n:
+  en:
+    display_name: "grep – search text"
+    summary: "Searches files or input for patterns and prints the matching lines."
+    options:
+      ignore_case: {label: "Ignore case", help: "Does not distinguish between upper and lower case."}
+      invert_match: {label: "Invert match", help: "Shows only lines that do not contain the pattern."}
+      recursive: {label: "Search directories recursively", help: "Searches folders including all subfolders."}
+      files_with_matches: {label: "Only show file names", help: "Lists only the names of files with matches instead of the lines."}
+      line_number: {label: "Show line numbers", help: "Prefixes each matching line with its line number."}
+      context: {label: "Context lines", help: "Also shows this many lines before and after each match."}

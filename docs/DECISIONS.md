@@ -46,3 +46,13 @@ Hauptsession ist Manager und delegiert an Sonnet-/Haiku-Agenten (siehe `CLAUDE.m
 - `fetch_help` liegt im Paket `catalog`, nicht in `helpparse`: der Parser bleibt reine Textverarbeitung und ohne Prozessstart testbar.
 - **Korpus:** 29 Tools statt der Liste aus Abschnitt 9: docker → podman (gleiches cobra-Format), awk → gawk, dazu bat/uv (clap), gh (cobra), pip/json.tool (argparse), ssh und ip (nur Usage), `man grep`. BusyBox und ein click-basiertes Tool sind auf dem Entwicklungssystem nicht installiert und fehlen noch.
 - Interaktive Programme werden über eine feste Liste erkannt (`INTERACTIVE`), Module können das in Phase 2 überschreiben.
+
+## D-007 Module (Phase 2), 2026-10-12
+
+- **Mitgelieferte Module und Workflows liegen in `src/whattheshell/bundled/`**, nicht wie in Abschnitt 12 im Wurzelverzeichnis. Grund: nur so landen sie ohne Sonderregeln im Wheel (`pip`/`pipx`). Lizenz CC0 bleibt je Ordner.
+- **`inputs` im Modul ersetzen die Katalog-Eingaben**, `options` mergen nach id (FORMATS §6). Katalog-Eingabe-ids kollidierten mit Options-ids (find `path`), und umbenannte Modul-Eingaben standen doppelt daneben.
+- **Hot-Reload mit `watchfiles`** (MIT), wie im Projektauftrag erlaubt. Kein eigener Poller.
+- **Cache bleibt roh**: Module werden bei jedem `Catalog.get` nach dem Cache angewandt, damit eine Moduländerung ohne Cache-Invalidierung sichtbar ist.
+- **Offen für Phase 3:** Optionen mit mehreren Werten je Vorkommen (jq `--arg name value`) kennt `OptionSpec` nicht (`nargs`). Entscheidung beim argv-Aufbau der Engine.
+- Beispiele der mitgelieferten Module sind bis Phase 3 nur schema-validiert, nicht ausgeführt. Ab Phase 3 läuft jedes Beispiel in der Sandbox als Test.
+- **Lokaler Python-Pin `.python-version` = 3.12.** uv hatte ohne Pin den Free-Threading-Build 3.14t gewählt. Die CI prüft weiter 3.11 bis 3.14; lokal gilt ein GIL-Build, damit Thread-Verhalten (Registry, Watcher) dem Normalfall entspricht.

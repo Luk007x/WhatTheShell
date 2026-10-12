@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Section detection, subcommands, inputs and the fallback on three miniatures."""
 
+from pathlib import Path
+
 from whattheshell.helpparse import parse_help
 from whattheshell.helpparse.sections import split_sections
 from whattheshell.models.common import Confidence, ValueType
@@ -118,7 +120,7 @@ def test_fallback_for_unparsable_text() -> None:
     spec = parse_help("hello world\nnothing useful\n", ["x"])
     assert spec.confidence is Confidence.low
     assert (spec.summary, spec.options, spec.inputs, spec.subcommands) == (
-        "hello world",
+        "hello world nothing useful",
         [],
         [],
         [],
@@ -130,3 +132,42 @@ def test_empty_text_does_not_raise() -> None:
     spec = parse_help("", ["x"])
     assert spec.confidence is Confidence.low
     assert spec.raw_help == ""
+
+
+def _corpus(name: str) -> str:
+    folder = Path(__file__).resolve().parents[1] / "corpus" / name
+    return (folder / "stdout.txt").read_text() or (folder / "stderr.txt").read_text()
+
+
+def test_input_ids_do_not_collide_with_option_ids() -> None:
+    spec = parse_help(_corpus("find"), ["find"])
+    ids = [i.id for i in spec.inputs] + [o.id for o in spec.options]
+    assert "path_arg" in ids
+    assert len(ids) == len(set(ids))
+
+
+def test_tar_input_gets_arg_suffix() -> None:
+    spec = parse_help(_corpus("tar"), ["tar"])
+    assert [i.id for i in spec.inputs] == ["file_arg"]
+
+
+def test_ids_unique_over_whole_corpus() -> None:
+    for folder in (Path(__file__).resolve().parents[1] / "corpus").iterdir():
+        if folder.is_dir():
+            spec = parse_help(_corpus(folder.name), [folder.name])
+            ids = [i.id for i in spec.inputs] + [o.id for o in spec.options]
+            assert len(ids) == len(set(ids)), folder.name
+
+
+def test_summary_joins_wrapped_paragraph() -> None:
+    summary = parse_help(_corpus("wc"), ["wc"]).summary
+    assert summary is not None
+    assert "total line if more than one FILE" in summary
+    assert summary.startswith("Print newline, word")
+
+
+def test_summary_is_shortened_at_word_end() -> None:
+    summary = parse_help("A " + "word " * 100 + "\n\n  -a  x\n", ["x"]).summary
+    assert summary is not None
+    assert len(summary) <= 300
+    assert summary.endswith("word…")

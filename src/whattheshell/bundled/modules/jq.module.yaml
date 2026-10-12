@@ -1,0 +1,181 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: jq
+display_name: "jq – JSON verarbeiten"
+category: Text
+summary: "Liest, filtert und formatiert JSON-Daten."
+description: |
+  jq ist ein Werkzeug, um JSON zu lesen, hübsch darzustellen und gezielt Werte herauszuziehen. Man gibt einen Filter an, z. B. .name für ein Feld oder .[] für alle Elemente einer Liste. Stolperfalle: Strings werden standardmäßig mit Anführungszeichen ausgegeben; für Klartext braucht es -r. Der Filter sollte in Hochkommata stehen, damit die Shell ihn nicht verändert.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: filter
+    label: Filter
+    type: string
+    position: 0
+    help: "jq-Ausdruck, z. B. . für alles oder .name für ein Feld."
+  - id: file
+    label: JSON-Dateien
+    type: path
+    multiple: true
+    position: 1
+    help: "Dateien mit JSON; ohne Angabe wird die Standardeingabe gelesen."
+
+options:
+  - id: raw_output
+    flags: ["-r", "--raw-output"]
+    label: Strings ohne Anführungszeichen
+    group: Ausgabe
+    importance: common
+    help: "Gibt Texte unverändert aus, ohne Anführungszeichen."
+  - id: compact_output
+    flags: ["-c", "--compact-output"]
+    label: Kompakte Ausgabe
+    group: Ausgabe
+    importance: common
+    help: "Schreibt jedes JSON-Objekt in eine einzige Zeile."
+  - id: sort_keys
+    flags: ["-S", "--sort-keys"]
+    label: Schlüssel sortieren
+    group: Ausgabe
+    help: "Sortiert die Felder von Objekten alphabetisch."
+  - id: tab
+    flags: ["--tab"]
+    label: Mit Tabs einrücken
+    group: Ausgabe
+    help: "Verwendet Tabulatoren statt Leerzeichen zum Einrücken."
+  - id: indent
+    flags: ["--indent"]
+    label: Einrückung
+    type: int
+    min: 0
+    max: 7
+    metavar: n
+    group: Ausgabe
+    help: "Anzahl der Leerzeichen zum Einrücken (0 bis 7)."
+  - id: join_output
+    flags: ["-j", "--join-output"]
+    label: Ohne Zeilenumbruch ausgeben
+    group: Ausgabe
+    help: "Wie -r, aber ohne Zeilenumbruch nach jedem Wert."
+  - id: ascii_output
+    flags: ["-a", "--ascii-output"]
+    label: Nur ASCII ausgeben
+    group: Ausgabe
+    help: "Schreibt Sonderzeichen als \\uXXXX-Escape."
+  - id: color_output
+    flags: ["-C", "--color-output"]
+    label: Farbig ausgeben
+    group: Ausgabe
+    help: "Färbt die Ausgabe auch dann ein, wenn sie nicht im Terminal landet."
+  - id: slurp
+    flags: ["-s", "--slurp"]
+    label: Alle Eingaben in eine Liste
+    group: Eingabe
+    importance: common
+    help: "Liest alle JSON-Werte der Eingabe in ein einziges Array."
+  - id: null_input
+    flags: ["-n", "--null-input"]
+    label: Ohne Eingabe starten
+    group: Eingabe
+    importance: common
+    help: "Liest keine Eingabe; nützlich, um Werte selbst zu erzeugen."
+  - id: raw_input
+    flags: ["-R", "--raw-input"]
+    label: Eingabe als Text lesen
+    group: Eingabe
+    help: "Behandelt jede Zeile als String statt als JSON."
+  - id: from_file
+    flags: ["-f", "--from-file"]
+    label: Filter aus Datei
+    type: path
+    group: Eingabe
+    help: "Liest den Filter aus einer Datei."
+  - id: arg
+    flags: ["--arg"]
+    label: Variable setzen (Text)
+    type: string
+    metavar: name
+    group: Variablen
+    help: "Legt eine Variable $name mit einem Textwert an (Format: name wert)."
+  - id: argjson
+    flags: ["--argjson"]
+    label: Variable setzen (JSON)
+    type: string
+    metavar: name
+    group: Variablen
+    help: "Legt eine Variable $name mit einem JSON-Wert an (Format: name wert)."
+  - id: exit_status
+    flags: ["-e", "--exit-status"]
+    label: Exit-Code nach Ergebnis
+    group: Verhalten
+    importance: common
+    help: "Setzt den Exit-Code auf 1, wenn das letzte Ergebnis false oder null ist."
+  - id: stream
+    flags: ["--stream"]
+    label: Als Pfad-Wert-Stream lesen
+    group: Verhalten
+    help: "Zerlegt große JSON-Dokumente in einzelne Pfad-Wert-Paare."
+
+output:
+  stdout:
+    kind: json
+  exit_codes:
+    0: "Erfolg"
+    1: "Mit -e: letztes Ergebnis war false oder null"
+    2: "Verwendungs- oder Systemfehler, z. B. Datei nicht lesbar"
+    3: "Fehler im jq-Filter (Syntax oder Compile-Fehler)"
+    5: "Laufzeitfehler bei der Verarbeitung"
+
+examples:
+  - title: "Feld auslesen"
+    description: "Gibt den Namen ohne Anführungszeichen aus."
+    fixtures:
+      - path: person.json
+        content: |
+          {"name": "Anna", "alter": 31, "orte": ["Wien", "Graz"]}
+    args:
+      raw_output: true
+      filter: ".name"
+      file: ["person.json"]
+    expect:
+      exit_code: 0
+      stdout_contains: "Anna"
+  - title: "Liste durchlaufen"
+    description: "Gibt alle Orte einzeln aus."
+    fixtures:
+      - path: person.json
+        content: |
+          {"name": "Anna", "alter": 31, "orte": ["Wien", "Graz"]}
+    args:
+      raw_output: true
+      filter: ".orte[]"
+      file: ["person.json"]
+    expect:
+      exit_code: 0
+      stdout_contains: "Graz"
+  - title: "Kompakt formatieren"
+    description: "Schreibt das ganze Objekt in eine Zeile."
+    fixtures:
+      - path: person.json
+        content: |
+          {"name": "Anna", "alter": 31, "orte": ["Wien", "Graz"]}
+    args:
+      compact_output: true
+      filter: "."
+      file: ["person.json"]
+    expect:
+      exit_code: 0
+      stdout_contains: '"alter":31'
+
+i18n:
+  en:
+    display_name: "jq – Process JSON"
+    summary: "Reads, filters and formats JSON data."
+    options:
+      raw_output: {label: "Strings without quotes", help: "Prints strings as-is, without quotation marks."}
+      compact_output: {label: "Compact output", help: "Writes each JSON value on a single line."}
+      slurp: {label: "Collect all inputs into a list", help: "Reads all JSON values of the input into one array."}
+      null_input: {label: "Start without input", help: "Reads no input; useful for producing values yourself."}
+      exit_status: {label: "Exit code from result", help: "Sets exit code 1 if the last result is false or null."}

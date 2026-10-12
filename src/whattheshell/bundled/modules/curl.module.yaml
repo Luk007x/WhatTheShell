@@ -1,0 +1,200 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: curl
+display_name: "curl – Daten aus dem Netz übertragen"
+category: Netzwerk
+summary: "Lädt Inhalte von URLs herunter oder sendet Daten an Server."
+description: |
+  curl ruft eine Adresse (HTTP, HTTPS, FTP u. a.) auf und gibt die Antwort aus. Typisch ist das Herunterladen einer Datei oder das Testen einer Web-Schnittstelle (API).
+  Ohne weitere Angaben landet die Antwort direkt im Terminal; mit "Ausgabedatei" wird sie gespeichert und eine vorhandene Datei dabei überschrieben.
+  Stolperfallen: Umleitungen folgt curl nur mit "Weiterleitungen folgen". HTTP-Fehler wie 404 liefern ohne "Bei HTTP-Fehler abbrechen" trotzdem Exit-Code 0.
+override_mode: merge
+safety: caution
+
+inputs:
+  - id: url
+    label: Adresse (URL)
+    type: string
+    required: false
+    position: 0
+    help: "Zieladresse, z. B. https://example.org/datei.txt. Nur bei --version nicht nötig."
+
+options:
+  - id: output
+    flags: ["-o", "--output"]
+    label: Ausgabedatei
+    type: path
+    metavar: DATEI
+    group: Ausgabe
+    importance: common
+    help: "Speichert die Antwort in dieser Datei; eine vorhandene wird überschrieben."
+  - id: remote_name
+    flags: ["-O", "--remote-name"]
+    label: Dateinamen vom Server übernehmen
+    group: Ausgabe
+    importance: common
+    help: "Speichert die Datei unter dem Namen aus der URL im aktuellen Ordner."
+  - id: silent
+    flags: ["-s", "--silent"]
+    label: Still
+    group: Ausgabe
+    importance: common
+    help: "Unterdrückt Fortschrittsanzeige und Fehlermeldungen."
+  - id: show_error
+    flags: ["-S", "--show-error"]
+    label: Fehler trotzdem anzeigen
+    group: Ausgabe
+    importance: normal
+    help: "Zeigt Fehlermeldungen auch im stillen Modus."
+  - id: verbose
+    flags: ["-v", "--verbose"]
+    label: Ausführlich
+    group: Ausgabe
+    importance: normal
+    help: "Zeigt Verbindungsdetails und gesendete Header zur Fehlersuche."
+  - id: show_headers
+    flags: ["-i", "--show-headers"]
+    label: Antwort-Header anzeigen
+    group: Ausgabe
+    importance: normal
+    help: "Gibt die HTTP-Header vor dem Inhalt mit aus."
+  - id: head
+    flags: ["-I", "--head"]
+    label: Nur Header abrufen
+    group: Ausgabe
+    importance: normal
+    help: "Holt nur die Header, ohne den Inhalt zu laden."
+  - id: location
+    flags: ["-L", "--location"]
+    label: Weiterleitungen folgen
+    group: Anfrage
+    importance: common
+    help: "Folgt HTTP-Umleitungen zur neuen Adresse."
+  - id: fail
+    flags: ["-f", "--fail"]
+    label: Bei HTTP-Fehler abbrechen
+    group: Anfrage
+    importance: common
+    help: "Gibt bei Fehlern wie 404 keinen Inhalt aus und endet mit Exit-Code 22."
+  - id: request
+    flags: ["-X", "--request"]
+    label: HTTP-Methode
+    type: string
+    metavar: METHODE
+    group: Anfrage
+    importance: normal
+    help: "Verwendet statt GET eine andere Methode, z. B. POST oder DELETE."
+  - id: header
+    flags: ["-H", "--header"]
+    label: Zusätzlicher Header
+    type: string
+    multiple: true
+    metavar: "NAME: WERT"
+    group: Anfrage
+    importance: normal
+    help: "Sendet einen zusätzlichen Header, z. B. Accept: application/json."
+  - id: data
+    flags: ["-d", "--data"]
+    label: Daten senden (POST)
+    type: string
+    metavar: DATEN
+    group: Anfrage
+    importance: normal
+    help: "Sendet diese Daten im Body; die Methode wird dadurch automatisch POST."
+  - id: upload_file
+    flags: ["-T", "--upload-file"]
+    label: Datei hochladen
+    type: path
+    group: Anfrage
+    importance: normal
+    help: "Lädt die Datei zur Adresse hoch (bei HTTP per PUT)."
+  - id: user
+    flags: ["-u", "--user"]
+    label: Zugangsdaten
+    type: string
+    metavar: "NAME:PASSWORT"
+    group: Anmeldung
+    importance: normal
+    help: "Benutzername und Passwort für die Anmeldung; das Passwort steht dabei im Verlauf der Shell."
+  - id: user_agent
+    flags: ["-A", "--user-agent"]
+    label: Browser-Kennung
+    type: string
+    group: Anmeldung
+    importance: normal
+    help: "Setzt den User-Agent, mit dem sich curl beim Server meldet."
+  - id: max_time
+    flags: ["-m", "--max-time"]
+    label: Zeitlimit in Sekunden
+    type: int
+    min: 1
+    group: Verbindung
+    importance: normal
+    help: "Bricht ab, wenn der gesamte Vorgang länger dauert (Exit-Code 28)."
+  - id: connect_timeout
+    flags: ["--connect-timeout"]
+    label: Zeitlimit für Verbindungsaufbau
+    type: int
+    min: 1
+    group: Verbindung
+    importance: normal
+    help: "Maximale Wartezeit in Sekunden, bis die Verbindung steht."
+  - id: insecure
+    flags: ["-k", "--insecure"]
+    label: Zertifikat nicht prüfen
+    group: Verbindung
+    importance: normal
+    safety: dangerous
+    help: "Ignoriert Zertifikatsfehler bei HTTPS und ist dadurch unsicher."
+  - id: version
+    flags: ["-V", "--version"]
+    label: Version anzeigen
+    group: Ausgabe
+    importance: normal
+    help: "Zeigt Version und unterstützte Protokolle."
+
+output:
+  stdout:
+    kind: text
+  exit_codes:
+    0: "Erfolgreich"
+    2: "Initialisierung fehlgeschlagen"
+    3: "URL ist fehlerhaft"
+    6: "Server-Name konnte nicht aufgelöst werden"
+    7: "Verbindung zum Server fehlgeschlagen"
+    22: "HTTP-Fehler (4xx/5xx) bei --fail"
+    28: "Zeitlimit überschritten"
+
+examples:
+  - title: "Version anzeigen"
+    description: "Prüft, dass curl installiert ist, ohne das Netz zu benutzen."
+    args:
+      version: true
+    expect:
+      exit_code: 0
+      stdout_contains: "curl"
+  - title: "Verbindungsfehler erkennen"
+    description: "Ruft einen lokalen, nicht belegten Port auf; curl meldet Exit-Code 7."
+    args:
+      silent: true
+      url: "http://127.0.0.1:1/"
+    expect:
+      exit_code: 7
+  - title: "Fehlerhafte URL erkennen"
+    description: "Zeigt, dass curl eine ungültige Adresse mit Exit-Code 3 ablehnt, ganz ohne Netz."
+    args:
+      silent: true
+      url: "http://"
+    expect:
+      exit_code: 3
+
+i18n:
+  en:
+    display_name: "curl – transfer data over the network"
+    summary: "Downloads content from URLs or sends data to servers."
+    options:
+      output: {label: "Output file", help: "Saves the response to this file; an existing one is overwritten."}
+      remote_name: {label: "Use server file name", help: "Saves the file under the name from the URL in the current folder."}
+      silent: {label: "Silent", help: "Suppresses progress meter and error messages."}
+      location: {label: "Follow redirects", help: "Follows HTTP redirects to the new address."}
+      fail: {label: "Fail on HTTP errors", help: "Prints no body on errors like 404 and exits with code 22."}

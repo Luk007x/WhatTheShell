@@ -4,10 +4,24 @@
 import os
 from pathlib import Path
 
-from whattheshell import APP_NAME
+from whattheshell import APP_NAME, bundled
 
 
 def cache_dir() -> Path:
     """Return the cache directory (``$XDG_CACHE_HOME`` or ``~/.cache``); it is not created."""
     base = os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache"
     return Path(base) / APP_NAME.lower()
+
+
+def config_dir() -> Path:
+    """Return the config directory (``$XDG_CONFIG_HOME`` or ``~/.config``); it is not created."""
+    base = os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config"
+    return Path(base) / APP_NAME.lower()
+
+
+def module_dirs(project_root: Path | None = None) -> list[Path]:
+    """Return module search directories in ascending priority; they may not exist."""
+    dirs = [bundled.MODULES_DIR, config_dir() / "modules"]
+    if project_root is not None:
+        dirs.append(project_root / ".whattheshell" / "modules")
+    return dirs

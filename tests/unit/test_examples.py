@@ -4,11 +4,10 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
+from whattheshell.bundled import MODULES_DIR, WORKFLOWS_DIR
 from whattheshell.models.migrate import migrate
 from whattheshell.models.module import Module
 from whattheshell.models.workflow import Workflow
-
-ROOT = Path(__file__).parents[2]
 
 
 def _load(path: Path) -> dict[str, Any]:
@@ -17,8 +16,8 @@ def _load(path: Path) -> dict[str, Any]:
 
 
 def test_grep_module() -> None:
-    Module.model_validate(_load(ROOT / "modules" / "grep.module.yaml"))
+    Module.model_validate(_load(MODULES_DIR / "grep.module.yaml"))
 
 
 def test_log_errors_workflow() -> None:
-    Workflow.model_validate(_load(ROOT / "workflows" / "log_errors.workflow.yaml"))
+    Workflow.model_validate(_load(WORKFLOWS_DIR / "log_errors.workflow.yaml"))

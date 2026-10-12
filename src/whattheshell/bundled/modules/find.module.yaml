@@ -1,0 +1,240 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: find
+display_name: "find – Dateien suchen"
+category: Dateien
+summary: "Sucht Dateien und Ordner nach Name, Typ, Größe oder Alter."
+description: |
+  find durchläuft einen Ordner samt Unterordnern und listet alle Einträge, die zu den Bedingungen passen. Typisch: alle *.log-Dateien finden oder Dateien, die älter als 30 Tage sind.
+  Die Bedingungen werden nacheinander ausgewertet; die Reihenfolge kann das Ergebnis ändern. Namensmuster wie *.txt gehören in Anführungszeichen, sonst ersetzt die Shell sie vorher.
+  Vorsicht: "Gefundene löschen" und "Befehl ausführen" verändern echte Dateien. Zuerst ohne diese Optionen prüfen, was gefunden wird.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: start
+    label: Startordner
+    type: path
+    multiple: true
+    position: 0
+    help: "Ordner, in dem die Suche beginnt (Standard: aktueller Ordner)."
+
+options:
+  - id: name
+    flags: ["-name"]
+    label: Name passt zu Muster
+    type: string
+    metavar: MUSTER
+    group: Suche
+    importance: common
+    help: "Dateiname passt zum Muster, z. B. *.txt (Groß-/Kleinschreibung zählt)."
+  - id: iname
+    flags: ["-iname"]
+    label: Name passt (ohne Groß-/Kleinschreibung)
+    type: string
+    metavar: MUSTER
+    group: Suche
+    importance: common
+    help: "Wie Name, aber ohne Unterschied zwischen Groß- und Kleinbuchstaben."
+  - id: type
+    flags: ["-type"]
+    label: Art des Eintrags
+    type: enum
+    choices: [f, d, l]
+    group: Suche
+    importance: common
+    help: "f = Datei, d = Ordner, l = symbolischer Link."
+  - id: path
+    flags: ["-path"]
+    label: Pfad passt zu Muster
+    type: string
+    metavar: MUSTER
+    group: Suche
+    importance: normal
+    help: "Der gesamte Pfad passt zum Muster, z. B. */src/*."
+  - id: regex
+    flags: ["-regex"]
+    label: Pfad passt zu regulärem Ausdruck
+    type: string
+    group: Suche
+    importance: normal
+    help: "Der gesamte Pfad muss zum regulären Ausdruck passen."
+  - id: empty
+    flags: ["-empty"]
+    label: Nur leere Dateien/Ordner
+    group: Suche
+    importance: normal
+    help: "Findet leere Dateien und leere Ordner."
+  - id: maxdepth
+    flags: ["-maxdepth"]
+    label: Maximale Tiefe
+    type: int
+    min: 0
+    group: Suche
+    importance: common
+    help: "Steigt höchstens so viele Ebenen in Unterordner hinab (1 = nur direkt im Startordner)."
+  - id: mindepth
+    flags: ["-mindepth"]
+    label: Minimale Tiefe
+    type: int
+    min: 0
+    group: Suche
+    importance: normal
+    help: "Ignoriert Einträge oberhalb dieser Ebene."
+  - id: size
+    flags: ["-size"]
+    label: Größe
+    type: string
+    metavar: "+1M"
+    group: Eigenschaften
+    importance: common
+    help: "Dateigröße, z. B. +10M (größer als 10 MB) oder -1k (kleiner als 1 KB)."
+  - id: mtime
+    flags: ["-mtime"]
+    label: Geändert vor Tagen
+    type: int
+    group: Eigenschaften
+    importance: normal
+    help: "Änderung vor so vielen Tagen; mit + oder - davor wird daraus älter bzw. neuer."
+  - id: mmin
+    flags: ["-mmin"]
+    label: Geändert vor Minuten
+    type: int
+    group: Eigenschaften
+    importance: normal
+    help: "Änderung vor so vielen Minuten."
+  - id: newer
+    flags: ["-newer"]
+    label: Neuer als Datei
+    type: path
+    group: Eigenschaften
+    importance: normal
+    help: "Findet Einträge, die später geändert wurden als die angegebene Datei."
+  - id: perm
+    flags: ["-perm"]
+    label: Berechtigungen
+    type: string
+    metavar: MODUS
+    group: Eigenschaften
+    importance: normal
+    help: "Dateirechte, z. B. 644 oder -u+x für ausführbar."
+  - id: user
+    flags: ["-user"]
+    label: Besitzer
+    type: string
+    group: Eigenschaften
+    importance: normal
+    help: "Gehört dem angegebenen Benutzer."
+  - id: print
+    flags: ["-print"]
+    label: Pfade ausgeben
+    group: Aktion
+    importance: normal
+    help: "Gibt jeden Treffer als Pfad aus (das ist ohnehin der Standard)."
+  - id: print0
+    flags: ["-print0"]
+    label: Pfade mit Nullzeichen trennen
+    group: Aktion
+    importance: normal
+    help: "Trennt Pfade mit Nullzeichen, sicher für Namen mit Leerzeichen in Pipes (xargs -0)."
+  - id: ls
+    flags: ["-ls"]
+    label: Ausführlich auflisten
+    group: Aktion
+    importance: normal
+    help: "Zeigt Größe, Rechte und Datum je Treffer wie bei ls -l."
+  - id: delete
+    flags: ["-delete"]
+    label: Gefundene löschen
+    group: Aktion
+    importance: normal
+    safety: dangerous
+    help: "Löscht jeden Treffer endgültig, es gibt keinen Papierkorb."
+  - id: exec
+    flags: ["-exec"]
+    label: Befehl ausführen
+    type: string
+    metavar: "BEFEHL {} ;"
+    group: Aktion
+    importance: normal
+    safety: dangerous
+    help: "Führt einen Befehl für jeden Treffer aus, {} steht für den Pfad, Ende mit ;."
+  - id: prune
+    flags: ["-prune"]
+    label: Ordner nicht betreten
+    group: Aktion
+    importance: normal
+    help: "Steigt nicht in den gerade gefundenen Ordner hinab, z. B. um .git zu überspringen."
+  - id: follow
+    flags: ["-follow"]
+    label: Symbolischen Links folgen
+    group: Suche
+    importance: normal
+    help: "Folgt symbolischen Links in Ordner."
+  - id: xdev
+    flags: ["-xdev"]
+    label: Dateisystem nicht verlassen
+    group: Suche
+    importance: normal
+    help: "Bleibt auf demselben Datenträger und betritt keine eingehängten Laufwerke."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolgreich beendet (auch wenn nichts gefunden wurde)"
+    1: "Fehler, z. B. Ordner nicht lesbar oder ungültige Bedingung"
+
+examples:
+  - title: "Textdateien finden"
+    description: "Findet alle .txt-Dateien in einem Ordner samt Unterordnern."
+    fixtures:
+      - path: ordner/notiz.txt
+        content: "hallo\n"
+      - path: ordner/unter/liste.txt
+        content: "eins\n"
+      - path: ordner/bild.png
+        content: "x\n"
+    args:
+      start: ["ordner"]
+      name: "*.txt"
+      type: f
+    expect:
+      exit_code: 0
+      stdout_contains: "liste.txt"
+  - title: "Nur eine Ebene tief suchen"
+    description: "Listet Einträge direkt im Startordner, ohne in Unterordner zu gehen."
+    fixtures:
+      - path: proj/readme.md
+        content: "x\n"
+      - path: proj/tief/versteckt.md
+        content: "y\n"
+    args:
+      start: ["proj"]
+      maxdepth: 1
+      type: f
+    expect:
+      exit_code: 0
+      stdout_contains: "readme.md"
+  - title: "Ordner finden"
+    description: "Findet alle Ordner unterhalb des Startordners."
+    fixtures:
+      - path: daten/2024/a.csv
+        content: "1\n"
+    args:
+      start: ["daten"]
+      type: d
+    expect:
+      exit_code: 0
+      stdout_contains: "2024"
+
+i18n:
+  en:
+    display_name: "find – search files"
+    summary: "Finds files and folders by name, type, size or age."
+    options:
+      name: {label: "Name matches pattern", help: "File name matches the pattern, e.g. *.txt (case-sensitive)."}
+      iname: {label: "Name matches (case-insensitive)", help: "Like name, but ignores upper and lower case."}
+      type: {label: "Entry type", help: "f = file, d = directory, l = symbolic link."}
+      maxdepth: {label: "Maximum depth", help: "Descends at most this many levels (1 = only directly inside the start folder)."}
+      size: {label: "Size", help: "File size, e.g. +10M (larger than 10 MB) or -1k (smaller than 1 KB)."}

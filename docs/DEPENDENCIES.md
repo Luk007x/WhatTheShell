@@ -6,6 +6,7 @@ Lizenzen aus den Paket-Metadaten (importlib.metadata). Alle MIT, damit AGPL-3.0-
 |---|---|---|---|---|
 | pydantic | 2.14.1 | MIT | ja | Modelle und Schema-Export |
 | ruamel.yaml | 0.19.1 | MIT | ja | YAML lesen/schreiben (Module, Workflows) |
+| watchfiles | 1.3.0 | MIT | ja | Modul-Ordner beobachten (Live-Reload) |
 | pytest (dev) | 9.1.1 | MIT | ja | Tests |
 | ruff (dev) | 0.17.0 | MIT | ja | Lint und Format |
 | mypy (dev) | 2.4.0 | MIT | ja | Typprüfung |
