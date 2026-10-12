@@ -67,3 +67,21 @@ Hauptsession ist Manager und delegiert an Sonnet-/Haiku-Agenten (siehe `CLAUDE.m
 - **Bestätigung je Schleifeniteration** bleibt vorerst; eine „für alle Iterationen"-Antwort ist eine GUI-Aufgabe (Phase 4).
 - **Unbekannte Tools gelten als `safe`** (Basis aus Katalog), bekannte Wrapper und Interpreter (`timeout`, `busybox`, `awk`, `nc`, `socat`, …) als `caution`. Offen: fremde Workflows generell strenger einstufen (GUI-Entscheidung, Phase 4).
 - Reguläre Ausdrücke aus Dateien laufen nur auf Texten bis zum Ausgabelimit (1 MiB); katastrophales Backtracking ist damit begrenzt, nicht ausgeschlossen.
+
+## D-009 GUI-Stack (Phase 4), 2026-10-12
+
+- **Knoten-Graph: React Flow (`@xyflow/react`)**. Gründe: größte Verbreitung und Doku unter den Graph-Bibliotheken, MIT-Lizenz, eigene Node-Komponenten in React (Formulare direkt im Knoten oder im Seitenpanel), Ports/Handles für `then`/`else`/`body`/`pipe`, aktive Pflege. Svelte Flow wäre gleichwertig, React hat die breitere Bibliothekslandschaft (Blockly-Anbindung in Phase 5). Rete.js ist mächtiger, aber schwerer und auf Daten-Flow-Editoren ausgelegt.
+- **Vite + React + TypeScript strict**, Layout mit `@dagrejs/dagre` wenn `layout` fehlt. Keine UI-Komponentenbibliothek, kein Tailwind: wenige handgeschriebene CSS-Regeln (Ponytail; Phase 5 kann nachlegen).
+- **Typen aus den Schemas** generiert (`json-schema-to-typescript`), damit Kern und GUI dieselbe Wahrheit haben.
+- **i18n** als 30-Zeilen-`t()` mit `de`/`en`-Wörterbüchern statt i18next; Umstieg möglich, wenn Pluralformen oder Formatierung nötig werden.
+- **Backend FastAPI + uvicorn**, Runner im Thread, Events über asyncio-Queue an den WebSocket. Token im URL-Fragment, Header `X-WTS-Token`; Host- und Origin-Prüfung in einer Middleware (`docs/API.md`).
+- **Frontend-Build wird nicht committet.** `wts gui` meldet klar, wenn `api/static/` fehlt. Phase 5 baut es in der CI und legt es ins Wheel.
+
+### D-009 Ergänzungen nach API-Review, 2026-10-12
+
+- **Die API fragt nie unbekannte Subbefehle per `--help` ab** (`probe_unknown=False` überall in `api/`). Subbefehl-Wörter müssen dem Muster aus `CommandStep.command` genügen. Grund: `GET /api/tools/sh?sub=-c/…` führte Code aus (Review-Befund). Nur `wts inspect` darf auf ausdrücklichen Nutzerwunsch abfragen.
+- **Browserstart über eine Weiterleitungsdatei (0600)** mit `file://`-URL statt der Token-URL in der Kommandozeile von `xdg-open`/Browser, damit das Token nicht in `/proc/*/cmdline` steht (wie Jupyter).
+- **Socket wird im CLI gebunden** und an uvicorn übergeben: kein Port-Race, kein Browserstart auf einen fremden Dienst.
+- **Limits:** Body 1 MiB, Vorschau höchstens 2 parallel, höchstens 4 laufende und 20 vorbereitete Läufe, Event-Verlauf 10 000, `ws_max_size` 1 MiB, kein Access-Log (Token in der WebSocket-Query).
+- **Bekannte Grenzen:** Jeder Tab desselben Nutzers kann Bestätigungen beantworten; die erste URL mit `#token` steht im Browserverlauf (Token gilt nur für die Sitzung).
+- **Geplant (Phase 5):** Hilfe-Abruf generell in der bwrap-Sandbox ausführen, wenn sie verfügbar ist. Dann wäre auch das Abfragen unbekannter Subbefehle vertretbar.

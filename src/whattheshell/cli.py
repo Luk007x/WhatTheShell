@@ -4,11 +4,15 @@
 import argparse
 import contextlib
 import dataclasses
+import html
 import json
 import os
+import socket
 import sys
 import threading
+import webbrowser
 from pathlib import Path
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -150,6 +154,9 @@ def main(argv: list[str] | None = None) -> int:
     example.add_argument("--all", action="store_true", help="Alle Beispiele (Standard)")
     modules = commands.add_parser("modules", help="Geladene Module auflisten")
     modules.add_argument("--watch", action="store_true", help="Änderungen live neu laden")
+    gui = commands.add_parser("gui", help="Oberfläche starten (nur 127.0.0.1, mit Sitzungstoken)")
+    gui.add_argument("--port", type=int, default=0, help="Port (Standard: freier Port)")
+    gui.add_argument("--no-browser", action="store_true", help="Browser nicht öffnen")
     args = parser.parse_args(argv)
     try:
         return _dispatch(parser, args)
@@ -203,6 +210,8 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
         return _sandbox()
     if args.command == "example":
         return _example(args)
+    if args.command == "gui":
+        return _gui(args)
     if args.command == "schema":
         try:
             written = export_schemas(args.out)
@@ -217,6 +226,84 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
             print(f"geschrieben: {path}")
         return 0
     parser.print_help()
+    return 0
+
+
+def _serve(app: Any, sock: socket.socket) -> None:
+    import asyncio
+
+    import uvicorn
+
+    config = uvicorn.Config(app, log_level="warning", access_log=False, ws_max_size=1_048_576)
+    asyncio.run(uvicorn.Server(config).serve(sockets=[sock]))
+
+
+def _write_redirect(port: int, url: str) -> Path:
+    """Write a private page that forwards to `url`, so the token never shows in `ps`."""
+    directory = paths.cache_dir() / "gui"
+    directory.mkdir(parents=True, exist_ok=True)
+    directory.chmod(0o700)
+    target = directory / f"open-{port}.html"
+    target.unlink(missing_ok=True)
+    shown = html.escape(url)
+    page = (
+        f'<!doctype html><meta http-equiv="refresh" content="0;url={shown}">'
+        f'<a href="{shown}">WhatTheShell öffnen</a>\n'
+    )
+    fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(page)
+    return target
+
+
+def _gui(args: argparse.Namespace) -> int:
+    if os.geteuid() == 0:
+        print(
+            "Start als root wird verweigert: die Oberfläche kann Befehle ausführen. "
+            "Starte als normaler Benutzer.",
+            file=sys.stderr,
+        )
+        return 1
+    from whattheshell.api.app import STATIC_DIR, create_app
+    from whattheshell.api.security import Session
+
+    # bind first and hand the socket to uvicorn: no window in which another process takes the port
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    redirect: Path | None = None
+    try:
+        try:
+            sock.bind(("127.0.0.1", args.port))
+        except OSError as err:
+            print(
+                f"Port {args.port} nicht nutzbar: {err}. Anderen Port mit --port wählen.",
+                file=sys.stderr,
+            )
+            return 1
+        sock.listen()
+        port: int = sock.getsockname()[1]
+        registry = _registry()
+        for problem in registry.errors:
+            print(f"WARNUNG {problem}", file=sys.stderr)
+        session = Session(port=port)
+        app = create_app(session, catalog=Catalog(registry=registry), registry=registry)
+        if not (STATIC_DIR / "index.html").is_file():
+            print(
+                "Hinweis: Frontend nicht gebaut (cd gui && npm ci && npm run build); "
+                "die Seite zeigt nur eine Fehlermeldung, die API läuft.",
+                file=sys.stderr,
+            )
+        url = f"http://127.0.0.1:{port}/#token={session.token}"
+        print(url, flush=True)
+        if not args.no_browser:
+            redirect = _write_redirect(port, url)
+            webbrowser.open(redirect.as_uri())
+        with contextlib.suppress(KeyboardInterrupt):
+            _serve(app, sock)
+    finally:
+        sock.close()
+        if redirect is not None:
+            redirect.unlink(missing_ok=True)
     return 0
 
 

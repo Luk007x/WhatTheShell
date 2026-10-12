@@ -41,7 +41,7 @@ def _cut(text: str) -> str:
     return text if len(text) <= _SHOWN else text[:_SHOWN] + "…"
 
 
-def _write_fixtures(example: Example, workdir: Path) -> list[str]:
+def write_fixtures(example: Example, workdir: Path) -> list[str]:
     root = workdir.resolve()
     failures: list[str] = []
     for fixture in example.fixtures:
@@ -100,7 +100,7 @@ def run_example(
     with tempfile.TemporaryDirectory(prefix="wts-example-") as tmp:
         workdir = Path(tmp)
         workdir.chmod(0o700)
-        if failures := _write_fixtures(example, workdir):
+        if failures := write_fixtures(example, workdir):
             return result(failures=failures)
         try:
             argv = build_argv(info.command, example.args, tool_path=info.path)

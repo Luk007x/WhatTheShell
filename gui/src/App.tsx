@@ -1,0 +1,225 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
+import { getStatus, getTool, hasToken, postSelftest, validateWorkflow } from "./api";
+import { Canvas, type Edit } from "./canvas/Canvas";
+import { FileMenu } from "./files/FileMenu";
+import { RunPanel } from "./run/RunPanel";
+import { CatalogPanel } from "./catalog/CatalogPanel";
+import { StepPanel } from "./detail/StepPanel";
+import { VariablesPanel } from "./detail/VariablesPanel";
+import { useDebounced } from "./hooks";
+import { getLang, setLang, t, type Lang } from "./i18n";
+import { captureOutput, evaluateOutput, findStep, removeStep, renameStep, setVariables, stepIdAtErrorPath, updateStep, type OpResult } from "./model/ops";
+import type { SandboxStatus, ToolInfo, ToolSummary } from "./types/api";
+import type { Workflow } from "./types/workflow";
+
+const msg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
+const MAX_HISTORY = 100;
+const emptyWorkflow = (): Workflow => ({ schema_version: 1, name: "", steps: [] });
+
+interface State {
+  doc: Workflow;
+  past: Workflow[];
+  future: Workflow[];
+  warnings: string[];
+  lastKey: string | null;
+}
+type Action =
+  | { type: "edit"; op: (wf: Workflow) => OpResult | Workflow; key?: string }
+  | { type: "undo" }
+  | { type: "redo" }
+  | { type: "reset" }
+  | { type: "load"; doc: Workflow };
+
+const asResult = (r: OpResult | Workflow): OpResult => ("wf" in r ? r : { wf: r, warnings: [] });
+
+function reducer(s: State, a: Action): State {
+  switch (a.type) {
+    case "edit": {
+      const { wf, warnings } = asResult(a.op(s.doc));
+      if (wf === s.doc) return { ...s, warnings };
+      const coalesce = a.key !== undefined && a.key === s.lastKey; // typing in one field is one undo step
+      const past = coalesce ? s.past : [...s.past, s.doc].slice(-MAX_HISTORY);
+      return { doc: wf, past, future: [], warnings, lastKey: a.key ?? null };
+    }
+    case "undo": {
+      const prev = s.past[s.past.length - 1];
+      return prev ? { doc: prev, past: s.past.slice(0, -1), future: [s.doc, ...s.future], warnings: [], lastKey: null } : s;
+    }
+    case "redo": {
+      const [next, ...rest] = s.future;
+      return next ? { doc: next, past: [...s.past, s.doc], future: rest, warnings: [], lastKey: null } : s;
+    }
+    case "load":
+      return { doc: a.doc, past: [], future: [], warnings: [], lastKey: null };
+    case "reset":
+      return { doc: emptyWorkflow(), past: [...s.past, s.doc].slice(-MAX_HISTORY), future: [], warnings: [], lastKey: null };
+  }
+}
+
+function warningText(w: string): string {
+  const [kind, a, b] = w.split(":");
+  return t(`warn.${kind}`, { a: a ?? "", b: b ?? "" });
+}
+
+export function App() {
+  const [, bump] = useState(0); // re-render on language change; t() reads module state
+  const [sandbox, setSandbox] = useState<SandboxStatus | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [catalogTool, setCatalogTool] = useState<string | null>(null);
+  const [tool, setTool] = useState<ToolInfo | null>(null);
+  const [toolError, setToolError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [safety, setSafety] = useState<Record<string, string>>({});
+  const [outputOpen, setOutputOpen] = useState(true);
+  const [fileId, setFileId] = useState<string | null>(null);
+  const [savedJson, setSavedJson] = useState(JSON.stringify(emptyWorkflow()));
+  const [validation, setValidation] = useState<{ ok: boolean; errors: { path: string; message: string }[] } | "checking" | string>("checking");
+  const [state, dispatch] = useReducer(reducer, { doc: emptyWorkflow(), past: [], future: [], warnings: [], lastKey: null });
+  const token = hasToken();
+  const wf = state.doc;
+  const dirty = useMemo(() => JSON.stringify(wf) !== savedJson, [wf, savedJson]);
+
+  useEffect(() => { document.title = `${dirty ? "* " : ""}${wf.name || t("file.untitled")} – ${t("app.name")}`; }, [dirty, wf.name]);
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
+  const edit: Edit = useCallback((op, key) => dispatch({ type: "edit", op, key }), []);
+  const onLoaded = useCallback((tools: ToolSummary[]) => {
+    setSafety((m) => ({ ...m, ...Object.fromEntries(tools.flatMap((x) => (x.safety ? [[x.name, x.safety]] : []))) }));
+  }, []);
+  const safetyOf = useCallback((name: string) => safety[name] ?? null, [safety]);
+
+  useEffect(() => {
+    if (!token) return;
+    getStatus().then((s) => setSandbox(s.sandbox)).catch((e: unknown) => setStatusError(msg(e)));
+  }, [token]);
+
+  useEffect(() => {
+    if (!catalogTool) return;
+    let stale = false;
+    setTool(null);
+    setToolError(null);
+    getTool(catalogTool).then((x) => { if (!stale) setTool(x); }).catch((e: unknown) => { if (!stale) setToolError(msg(e)); });
+    return () => { stale = true; };
+  }, [catalogTool]);
+
+  // validation, debounced; the backend is the authority
+  const docKey = useDebounced(wf, 500);
+  useEffect(() => {
+    if (!token) return;
+    let stale = false;
+    validateWorkflow(docKey)
+      .then((r) => { if (!stale) setValidation({ ok: r.ok, errors: r.errors.map((e) => { const o = e as { path?: string; message?: string }; return { path: o.path ?? "$", message: o.message ?? String(e) }; }) }); })
+      .catch((e: unknown) => { if (!stale) setValidation(msg(e)); });
+    return () => { stale = true; };
+  }, [docKey, token]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "z") return;
+      e.preventDefault();
+      dispatch({ type: e.shiftKey ? "redo" : "undo" });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const changeLang = (l: Lang) => { setLang(l); document.documentElement.lang = l; bump((n) => n + 1); };
+  document.documentElement.lang = getLang();
+
+  const hit = selected ? findStep(wf, selected) : undefined;
+  const selStep = hit?.step;
+  const retest = useCallback(() => { postSelftest().then(setSandbox, (e: unknown) => setStatusError(msg(e))); }, []);
+
+  if (!token) return <main className="fatal" role="alert"><h1>{t("app.name")}</h1><p>{t("token.missing")}</p></main>;
+
+  const sandboxText = sandbox ? (sandbox.available ? t("sandbox.ok") : t("sandbox.missing")) : t("sandbox.unknown");
+  const sandboxClass = sandbox ? (sandbox.available ? "safe" : "dangerous") : "caution";
+  const sandboxTip = sandbox && !sandbox.available ? `${sandboxText}: ${sandbox.reason} ${sandbox.install_hint}` : (statusError ?? sandboxText);
+  const cmd = tool?.command;
+
+  return (
+    <div className={`app${outputOpen ? "" : " output-closed"}`}>
+      <header>
+        <h1>{t("app.name")}</h1>
+        <FileMenu wf={wf} fileId={fileId} dirty={dirty}
+          onLoad={(doc, id) => { dispatch({ type: "load", doc }); setSavedJson(JSON.stringify(doc)); setFileId(id); setSelected(null); }}
+          onSaved={(id) => { setFileId(id); setSavedJson(JSON.stringify(wf)); }}
+          onDeleted={(id) => { if (id === fileId) setFileId(null); }}
+          onNew={() => { setSelected(null); setFileId(null); setSavedJson(JSON.stringify(emptyWorkflow())); dispatch({ type: "load", doc: emptyWorkflow() }); }} />
+        <button disabled={state.past.length === 0} onClick={() => dispatch({ type: "undo" })}>{t("history.undo")}</button>
+        <button disabled={state.future.length === 0} onClick={() => dispatch({ type: "redo" })}>{t("history.redo")}</button>
+        <span className="status" title={sandboxTip} role="status">
+          <span className={`dot ${sandboxClass}`} aria-hidden="true" /> {sandboxText}
+        </span>
+        <label className="lang">
+          {t("lang.label")}{" "}
+          <select value={getLang()} onChange={(e) => changeLang(e.target.value === "en" ? "en" : "de")}>
+            <option value="de">Deutsch</option>
+            <option value="en">English</option>
+          </select>
+        </label>
+      </header>
+      <main>
+        <CatalogPanel selected={catalogTool} onSelect={setCatalogTool} onLoaded={onLoaded} />
+        <Canvas wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf}
+          onNew={() => { setSelected(null); setFileId(null); setSavedJson(JSON.stringify(emptyWorkflow())); dispatch({ type: "load", doc: emptyWorkflow() }); }} />
+        <section className="panel" aria-labelledby="details-h">
+          <h2 id="details-h">{t("details.title")}</h2>
+          {selStep ? (
+            <StepPanel key={selStep.id} step={selStep} wf={wf} sandbox={sandbox} onRetest={retest}
+              update={(patch, key) => edit((w) => updateStep(w, selStep.id, patch), key ? `${selStep.id}:${key}` : undefined)}
+              rename={(n) => { edit((w) => renameStep(w, selStep.id, n)); setSelected(n); }}
+              remove={() => { edit((w) => removeStep(w, selStep.id)); setSelected(null); }} />
+          ) : (
+            <VariablesPanel variables={wf.variables} onChange={(v) => edit((w) => setVariables(w, v), "vars")} />
+          )}
+          {!selStep && catalogTool && (
+            <section aria-label={t("details.title")}>
+              {toolError && <p role="alert" className="error">{t("error.network", { message: toolError })}</p>}
+              {cmd && (
+                <div>
+                  <h3>{cmd.display_name ?? tool.name}</h3>
+                  {cmd.summary && <p>{cmd.summary}</p>}
+                  {cmd.usage && <><h4>{t("details.usage")}</h4><pre>{cmd.usage}</pre></>}
+                </div>
+              )}
+            </section>
+          )}
+        </section>
+      </main>
+      <footer>
+        <p className="statusline" role="status">
+          {validation === "checking" ? t("status.checking") : typeof validation === "string" ? `${t("error.prefix")}: ${validation}`
+            : validation.ok ? t("status.valid") : t("status.invalid", { n: validation.errors.length })}
+          {state.warnings.map((w) => <span key={w} className="hint"> · {warningText(w)}</span>)}
+        </p>
+        {typeof validation === "object" && !validation.ok && (
+          <ul className="errors">
+            {validation.errors.map((e, i) => {
+              const id = stepIdAtErrorPath(wf, e.path);
+              return (
+                <li key={i}>
+                  {id ? <button onClick={() => setSelected(id)}>{id}</button> : null} <code>{e.path}</code> {e.message}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <button aria-expanded={outputOpen} onClick={() => setOutputOpen(!outputOpen)}>
+          {t(outputOpen ? "output.hide" : "output.show")}
+        </button>
+        <div hidden={!outputOpen}>
+          <RunPanel wf={wf} onSelectStep={setSelected}
+            onCapture={(id) => { const r = captureOutput(wf, id); edit(() => r); }}
+            onEvaluate={(id) => { const r = evaluateOutput(wf, id); edit(() => r); if (r.created) setSelected(r.created); }} />
+        </div>
+      </footer>
+    </div>
+  );
+}

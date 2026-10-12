@@ -11,3 +11,5 @@ gui/node_modules/
 gui/dist/
 graphify-out/
 .env
+src/whattheshell/api/static/*
+!src/whattheshell/api/static/.gitkeep
