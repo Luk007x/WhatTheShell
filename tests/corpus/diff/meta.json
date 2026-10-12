@@ -1,0 +1,8 @@
+{
+  "tool": "diff",
+  "argv": [
+    "/usr/bin/diff",
+    "--help"
+  ],
+  "exit_code": 0
+}

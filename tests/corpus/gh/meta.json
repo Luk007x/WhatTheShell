@@ -1,0 +1,8 @@
+{
+  "tool": "gh",
+  "argv": [
+    "/usr/bin/gh",
+    "--help"
+  ],
+  "exit_code": 0
+}

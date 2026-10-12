@@ -1,0 +1,8 @@
+{
+  "tool": "tar",
+  "argv": [
+    "/usr/bin/tar",
+    "--help"
+  ],
+  "exit_code": 0
+}

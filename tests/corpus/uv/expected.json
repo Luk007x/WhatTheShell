@@ -1,0 +1,24 @@
+{
+  "summary_contains": "extremely fast Python package manager",
+  "subcommands": ["auth", "run", "init", "add", "remove", "version", "sync", "lock", "export", "tree", "format", "check", "audit", "tool", "python", "pip", "venv", "build", "publish", "workspace", "cache", "self", "help"],
+  "options": [
+    {"flags": ["-n", "--no-cache"], "takes_value": false, "type": "bool"},
+    {"flags": ["--cache-dir"], "takes_value": true, "type": "path"},
+    {"flags": ["--managed-python"], "takes_value": false, "type": "bool"},
+    {"flags": ["--no-managed-python"], "takes_value": false, "type": "bool"},
+    {"flags": ["--no-python-downloads"], "takes_value": false, "type": "bool"},
+    {"flags": ["-q", "--quiet"], "takes_value": false, "type": "bool"},
+    {"flags": ["-v", "--verbose"], "takes_value": false, "type": "bool"},
+    {"flags": ["--color"], "takes_value": true, "type": "enum", "choices": ["auto", "always", "never"]},
+    {"flags": ["--system-certs"], "takes_value": false, "type": "bool"},
+    {"flags": ["--offline"], "takes_value": false, "type": "bool"},
+    {"flags": ["--allow-insecure-host"], "takes_value": true, "type": "string"},
+    {"flags": ["--no-progress"], "takes_value": false, "type": "bool"},
+    {"flags": ["--directory"], "takes_value": true, "type": "path"},
+    {"flags": ["--project"], "takes_value": true, "type": "path"},
+    {"flags": ["--config-file"], "takes_value": true, "type": "path"},
+    {"flags": ["--no-config"], "takes_value": false, "type": "bool"},
+    {"flags": ["-h", "--help"], "takes_value": false, "type": "bool"},
+    {"flags": ["-V", "--version"], "takes_value": false, "type": "bool"}
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "subcommands": [],
+  "options": [
+    {"flags": ["-n", "--quiet", "--silent"], "takes_value": false, "type": "bool"},
+    {"flags": ["--debug"], "takes_value": false, "type": "bool"},
+    {"flags": ["-e", "--expression"], "takes_value": true, "type": "string"},
+    {"flags": ["-f", "--file"], "takes_value": true, "type": "path"},
+    {"flags": ["--follow-symlinks"], "takes_value": false, "type": "bool"},
+    {"flags": ["-i", "--in-place"], "takes_value": true, "type": "string"},
+    {"flags": ["-c", "--copy"], "takes_value": false, "type": "bool"},
+    {"flags": ["-b", "--binary"], "takes_value": false, "type": "bool"},
+    {"flags": ["-l", "--line-length"], "takes_value": true, "type": "int"},
+    {"flags": ["--posix"], "takes_value": false, "type": "bool"},
+    {"flags": ["-E", "-r", "--regexp-extended"], "takes_value": false, "type": "bool"},
+    {"flags": ["-s", "--separate"], "takes_value": false, "type": "bool"},
+    {"flags": ["--sandbox"], "takes_value": false, "type": "bool"},
+    {"flags": ["-u", "--unbuffered"], "takes_value": false, "type": "bool"},
+    {"flags": ["-z", "--null-data"], "takes_value": false, "type": "bool"},
+    {"flags": ["--help"], "takes_value": false, "type": "bool"},
+    {"flags": ["--version"], "takes_value": false, "type": "bool"}
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "summary_contains": "Run COMMAND with arguments",
+  "subcommands": [],
+  "options": [
+    {"flags": ["-0", "--null"], "takes_value": false, "type": "bool"},
+    {"flags": ["-a", "--arg-file"], "takes_value": true, "type": "path"},
+    {"flags": ["-d", "--delimiter"], "takes_value": true, "type": "string"},
+    {"flags": ["-E"], "takes_value": true, "type": "string"},
+    {"flags": ["-e", "--eof"], "takes_value": true, "type": "string"},
+    {"flags": ["-I"], "takes_value": true, "type": "string"},
+    {"flags": ["-i", "--replace"], "takes_value": true, "type": "string"},
+    {"flags": ["-L", "--max-lines"], "takes_value": true, "type": "int"},
+    {"flags": ["-l"], "takes_value": true, "type": "int"},
+    {"flags": ["-n", "--max-args"], "takes_value": true, "type": "int"},
+    {"flags": ["-o", "--open-tty"], "takes_value": false, "type": "bool"},
+    {"flags": ["-P", "--max-procs"], "takes_value": true, "type": "int"},
+    {"flags": ["-p", "--interactive"], "takes_value": false, "type": "bool"},
+    {"flags": ["--process-slot-var"], "takes_value": true, "type": "string"},
+    {"flags": ["-r", "--no-run-if-empty"], "takes_value": false, "type": "bool"},
+    {"flags": ["-s", "--max-chars"], "takes_value": true, "type": "int"},
+    {"flags": ["--show-limits"], "takes_value": false, "type": "bool"},
+    {"flags": ["-t", "--verbose"], "takes_value": false, "type": "bool"},
+    {"flags": ["-x", "--exit"], "takes_value": false, "type": "bool"},
+    {"flags": ["--help"], "takes_value": false, "type": "bool"},
+    {"flags": ["--version"], "takes_value": false, "type": "bool"}
+  ]
+}

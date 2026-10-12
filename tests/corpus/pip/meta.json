@@ -1,0 +1,10 @@
+{
+  "tool": "pip",
+  "argv": [
+    "/usr/bin/python3",
+    "-m",
+    "pip",
+    "--help"
+  ],
+  "exit_code": 0
+}

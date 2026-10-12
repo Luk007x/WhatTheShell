@@ -1,0 +1,8 @@
+{
+  "tool": "podman",
+  "argv": [
+    "/usr/bin/podman",
+    "--help"
+  ],
+  "exit_code": 0
+}

@@ -1,0 +1,8 @@
+{
+  "tool": "xargs",
+  "argv": [
+    "/usr/bin/xargs",
+    "--help"
+  ],
+  "exit_code": 0
+}

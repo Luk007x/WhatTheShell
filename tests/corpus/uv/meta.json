@@ -1,0 +1,8 @@
+{
+  "tool": "uv",
+  "argv": [
+    "uv",
+    "--help"
+  ],
+  "exit_code": 0
+}

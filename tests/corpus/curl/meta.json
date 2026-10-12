@@ -1,0 +1,9 @@
+{
+  "tool": "curl",
+  "argv": [
+    "/usr/bin/curl",
+    "--help",
+    "all"
+  ],
+  "exit_code": 0
+}

@@ -1,0 +1,8 @@
+{
+  "tool": "ffmpeg",
+  "argv": [
+    "/usr/bin/ffmpeg",
+    "-h"
+  ],
+  "exit_code": 0
+}

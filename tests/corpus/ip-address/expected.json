@@ -1,0 +1,4 @@
+{
+  "subcommands": ["add", "change", "replace", "del", "show", "save", "flush", "restore", "showdump"],
+  "options": []
+}

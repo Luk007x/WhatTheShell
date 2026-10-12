@@ -1,0 +1,30 @@
+{
+  "subcommands": ["install", "lock", "download", "uninstall", "freeze", "inspect", "list", "show", "check", "config", "search", "cache", "index", "wheel", "hash", "completion", "debug", "help"],
+  "options": [
+    {"flags": ["-h", "--help"], "takes_value": false, "type": "bool"},
+    {"flags": ["--debug"], "takes_value": false, "type": "bool"},
+    {"flags": ["--isolated"], "takes_value": false, "type": "bool"},
+    {"flags": ["--require-virtualenv"], "takes_value": false, "type": "bool"},
+    {"flags": ["--python"], "takes_value": true, "type": "string"},
+    {"flags": ["-v", "--verbose"], "takes_value": false, "type": "bool"},
+    {"flags": ["-V", "--version"], "takes_value": false, "type": "bool"},
+    {"flags": ["-q", "--quiet"], "takes_value": false, "type": "bool"},
+    {"flags": ["--log"], "takes_value": true, "type": "path"},
+    {"flags": ["--no-input"], "takes_value": false, "type": "bool"},
+    {"flags": ["--keyring-provider"], "takes_value": true, "type": "enum", "choices": ["auto", "disabled", "import", "subprocess"]},
+    {"flags": ["--proxy"], "takes_value": true, "type": "string"},
+    {"flags": ["--retries"], "takes_value": true, "type": "int"},
+    {"flags": ["--timeout"], "takes_value": true, "type": "int"},
+    {"flags": ["--exists-action"], "takes_value": true, "type": "string"},
+    {"flags": ["--trusted-host"], "takes_value": true, "type": "string"},
+    {"flags": ["--cert"], "takes_value": true, "type": "path"},
+    {"flags": ["--client-cert"], "takes_value": true, "type": "path"},
+    {"flags": ["--cache-dir"], "takes_value": true, "type": "path"},
+    {"flags": ["--no-cache-dir"], "takes_value": false, "type": "bool"},
+    {"flags": ["--disable-pip-version-check"], "takes_value": false, "type": "bool"},
+    {"flags": ["--no-color"], "takes_value": false, "type": "bool"},
+    {"flags": ["--use-feature"], "takes_value": true, "type": "string"},
+    {"flags": ["--use-deprecated"], "takes_value": true, "type": "string"},
+    {"flags": ["--resume-retries"], "takes_value": true, "type": "int"}
+  ]
+}

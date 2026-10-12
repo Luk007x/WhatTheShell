@@ -1,0 +1,9 @@
+{
+  "tool": "ip-address",
+  "argv": [
+    "/usr/bin/ip",
+    "address",
+    "help"
+  ],
+  "exit_code": 255
+}

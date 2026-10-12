@@ -1,0 +1,8 @@
+{
+  "tool": "systemctl",
+  "argv": [
+    "/usr/bin/systemctl",
+    "--help"
+  ],
+  "exit_code": 0
+}

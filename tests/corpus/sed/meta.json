@@ -1,0 +1,8 @@
+{
+  "tool": "sed",
+  "argv": [
+    "/usr/bin/sed",
+    "--help"
+  ],
+  "exit_code": 0
+}

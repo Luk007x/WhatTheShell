@@ -1,0 +1,10 @@
+{
+  "tool": "man-grep",
+  "argv": [
+    "/usr/bin/man",
+    "-P",
+    "cat",
+    "grep"
+  ],
+  "exit_code": 0
+}

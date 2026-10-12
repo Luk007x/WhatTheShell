@@ -1,0 +1,7 @@
+{
+  "tool": "ssh",
+  "argv": [
+    "/usr/bin/ssh"
+  ],
+  "exit_code": 255
+}

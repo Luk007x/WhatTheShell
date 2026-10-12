@@ -1,0 +1,8 @@
+{
+  "tool": "wc",
+  "argv": [
+    "/usr/bin/wc",
+    "--help"
+  ],
+  "exit_code": 0
+}

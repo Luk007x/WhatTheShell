@@ -1,0 +1,32 @@
+{
+  "subcommands": ["address", "addrlabel", "fou", "help", "ila", "ioam", "l2tp", "link", "macsec", "maddress", "monitor", "mptcp", "mroute", "mrule", "neighbor", "neighbour", "netconf", "netns", "nexthop", "ntable", "ntbl", "route", "rule", "sr", "stats", "tap", "tcpmetrics", "token", "tunnel", "tuntap", "vrf", "xfrm"],
+  "options": [
+    {"flags": ["-force"], "takes_value": false, "type": "bool"},
+    {"flags": ["-V", "-Version"], "takes_value": false, "type": "bool"},
+    {"flags": ["-s", "-statistics"], "takes_value": false, "type": "bool"},
+    {"flags": ["-d", "-details"], "takes_value": false, "type": "bool"},
+    {"flags": ["-r", "-resolve"], "takes_value": false, "type": "bool"},
+    {"flags": ["-h", "-human-readable"], "takes_value": false, "type": "bool"},
+    {"flags": ["-iec"], "takes_value": false, "type": "bool"},
+    {"flags": ["-j", "-json"], "takes_value": false, "type": "bool"},
+    {"flags": ["-p", "-pretty"], "takes_value": false, "type": "bool"},
+    {"flags": ["-f", "-family"], "takes_value": true, "type": "enum", "choices": ["inet", "inet6", "mpls", "bridge", "link"]},
+    {"flags": ["-4"], "takes_value": false, "type": "bool"},
+    {"flags": ["-6"], "takes_value": false, "type": "bool"},
+    {"flags": ["-M"], "takes_value": false, "type": "bool"},
+    {"flags": ["-B"], "takes_value": false, "type": "bool"},
+    {"flags": ["-0"], "takes_value": false, "type": "bool"},
+    {"flags": ["-l", "-loops"], "takes_value": true, "type": "int"},
+    {"flags": ["-echo"], "takes_value": false, "type": "bool"},
+    {"flags": ["-br", "-brief"], "takes_value": false, "type": "bool"},
+    {"flags": ["-o", "-oneline"], "takes_value": false, "type": "bool"},
+    {"flags": ["-t", "-timestamp"], "takes_value": false, "type": "bool"},
+    {"flags": ["-ts", "-tshort"], "takes_value": false, "type": "bool"},
+    {"flags": ["-b", "-batch"], "takes_value": true, "type": "path"},
+    {"flags": ["-rc", "-rcvbuf"], "takes_value": true, "type": "int"},
+    {"flags": ["-n", "-netns"], "takes_value": true, "type": "string"},
+    {"flags": ["-N", "-Numeric"], "takes_value": false, "type": "bool"},
+    {"flags": ["-a", "-all"], "takes_value": false, "type": "bool"},
+    {"flags": ["-c", "-color"], "takes_value": false, "type": "bool"}
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "tool": "grep",
+  "argv": [
+    "/usr/bin/grep",
+    "--help"
+  ],
+  "exit_code": 0
+}

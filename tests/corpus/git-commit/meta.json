@@ -1,0 +1,9 @@
+{
+  "tool": "git-commit",
+  "argv": [
+    "/usr/bin/git",
+    "commit",
+    "-h"
+  ],
+  "exit_code": 0
+}

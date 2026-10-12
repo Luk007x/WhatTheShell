@@ -1,0 +1,9 @@
+{
+  "tool": "podman-run",
+  "argv": [
+    "/usr/bin/podman",
+    "run",
+    "--help"
+  ],
+  "exit_code": 0
+}

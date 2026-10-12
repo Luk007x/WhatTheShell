@@ -1,0 +1,25 @@
+{
+  "summary_contains": "These are common Git commands",
+  "subcommands": ["clone", "init", "add", "mv", "restore", "rm", "bisect", "diff", "grep", "log", "show", "status", "backfill", "branch", "commit", "history", "merge", "rebase", "reset", "switch", "tag", "fetch", "pull", "push"],
+  "options": [
+    {"flags": ["-v", "--version"], "takes_value": false, "type": "bool"},
+    {"flags": ["-h", "--help"], "takes_value": false, "type": "bool"},
+    {"flags": ["-C"], "takes_value": true, "type": "path"},
+    {"flags": ["-c"], "takes_value": true, "type": "string"},
+    {"flags": ["--exec-path"], "takes_value": true, "type": "path"},
+    {"flags": ["--html-path"], "takes_value": false, "type": "bool"},
+    {"flags": ["--man-path"], "takes_value": false, "type": "bool"},
+    {"flags": ["--info-path"], "takes_value": false, "type": "bool"},
+    {"flags": ["-p", "--paginate"], "takes_value": false, "type": "bool"},
+    {"flags": ["-P", "--no-pager"], "takes_value": false, "type": "bool"},
+    {"flags": ["--no-replace-objects"], "takes_value": false, "type": "bool"},
+    {"flags": ["--no-lazy-fetch"], "takes_value": false, "type": "bool"},
+    {"flags": ["--no-optional-locks"], "takes_value": false, "type": "bool"},
+    {"flags": ["--no-advice"], "takes_value": false, "type": "bool"},
+    {"flags": ["--bare"], "takes_value": false, "type": "bool"},
+    {"flags": ["--git-dir"], "takes_value": true, "type": "path"},
+    {"flags": ["--work-tree"], "takes_value": true, "type": "path"},
+    {"flags": ["--namespace"], "takes_value": true, "type": "string"},
+    {"flags": ["--config-env"], "takes_value": true, "type": "string"}
+  ]
+}

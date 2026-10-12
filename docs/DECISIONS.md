@@ -38,3 +38,11 @@ Hauptsession ist Manager und delegiert an Sonnet-/Haiku-Agenten (siehe `CLAUDE.m
 - Kein `$id` in den exportierten Schemas, bis es einen echten Hosting-Pfad gibt. Repo-URL nicht im Code.
 - `env` in Workflow-Schritten wird beim Ausführen gefiltert (`LD_PRELOAD`, `PATH` u. a.), Entscheidung in Phase 3 in `docs/SECURITY.md`.
 - Konsistenzprüfungen an `OptionSpec` (enum ohne choices, min > max, default passt nicht zum Typ) kommen in Phase 2 mit dem Modul-Lader.
+
+## D-006 Katalog und Hilfe-Parser (Phase 1), 2026-10-12
+
+- **Cache-Schlüssel** `path + mtime_ns + size` statt `path + version + help_hash` (F-4). Version und Hilfe-Hash kosten je einen Prozessstart; mtime/size erkennen ein Tool-Update ebenso. `version` und `help_hash` werden trotzdem im Eintrag gespeichert.
+- **Annahme:** Ein Tool behandelt `--help` und `-h` harmlos. Für bekannte Ausnahmen gibt es die Denylist `NEVER_PROBE` (shutdown, reboot, halt, poweroff, init, telinit, kexec), geprüft gegen Basisname und aufgelösten Symlink. Jeder Hilfe-Abruf läuft über `subproc.run_limited`: eigene Prozessgruppe, Timeout 5 s, 1 MB Ausgabelimit, bereinigte Umgebung, stdin geschlossen.
+- `fetch_help` liegt im Paket `catalog`, nicht in `helpparse`: der Parser bleibt reine Textverarbeitung und ohne Prozessstart testbar.
+- **Korpus:** 29 Tools statt der Liste aus Abschnitt 9: docker → podman (gleiches cobra-Format), awk → gawk, dazu bat/uv (clap), gh (cobra), pip/json.tool (argparse), ssh und ip (nur Usage), `man grep`. BusyBox und ein click-basiertes Tool sind auf dem Entwicklungssystem nicht installiert und fehlen noch.
+- Interaktive Programme werden über eine feste Liste erkannt (`INTERACTIVE`), Module können das in Phase 2 überschreiben.

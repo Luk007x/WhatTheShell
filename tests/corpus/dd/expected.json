@@ -1,0 +1,9 @@
+{
+  "summary_contains": "Copy a file",
+  "subcommands": [],
+  "operands": ["bs", "cbs", "conv", "count", "ibs", "if", "iflag", "obs", "of", "oflag", "seek", "skip", "status"],
+  "options": [
+    {"flags": ["--help"], "takes_value": false, "type": "bool"},
+    {"flags": ["--version"], "takes_value": false, "type": "bool"}
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "tool": "rsync",
+  "argv": [
+    "/usr/bin/rsync",
+    "--help"
+  ],
+  "exit_code": 0
+}

@@ -1,0 +1,14 @@
+{
+  "summary_contains": "validate and pretty-print",
+  "subcommands": [],
+  "options": [
+    {"flags": ["-h", "--help"], "takes_value": false, "type": "bool"},
+    {"flags": ["--sort-keys"], "takes_value": false, "type": "bool"},
+    {"flags": ["--no-ensure-ascii"], "takes_value": false, "type": "bool"},
+    {"flags": ["--json-lines"], "takes_value": false, "type": "bool"},
+    {"flags": ["--indent"], "takes_value": true, "type": "int"},
+    {"flags": ["--tab"], "takes_value": false, "type": "bool"},
+    {"flags": ["--no-indent"], "takes_value": false, "type": "bool"},
+    {"flags": ["--compact"], "takes_value": false, "type": "bool"}
+  ]
+}

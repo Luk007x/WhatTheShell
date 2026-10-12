@@ -1,0 +1,8 @@
+{
+  "tool": "dd",
+  "argv": [
+    "/usr/bin/dd",
+    "--help"
+  ],
+  "exit_code": 0
+}
