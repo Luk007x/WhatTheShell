@@ -243,3 +243,18 @@ def test_preview_busy(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setattr(rest, "PREVIEW_SLOTS", threading.Semaphore(0))
     monkeypatch.setattr(rest, "PREVIEW_WAIT", 0.05)
     assert client.post("/api/preview", json={"tool": "demo"}).status_code == 429
+
+
+def test_lang_en_translates_tool_and_list(client: TestClient) -> None:
+    de = client.get("/api/tools/grep").json()["command"]
+    en = client.get("/api/tools/grep", params={"lang": "en"}).json()["command"]
+    assert de["display_name"] == "grep – Text durchsuchen"
+    assert en["display_name"] == "grep – search text"
+    labels = {o["id"]: o["label"] for o in en["options"]}
+    assert labels["ignore_case"] == "Ignore case"
+    assert labels["word_regexp"] == "Nur ganze Wörter"  # no translation: original stays
+    entry = next(
+        t for t in client.get("/api/tools", params={"lang": "en"}).json() if t["name"] == "grep"
+    )
+    assert entry["display_name"] == "grep – search text"
+    assert client.get("/api/tools/grep", params={"lang": "../x"}).status_code == 422

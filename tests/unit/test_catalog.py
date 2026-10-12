@@ -2,7 +2,7 @@
 import os
 from collections.abc import Sequence
 from pathlib import Path
-from typing import NoReturn
+from typing import Any, NoReturn
 
 import pytest
 
@@ -98,9 +98,9 @@ def test_refresh_and_broken_cache(
     calls: list[int] = []
     real = fetch_help
 
-    def counting(path: str, subcommand: Sequence[str] = ()) -> HelpText | None:
+    def counting(path: str, subcommand: Sequence[str] = (), **kwargs: Any) -> HelpText | None:
         calls.append(1)
-        return real(path, subcommand)
+        return real(path, subcommand, **kwargs)
 
     monkeypatch.setattr(impl, "fetch_help", counting)
     cat.get("demo")

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { errMsg, getStatus, getTool, hasToken, postSelftest, validateWorkflow } from "./api";
+import { BlockView } from "./blocks/BlockView";
 import { Canvas, type Edit } from "./canvas/Canvas";
 import { FileMenu } from "./files/FileMenu";
 import { RunPanel } from "./run/RunPanel";
@@ -15,6 +16,10 @@ import type { Workflow } from "./types/workflow";
 
 const msg = errMsg;
 const MAX_HISTORY = 100;
+type View = "graph" | "blocks";
+const loadView = (): View => {
+  try { return localStorage.getItem("wts.view") === "blocks" ? "blocks" : "graph"; } catch { return "graph"; }
+};
 const emptyWorkflow = (): Workflow => ({ schema_version: 1, name: "", steps: [] });
 
 interface State {
@@ -70,6 +75,7 @@ export function App() {
   const [toolError, setToolError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [safety, setSafety] = useState<Record<string, string>>({});
+  const [view, setViewState] = useState<View>(loadView);
   const [outputOpen, setOutputOpen] = useState(true);
   const [fileId, setFileId] = useState<string | null>(null);
   const [savedJson, setSavedJson] = useState(JSON.stringify(emptyWorkflow()));
@@ -131,6 +137,10 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const setView = (v: View) => {
+    setViewState(v);
+    try { localStorage.setItem("wts.view", v); } catch { /* storage unavailable: the choice lasts for this session */ }
+  };
   const newDoc = () => { setSelected(null); setFileId(null); setSavedJson(JSON.stringify(emptyWorkflow())); dispatch({ type: "load", doc: emptyWorkflow() }); };
   const changeLang = (l: Lang) => { setLang(l); document.documentElement.lang = l; bump((n) => n + 1); };
   document.documentElement.lang = getLang();
@@ -157,6 +167,11 @@ export function App() {
           onNew={newDoc} />
         <button disabled={state.past.length === 0} onClick={() => dispatch({ type: "undo" })}>{t("history.undo")}</button>
         <button disabled={state.future.length === 0} onClick={() => dispatch({ type: "redo" })}>{t("history.redo")}</button>
+        <div role="group" aria-label={t("view.label")} className="viewswitch">
+          {(["graph", "blocks"] as const).map((v) => (
+            <button key={v} aria-pressed={view === v} onClick={() => setView(v)}>{t(`view.${v}`)}</button>
+          ))}
+        </div>
         <span className="status" title={sandboxTip} role="status" data-testid="sandbox-status" data-available={sandbox?.available ?? "unknown"}>
           <span className={`dot ${sandboxClass}`} aria-hidden="true" /> {sandboxText}
         </span>
@@ -170,7 +185,9 @@ export function App() {
       </header>
       <main>
         <CatalogPanel selected={catalogTool} onSelect={setCatalogTool} onLoaded={onLoaded} />
-        <Canvas wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} />
+        {view === "graph"
+          ? <Canvas wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} />
+          : <BlockView wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} />}
         <section className="panel" aria-labelledby="details-h">
           <h2 id="details-h">{t("details.title")}</h2>
           {selStep ? (

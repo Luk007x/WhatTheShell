@@ -1,14 +1,21 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Fetch help text of an installed tool (``--help``, ``-h``, ``man``)."""
 
+from __future__ import annotations
+
 import os
 import shutil
+import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Literal
+from pathlib import Path
+from typing import TYPE_CHECKING, Literal
 
 from whattheshell.helpparse import clean_text
 from whattheshell.subproc import run_limited
+
+if TYPE_CHECKING:
+    from whattheshell.sandbox import SandboxStatus
 
 NEVER_PROBE = frozenset({"shutdown", "reboot", "halt", "poweroff", "init", "telinit", "kexec"})
 
@@ -36,6 +43,7 @@ def fetch_help(
     *,
     timeout: float = 5.0,
     max_bytes: int = 1_000_000,
+    sandbox: SandboxStatus | None = None,
 ) -> HelpText | None:
     """Run the tool's help and return the first usable output.
 
@@ -46,6 +54,8 @@ def fetch_help(
         subcommand: Subcommand words inserted before the help flag.
         timeout: Seconds per attempt; a timed-out attempt counts as failed.
         max_bytes: Output is cut off after this many bytes.
+        sandbox: If available, every attempt runs in bwrap with an empty workdir
+            (the tool lives under the read-only bound ``/``); else on the host.
 
     Returns:
         The help text, or None if nothing usable came back, the tool (or its symlink
@@ -60,8 +70,24 @@ def fetch_help(
     ]
     if not subcommand and shutil.which("man"):
         attempts.append((["man", "-P", "cat", "--", base], "man"))
+    with tempfile.TemporaryDirectory(prefix="wts-help-") as tmp:
+        return _first_help(attempts, timeout, max_bytes, sandbox, Path(tmp))
+
+
+def _first_help(
+    attempts: list[tuple[list[str], Literal["help", "h", "man"]]],
+    timeout: float,
+    max_bytes: int,
+    sandbox: SandboxStatus | None,
+    workdir: Path,
+) -> HelpText | None:
+    from whattheshell.sandbox import run_sandboxed  # late: sandbox imports the catalog
+
     for argv, source in attempts:
-        done = run_limited(argv, timeout=timeout, max_bytes=max_bytes)
+        if sandbox is not None and sandbox.available:
+            done = run_sandboxed(argv, workdir, timeout=timeout, max_bytes=max_bytes)
+        else:
+            done = run_limited(argv, timeout=timeout, max_bytes=max_bytes)
         if done is None:
             if source == "man":
                 continue

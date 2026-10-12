@@ -21,6 +21,22 @@ wts run workflow.yaml            # Ausführen mit Bestätigung für caution/dang
 
 Voraussetzungen: Linux, Python ≥ 3.11, `bubblewrap` (`bwrap`) für Vorschau und Beispiele.
 
+## Installation
+
+```
+sudo apt install bubblewrap pipx          # bzw. Paketmanager der Distribution
+pipx install whattheshell                 # sobald auf PyPI veröffentlicht
+pipx install ./whattheshell-0.0.1-py3-none-any.whl   # oder aus dem Wheel (CI-Artefakt / Release)
+wts gui
+```
+
+Node wird nur zum Bauen benötigt, nicht zur Laufzeit: Das Wheel enthält das fertige Frontend.
+
+## Release
+
+`git tag vX.Y.Z && git push --tags` baut das Wheel und hängt es an das GitHub-Release.
+Veröffentlichen auf PyPI lokal: `scripts/build_wheel.sh && uv publish dist/*`.
+
 ## Entwicklung
 
 ```

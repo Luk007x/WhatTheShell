@@ -246,3 +246,7 @@ i18n:
       files_with_matches: {label: "Only show file names", help: "Lists only the names of files with matches instead of the lines."}
       line_number: {label: "Show line numbers", help: "Prefixes each matching line with its line number."}
       context: {label: "Context lines", help: "Also shows this many lines before and after each match."}
+
+templates:
+  - title: "Treffer zählen"
+    workflow: grep_count.workflow.yaml

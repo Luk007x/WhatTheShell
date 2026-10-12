@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """FastAPI application: security middleware, REST routers, static frontend."""
 
+import logging
+import threading
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from http import HTTPStatus
 from pathlib import Path
 
@@ -11,14 +15,16 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from whattheshell import APP_NAME
-from whattheshell.api import rest, workflows
+from whattheshell.api import modules_api, rest, workflows
 from whattheshell.api.errors import error_response
 from whattheshell.api.runs import router as runs_router
 from whattheshell.api.security import SecurityMiddleware, Session
 from whattheshell.catalog import Catalog
 from whattheshell.modules.registry import ModuleRegistry
+from whattheshell.modules.watch import watch_modules
 
 STATIC_DIR = Path(__file__).parent / "static"
+logger = logging.getLogger(__name__)
 FRONTEND_MISSING = "Frontend nicht gebaut: cd gui && npm ci && npm run build"
 
 
@@ -38,6 +44,32 @@ def _validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
     return error_response(422, "validation", "Ungültige Anfrage.", errors)
 
 
+def _watch(app: FastAPI, stop: threading.Event) -> None:
+    """Thread body: hot-reload module files; a failing watcher is logged, never fatal."""
+    registry: ModuleRegistry = app.state.registry
+
+    def started(_: object) -> None:
+        app.state.modules_watch = True
+
+    try:
+        watch_modules(registry, stop, on_start=started)
+    except Exception:
+        logger.exception(
+            "Modul-Überwachung beendet. Änderungen an Modulen brauchen einen Neustart."
+        )
+    app.state.modules_watch = False
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    stop = threading.Event()
+    threading.Thread(target=_watch, args=(app, stop), daemon=True, name="wts-modules-watch").start()
+    try:
+        yield
+    finally:
+        stop.set()
+
+
 def create_app(
     session: Session,
     *,
@@ -46,14 +78,21 @@ def create_app(
     static_dir: Path | None = None,
 ) -> FastAPI:
     """Build the app; no docs or OpenAPI endpoints, so there is nothing open without a token."""
-    app = FastAPI(title=APP_NAME, docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(
+        title=APP_NAME, docs_url=None, redoc_url=None, openapi_url=None, lifespan=_lifespan
+    )
     app.state.session = session
     app.state.catalog = catalog
+    # raw catalog: no module overrides, the base of module scaffolds
+    app.state.raw_catalog = Catalog(catalog._cache_dir, sandbox=catalog.sandbox)
+    app.state.modules_watch = False
     app.state.registry = registry
     app.add_middleware(SecurityMiddleware, session=session)
     app.add_exception_handler(StarletteHTTPException, _http_error)  # type: ignore[arg-type]
     app.add_exception_handler(RequestValidationError, _validation_error)  # type: ignore[arg-type]
     app.include_router(rest.router)
+    app.include_router(modules_api.router)
+    app.include_router(modules_api.templates_router)
     app.include_router(workflows.router)
     app.include_router(runs_router)
     root = STATIC_DIR if static_dir is None else static_dir

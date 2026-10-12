@@ -65,6 +65,12 @@ const de = {
   "file.discard": "Ungespeicherte Änderungen verwerfen?", "file.delete.confirm": "„{name}“ löschen?", "file.overwrite": "„{id}“ existiert schon. Überschreiben?",
   "file.id": "Dateiname (id)", "file.id.help": "Kleinbuchstaben, Ziffern, - und _; beginnt mit Buchstabe oder Ziffer.",
   "canvas.target": "Ziel", "canvas.target.end": "ans Ende", "canvas.target.then": "in „Dann“", "canvas.target.else": "in „Sonst“", "canvas.target.body": "in „Schleife“",
+  "view.label": "Ansicht", "view.graph": "Graph", "view.blocks": "Blöcke",
+  "blocks.slot.then": "dann", "blocks.slot.else": "sonst", "blocks.slot.body": "für jede Zeile", "blocks.slot.fallback": "bei Fehler",
+  "blocks.root": "Hauptfolge", "blocks.pos": "{where}, Position {n}", "blocks.pipe": "< pipe: {id}", "blocks.empty": "leer: Baustein hierher ziehen",
+  "blocks.menu": "Aktionen für {id}", "blocks.up": "Nach oben", "blocks.down": "Nach unten", "blocks.into": "Hinein: {target}", "blocks.out": "Heraus", "blocks.delete": "Löschen",
+  "blocks.delete.confirm": "Schritt „{id}“ löschen?", "blocks.add": "Einfügen in {where}", "blocks.add.tool": "Aus Katalog: {name}",
+  "blocks.moved": "Schritt {id} nach {to} verschoben", "blocks.added": "Schritt {id} in {where} eingefügt",
 };
 const en: Record<keyof typeof de, string> = {
   "app.name": "WhatTheShell",
@@ -132,6 +138,12 @@ const en: Record<keyof typeof de, string> = {
   "file.discard": "Discard unsaved changes?", "file.delete.confirm": "Delete “{name}”?", "file.overwrite": "“{id}” already exists. Overwrite?",
   "file.id": "File name (id)", "file.id.help": "Lowercase letters, digits, - and _; starts with a letter or digit.",
   "canvas.target": "Target", "canvas.target.end": "at the end", "canvas.target.then": "into “Then”", "canvas.target.else": "into “Else”", "canvas.target.body": "into “Loop”",
+  "view.label": "View", "view.graph": "Graph", "view.blocks": "Blocks",
+  "blocks.slot.then": "then", "blocks.slot.else": "else", "blocks.slot.body": "for each line", "blocks.slot.fallback": "on error",
+  "blocks.root": "Main sequence", "blocks.pos": "{where}, position {n}", "blocks.pipe": "< pipe: {id}", "blocks.empty": "empty: drop a block here",
+  "blocks.menu": "Actions for {id}", "blocks.up": "Move up", "blocks.down": "Move down", "blocks.into": "Move into: {target}", "blocks.out": "Move out", "blocks.delete": "Delete",
+  "blocks.delete.confirm": "Delete step “{id}”?", "blocks.add": "Insert into {where}", "blocks.add.tool": "From catalog: {name}",
+  "blocks.moved": "Step {id} moved to {to}", "blocks.added": "Step {id} inserted into {where}",
 };
 
 export type Lang = "de" | "en";

@@ -1,11 +1,18 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """clean_text and fetch_help (with throw-away shell scripts, no real tools)."""
 
+import shutil
 import stat
 from pathlib import Path
 
+import pytest
+
 from whattheshell.catalog.fetch import HelpText, fetch_help
 from whattheshell.helpparse import clean_text
+from whattheshell.sandbox import SandboxStatus, self_test
+
+STATUS = self_test()
+UNAVAILABLE = SandboxStatus(False, "bwrap fehlt", "", None)
 
 HELP_SCRIPT = '#!/bin/sh\necho "Usage: x [-a]"\necho "  -a  all"\necho "  -b  bee"\n'
 
@@ -80,3 +87,21 @@ def test_fetch_help_not_executable(tmp_path: Path) -> None:
     path.write_text(HELP_SCRIPT)
     assert fetch_help(str(path)) is None
     assert fetch_help(str(tmp_path / "missing")) is None
+
+
+@pytest.mark.skipif(
+    not STATUS.available or not shutil.which("grep"), reason="Sandbox oder grep fehlt"
+)
+def test_fetch_help_in_sandbox() -> None:
+    result = fetch_help(shutil.which("grep") or "", sandbox=STATUS)
+    assert result is not None and "usage" in result.text.lower()
+
+
+@pytest.mark.skipif(not STATUS.available, reason="Sandbox fehlt")
+def test_fetch_help_in_sandbox_keeps_denylist(tmp_path: Path) -> None:
+    assert fetch_help(make_script(tmp_path, "reboot", HELP_SCRIPT), sandbox=STATUS) is None
+
+
+def test_fetch_help_unavailable_sandbox_uses_host(tmp_path: Path) -> None:
+    result = fetch_help(make_script(tmp_path, "tool", HELP_SCRIPT), sandbox=UNAVAILABLE)
+    assert result is not None and result.source == "help"

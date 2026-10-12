@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """PATH scan and lazily built, disk-cached tool catalog."""
 
+from __future__ import annotations
+
 import hashlib
 import json
 import logging
@@ -10,7 +12,7 @@ import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import ValidationError
 
@@ -23,6 +25,9 @@ from whattheshell.models.module import CommandOverride
 from whattheshell.modules.merge import merge_command
 from whattheshell.modules.registry import ModuleRegistry
 from whattheshell.subproc import run_limited
+
+if TYPE_CHECKING:
+    from whattheshell.sandbox import SandboxStatus
 
 logger = logging.getLogger(__name__)
 
@@ -113,9 +118,13 @@ class Catalog:
     """Resolves tools and builds `ToolInfo` entries with an on-disk cache."""
 
     def __init__(
-        self, cache_dir: Path | None = None, registry: ModuleRegistry | None = None
+        self,
+        cache_dir: Path | None = None,
+        registry: ModuleRegistry | None = None,
+        sandbox: SandboxStatus | None = None,
     ) -> None:
         self._registry = registry
+        self.sandbox = sandbox  # settable: the API sets it after the sandbox self test
         self._cache_dir = cache_dir or paths.cache_dir() / "catalog"
         self._tools: list[Executable] | None = None
 
@@ -246,7 +255,7 @@ class Catalog:
 
     def _build(self, path: str, base: str, subcommand: Sequence[str]) -> ToolInfo:
         words = [base, *subcommand]
-        help_text = fetch_help(path, subcommand)
+        help_text = fetch_help(path, subcommand, sandbox=self.sandbox)
         if help_text is None:
             command = CommandSpec(name=words, raw_help="", confidence=Confidence.low)
             source: Literal["help", "man", "fallback"] = "fallback"

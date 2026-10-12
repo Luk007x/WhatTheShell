@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+name: "Treffer zählen"
+description: "Zählt je Datei, wie viele Zeilen ein Muster enthalten."
+variables:
+  pattern: { type: string, default: ERROR, label: "Suchmuster" }
+  dir: { type: path, default: ".", label: "Ordner" }
+steps:
+  - id: suche
+    tool: grep
+    args: { patterns: "{{ var.pattern }}", recursive: true, count: true, files: ["{{ var.dir }}"] }
+    ok_exit_codes: [0, 1]   # grep Exit 1 = keine Treffer
+  - id: meldung
+    kind: message
+    text: "Treffer je Datei:\n{{ suche.stdout }}"

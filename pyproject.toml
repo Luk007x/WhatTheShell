@@ -38,6 +38,11 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/whattheshell"]
+# gebautes Frontend ist gitignored, gehört aber ins Wheel
+artifacts = ["src/whattheshell/api/static/**"]
+
+[tool.hatch.build.targets.sdist]
+artifacts = ["src/whattheshell/api/static/**"]
 
 [tool.ruff]
 line-length = 100

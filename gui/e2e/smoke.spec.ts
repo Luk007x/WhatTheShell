@@ -124,6 +124,30 @@ test.describe.serial("smoke", () => {
     expect(readFileSync(join(work, "bericht.txt"), "utf8")).toContain("ERROR disk");
   });
 
+  test("k) Block-Ansicht", async () => {
+    const plan = async (re: RegExp) => {
+      await page.getByRole("button", { name: "Trockenlauf" }).click();
+      await expect(page.getByTestId("plan")).toHaveText(re); // retries until the new plan arrived
+      return page.getByTestId("plan").innerText();
+    };
+    const before = await plan(/^ +ok \[message\]/m); // inside else
+    await page.getByRole("button", { name: "Blöcke", exact: true }).click();
+    await expect(page.locator("ol.seq.root > li.item")).toHaveCount(4); // 6 steps, 4 on the root level
+    const pruefe = page.locator("li.item", { has: page.locator("#blk-pruefe") }).first();
+    await expect(pruefe.locator("#blk-bericht")).toBeVisible();
+    await expect(pruefe.locator("#blk-ok")).toBeVisible();
+    await page.locator("#blk-ok").focus();
+    await page.keyboard.press("Alt+ArrowLeft");
+    await expect(page.locator("ol.seq.root > li.item")).toHaveCount(5);
+    await expect(page.locator("#blk-ok")).toBeFocused();
+    await plan(/^ok \[message\]/m); // now on the root level
+    await page.getByRole("button", { name: "Graph", exact: true }).click();
+    await expect(nodes()).toHaveCount(6);
+    await expect(page.getByText("Workflow gültig")).toBeVisible({ timeout: 10_000 });
+    await page.getByRole("button", { name: "Rückgängig" }).click();
+    expect(await plan(/^ +ok \[message\]/m)).toBe(before);
+  });
+
   test("j) Sprache", async () => {
     await page.getByLabel("Sprache").selectOption("en");
     await expect(page.getByRole("button", { name: "Open", exact: true })).toBeVisible();

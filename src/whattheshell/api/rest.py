@@ -17,6 +17,7 @@ from whattheshell.catalog import Catalog, ToolNotFound
 from whattheshell.engine.argv import ArgvError, build_argv, display
 from whattheshell.models.catalog import ToolInfo
 from whattheshell.models.common import StrictModel, ToolName
+from whattheshell.modules.i18n import translate_command
 from whattheshell.modules.registry import ModuleRegistry
 from whattheshell.safety import classify_command
 from whattheshell.sandbox import SandboxStatus, run_sandboxed, self_test
@@ -33,6 +34,8 @@ def fail(status: int, error: str, message: str, **extra: Any) -> HTTPException:
 # Subcommand words never start with a dash or contain shell characters (option injection).
 SUB_WORD = r"^[A-Za-z][A-Za-z0-9_-]*$"
 SubWord = Annotated[str, Field(pattern=SUB_WORD)]
+Lang = Annotated[str, Query(pattern=r"^[a-z]{2,3}$")]  # "de" = original texts of the modules
+_TEXTS = {"display_name", "summary"}
 PREVIEW_SLOTS = threading.Semaphore(2)
 PREVIEW_WAIT = 15.0
 
@@ -57,14 +60,23 @@ def _sandbox(request: Request, *, recheck: bool = False) -> SandboxStatus:
     # ponytail: no lock, two parallel first calls both run the self test; harmless
     if recheck or getattr(request.app.state, "sandbox", None) is None:
         request.app.state.sandbox = self_test()
+        # help of tools is fetched in the sandbox once it is known to work
+        request.app.state.catalog.sandbox = request.app.state.sandbox
+        request.app.state.raw_catalog.sandbox = request.app.state.sandbox
     status: SandboxStatus = request.app.state.sandbox
     return status
 
 
 def _get_info(
-    request: Request, tool: str, sub: list[str], *, deep: int = 0, refresh: bool = False
+    request: Request,
+    tool: str,
+    sub: list[str],
+    *,
+    deep: int = 0,
+    refresh: bool = False,
+    catalog: Catalog | None = None,
 ) -> ToolInfo:
-    catalog: Catalog = request.app.state.catalog
+    catalog = catalog or request.app.state.catalog
     try:
         return catalog.get(tool, sub, depth=deep, refresh=refresh)
     except ToolNotFound as err:
@@ -92,6 +104,7 @@ def status(request: Request) -> dict[str, Any]:
         "module_errors": _module_errors(registry),
         "config_dir": str(paths.config_dir()),
         "workflows_dir": str(paths.config_dir() / "workflows"),
+        "modules_watch": request.app.state.modules_watch,
     }
 
 
@@ -102,7 +115,7 @@ def sandbox_selftest(request: Request) -> dict[str, Any]:
 
 
 @router.get("/tools")
-def list_tools(request: Request, search: str = "") -> list[dict[str, Any]]:
+def list_tools(request: Request, search: str = "", lang: Lang = "de") -> list[dict[str, Any]]:
     """Executables on PATH, enriched from loaded modules only (no help is fetched)."""
     catalog: Catalog = request.app.state.catalog
     registry: ModuleRegistry = request.app.state.registry
@@ -111,6 +124,8 @@ def list_tools(request: Request, search: str = "") -> list[dict[str, Any]]:
     for tool in catalog.tools():
         loaded = registry.for_tool(tool.name)
         module = loaded[-1].module if loaded else None
+        if module and lang != "de" and (text := module.i18n.get(lang)):
+            module = module.model_copy(update=text.model_dump(exclude_none=True, include=_TEXTS))
         display_name = module.display_name if module else None
         if (
             needle
@@ -138,6 +153,7 @@ def tool_detail(
     sub: str = "",
     deep: Annotated[int, Query(ge=0, le=1)] = 0,
     refresh: Annotated[int, Query(ge=0, le=1)] = 0,
+    lang: Lang = "de",
 ) -> ToolInfo:
     """Catalog entry of a tool or subcommand; unknown subcommands are never probed."""
     words = sub.split("/") if sub else []
@@ -148,7 +164,10 @@ def tool_detail(
             f"Ungültiger Subbefehl {bad!r}. Erlaubt: Buchstaben, Ziffern, _ und -, "
             "beginnend mit einem Buchstaben.",
         )
-    return _get_info(request, name, words, deep=deep, refresh=bool(refresh))
+    info = _get_info(request, name, words, deep=deep, refresh=bool(refresh))
+    if lang == "de":
+        return info
+    return info.model_copy(update={"command": translate_command(info.command, lang)})
 
 
 @router.get("/modules")
