@@ -14,12 +14,17 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from types import TracebackType
 
-from whattheshell.sandbox import SANDBOX_PATH, WORKDIR_IN_SANDBOX, build_bwrap_argv, self_test
+from whattheshell.sandbox import (
+    SANDBOX_PATH,
+    build_bwrap_argv,
+    limited_argv,
+    sandbox_env,
+    self_test,
+)
 from whattheshell.subproc import _kill_group, sanitized_env
 
 _HANGUP_GRACE = 2.0
 _WRITE_TIMEOUT = 5.0
-_MEMORY_BYTES = 512 * 1024 * 1024  # as run_sandboxed
 
 
 class TerminalUnavailable(Exception):  # noqa: N818 - name fixed by the contract
@@ -44,9 +49,6 @@ class PtyProcess:
         self._process = process
         self.fd = master
         self.pid = process.pid
-
-    def fileno(self) -> int:
-        return self.fd
 
     def read(self, max_bytes: int = 65536) -> bytes:
         """Available output; b"" once the program side is closed.
@@ -76,9 +78,6 @@ class PtyProcess:
 
     def poll(self) -> int | None:
         return self._process.poll()
-
-    def wait(self, timeout: float | None = None) -> int:
-        return self._process.wait(timeout)
 
     def terminate(self) -> None:
         """SIGHUP to the group, SIGKILL after 2 s; bwrap then tears down the PID namespace."""
@@ -118,8 +117,10 @@ def spawn(
 ) -> PtyProcess:
     """Start ``argv`` in bwrap with a PTY as controlling terminal; ``workdir`` is writable.
 
-    Raises TerminalUnavailable without a working bwrap or ``setsid``, ValueError for a bad
-    size, an empty argv, a missing workdir or a blocked environment key.
+    ``bwrap_path``: if given, the caller has already run the sandbox self test. Raises
+    TerminalUnavailable without a working bwrap or ``setsid``, ValueError for a bad size, an
+    empty argv, a missing or unresolved workdir (pass the confirmed, resolved path) or a
+    blocked environment key.
     """
     # Lazy: engine will import this module for terminal steps (avoid an import cycle).
     from whattheshell.engine.runner import env_blocked
@@ -132,41 +133,35 @@ def spawn(
     blocked = sorted(key for key in env or {} if env_blocked(key))
     if blocked:
         raise ValueError(f"Umgebungsvariablen nicht erlaubt: {', '.join(blocked)}.")
-    status = self_test(bwrap_path)
-    if not status.available or status.bwrap_path is None:
-        raise TerminalUnavailable(status.reason, status.install_hint)
-    setsid = shutil.which("setsid")
+    if workdir.resolve() != workdir:
+        raise ValueError(
+            f"Arbeitsverzeichnis {workdir} ist nicht aufgelöst; den bestätigten Pfad übergeben."
+        )
+    if bwrap_path is None:  # a caller-given path was already checked by that caller
+        status = self_test()
+        if not status.available or status.bwrap_path is None:
+            raise TerminalUnavailable(status.reason, status.install_hint)
+        bwrap_path = status.bwrap_path
+    setsid = shutil.which("setsid", path=SANDBOX_PATH)
     if setsid is None:
         raise TerminalUnavailable("setsid fehlt.", "Installiere das Paket „util-linux“.")
-    full_env = {
-        **sanitized_env(),
-        "TERM": "xterm-256color",
-        "COLUMNS": str(cols),
-        "LINES": str(rows),
-        "LANG": "C.UTF-8",
-        "LC_ALL": "C.UTF-8",
-        "HOME": WORKDIR_IN_SANDBOX,
-        **(env or {}),
-        "PATH": SANDBOX_PATH,
-    }
-    prlimit = shutil.which("prlimit")  # missing: self_test already reports it in its reason
-    limit = [] if prlimit is None else [prlimit, f"--as={_MEMORY_BYTES}", "--nproc=256", "--"]
+    inner_env = sandbox_env(
+        {"TERM": "xterm-256color", "COLUMNS": str(cols), "LINES": str(rows), **(env or {})}
+    )
     # bwrap --new-session stays (TIOCSTI); setsid --ctty makes the PTY the controlling tty.
-    inner = [setsid, "--ctty", *limit, *argv]
+    inner = [setsid, "--ctty", *limited_argv(argv)]
     master, slave = os.openpty()
     try:
         fcntl.ioctl(master, termios.TIOCSWINSZ, size)
         process = subprocess.Popen(  # noqa: S603
-            build_bwrap_argv(
-                inner, workdir, bwrap_path=status.bwrap_path, env=full_env, network=network
-            ),
+            build_bwrap_argv(inner, workdir, bwrap_path=bwrap_path, env=inner_env, network=network),
             stdin=slave,
             stdout=slave,
             stderr=slave,
-            env=full_env,
+            env=sanitized_env(),  # setuid bwrap must not see step variables (GLIBC_TUNABLES)
             start_new_session=True,
         )
-    except OSError as exc:
+    except (OSError, ValueError) as exc:  # ValueError: NUL byte in argv or env
         os.close(master)
         raise TerminalUnavailable(f"bwrap startet nicht: {exc}.", "") from exc
     finally:

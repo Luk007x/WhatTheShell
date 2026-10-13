@@ -11,8 +11,12 @@ export interface StepBlock {
   finish?: { ok: boolean; exit_code: number | null; duration: number | null; attempt: number | null };
   skipped?: string;
   messages: string[];
+  /** terminal step: the output lives in the terminal, not in `lines` */
+  interactive?: boolean;
 }
 export interface ConfirmRequest { step_id: string; command: string; safety: string; reasons: string[] }
+export interface TerminalState { stepId: string; command: string; /** set by the server; absent in older histories */ transcript?: boolean }
+export interface TerminalEnd { stepId: string; exitCode: number | null; transcript: string | null }
 export type RunStatus = "idle" | "running" | "success" | "failed" | "aborted";
 export interface RunView {
   status: RunStatus;
@@ -20,9 +24,12 @@ export interface RunView {
   confirm: ConfirmRequest | null;
   message: string | null;
   exitCode: number | null;
+  /** the terminal the browser should be connected to (open between terminal_request and terminal_closed) */
+  terminal: TerminalState | null;
+  terminalEnd: TerminalEnd | null;
 }
 
-export const initialRun: RunView = { status: "idle", blocks: [], confirm: null, message: null, exitCode: null };
+export const initialRun: RunView = { status: "idle", blocks: [], confirm: null, message: null, exitCode: null, terminal: null, terminalEnd: null };
 
 const str = (e: RunEvent, k: string): string => (typeof e[k] === "string" ? e[k] : "");
 const num = (e: RunEvent, k: string): number | null => (typeof e[k] === "number" ? e[k] : null);
@@ -63,9 +70,16 @@ export function reduceEvents(s: RunView, e: RunEvent): RunView {
       const reasons = Array.isArray(e.reasons) ? e.reasons.filter((r): r is string => typeof r === "string") : [];
       return { ...running, confirm: { step_id: id, command: str(e, "command"), safety: str(e, "safety") || "caution", reasons } };
     }
+    case "terminal_request":
+      return {
+        ...running, terminal: { stepId: id, command: str(e, "command"), ...(typeof e.transcript === "boolean" ? { transcript: e.transcript } : {}) }, terminalEnd: null,
+        blocks: patchLast(running.blocks, id, (b) => ({ ...b, interactive: true })),
+      };
+    case "terminal_closed":
+      return { ...running, terminal: null, terminalEnd: { stepId: id, exitCode: num(e, "exit_code"), transcript: str(e, "transcript") || null } };
     case "finished": {
       const status = e.status === "success" || e.status === "aborted" ? e.status : "failed";
-      return { ...running, status, confirm: null, message: str(e, "message") || null, exitCode: num(e, "exit_code") };
+      return { ...running, status, confirm: null, terminal: null, message: str(e, "message") || null, exitCode: num(e, "exit_code") };
     }
     default:
       return s;

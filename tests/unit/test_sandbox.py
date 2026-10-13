@@ -134,3 +134,18 @@ def test_nproc_limit_and_fixed_path(tmp_path: Path) -> None:
     lines = result.stdout.decode().splitlines()
     assert lines[0].split()[2:4] == ["256", "256"], lines
     assert lines[-1] == SANDBOX_PATH
+
+
+def test_resolv_conf_bind_only_with_network(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "whattheshell.sandbox._resolv_conf_target", lambda: "/run/systemd/resolve/stub-resolv.conf"
+    )
+    env = {"PATH": "/usr/bin"}
+    bind = ["--ro-bind-try", "/run/systemd/resolve/stub-resolv.conf"] * 1
+    offline = build_bwrap_argv(["x"], tmp_path, bwrap_path="b", env=env)
+    online = build_bwrap_argv(["x"], tmp_path, bwrap_path="b", env=env, network=True)
+    assert bind[0] not in offline
+    assert online[online.index(bind[0]) :][:3] == [*bind, bind[1]]
+    # No real DNS test: the sandbox in CI may have no network, so this stays argv-only.

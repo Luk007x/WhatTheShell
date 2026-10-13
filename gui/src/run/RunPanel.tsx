@@ -10,7 +10,8 @@ import { Modal } from "../Modal";
 import type { StepBlock } from "../model/run";
 import type { Workflow } from "../types/workflow";
 import { RunForm } from "./RunForm";
-import { initialValues, toOverrides, type FormValues } from "./runForm";
+import { hasTerminal, initialValues, toOverrides, type FormValues } from "./runForm";
+import { TerminalEnd, TerminalPane } from "./Terminal";
 import { usePlanThenRun, useRun, type PlanThenRun, type Run } from "./useRun";
 
 export function Problem({ error }: { error: unknown }) {
@@ -49,6 +50,7 @@ export function RunOutput({ run, onSelect, extra }: { run: Run; onSelect?: (id: 
           <summary>
             <strong>{b.id}</strong>{" "}
             <code>{b.command}</code>{" "}
+            {b.interactive && <span className="badge">{t("run.interactive")}</span>}
             <span className={`badge badge--${b.safety}`}>{t(`safety.${b.safety}`)}</span>
             {b.finish && <span className={`badge badge--${b.finish.ok ? "safe" : "dangerous"}`}>{b.finish.ok ? t("run.ok") : t("run.failed")}</span>}
             {b.skipped !== undefined && <span className="badge">{t("run.skipped")}</span>}
@@ -67,6 +69,10 @@ export function RunOutput({ run, onSelect, extra }: { run: Run; onSelect?: (id: 
           )}
         </details>
       ))}
+      {run.view.terminal && !run.readOnly && (
+        <TerminalPane key={run.view.terminal.stepId} runId={run.runId} terminal={run.view.terminal} transcript={run.transcript} onClose={run.terminalClosed} />
+      )}
+      <TerminalEnd end={run.view.terminalEnd} closeCode={run.termClose} />
     </>
   );
 }
@@ -121,16 +127,17 @@ export function RunPanel({ wf, onCapture, onEvaluate, onSelectStep }: {
   const [plan, setPlan] = useState<string | null>(null);
   const [values, setValues] = useState<FormValues>({});
   const [cwd, setCwd] = useState("");
+  const [transcript, setTranscript] = useState(false);
   const { enabled: aiOn } = useAi();
   const [diag, setDiag] = useState<Step | null>(null);
   const { view, running, runId } = run;
   const entry = { variables: wf.variables ?? {} };
 
-  const request = (dry: boolean) => createRun({ document: wf, variables: toOverrides(entry, values), cwd: cwd.trim() === "" ? null : cwd.trim(), dry_run: dry });
-  const pr = usePlanThenRun(run, request);
+  const request = (dry: boolean) => createRun({ document: wf, variables: toOverrides(entry, values), cwd: cwd.trim() === "" ? null : cwd.trim(), dry_run: dry, ...(transcript ? { transcript } : {}) }); // omitted when off: the default
+  const pr = usePlanThenRun(run, request, transcript);
 
   // inputs changed while the dialog is open: drop the old plan, fetch the new one debounced
-  const dryKey = useDebounced(pr.open ? JSON.stringify([values, cwd, wf]) : "", 300); // string: stable across renders
+  const dryKey = useDebounced(pr.open ? JSON.stringify([values, cwd, wf, transcript]) : "", 300); // string: stable across renders
   useEffect(() => { if (pr.open && dryKey !== "") pr.refresh(); }, [dryKey]); // pr.refresh reads the latest inputs
   const change = (next: () => void) => { next(); pr.invalidate(); };
 
@@ -169,7 +176,8 @@ export function RunPanel({ wf, onCapture, onEvaluate, onSelectStep }: {
 
       <RunDialog pr={pr}>
         <RunForm prefix="rv" variables={entry.variables} values={values} cwd={cwd}
-          onValues={(v) => change(() => setValues(v))} onCwd={(c) => change(() => setCwd(c))} />
+          onValues={(v) => change(() => setValues(v))} onCwd={(c) => change(() => setCwd(c))}
+          transcript={hasTerminal(wf.steps) ? transcript : undefined} onTranscript={(on) => change(() => setTranscript(on))} />
       </RunDialog>
     </section>
   );

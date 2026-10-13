@@ -53,3 +53,22 @@ test("evaluate output adds an if step in the same sequence", () => {
     step: { kind: "if", condition: { source: "bericht.stdout", is_empty: false } },
   });
 });
+
+test("terminal_request opens, terminal_closed ends with exit code and transcript name", () => {
+  const open = play([
+    { type: "step_started", step_id: "t", command: "cat", safety: "safe" },
+    { type: "terminal_request", step_id: "t", command: "cat" },
+  ]);
+  expect(open.terminal).toEqual({ stepId: "t", command: "cat" });
+  expect(open.blocks[0]?.interactive).toBe(true);
+  const closed = reduceEvents(open, { type: "terminal_closed", step_id: "t", exit_code: 0, transcript: "t.log" });
+  expect(closed.terminal).toBeNull();
+  expect(closed.terminalEnd).toEqual({ stepId: "t", exitCode: 0, transcript: "t.log" });
+  expect(reduceEvents(open, { type: "terminal_closed", step_id: "t", exit_code: 1, transcript: null }).terminalEnd?.transcript).toBeNull();
+});
+
+test("terminal_request carries the server's transcript flag, absent stays absent", () => {
+  expect(reduceEvents(initialRun, { type: "terminal_request", step_id: "t", command: "cat", transcript: true }).terminal?.transcript).toBe(true);
+  expect(reduceEvents(initialRun, { type: "terminal_request", step_id: "t", command: "cat", transcript: false }).terminal?.transcript).toBe(false);
+  expect(reduceEvents(initialRun, { type: "terminal_request", step_id: "t", command: "cat" }).terminal?.transcript).toBeUndefined();
+});

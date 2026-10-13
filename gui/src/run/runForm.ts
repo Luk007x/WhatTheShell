@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Pure logic of the run form: values per workflow variable, checks, and the string overrides the API expects.
+import { allSteps, isTerminal, type Step } from "../model/ops";
 import type { WorkflowListItem } from "../types/api";
 
 /** Form state: checkboxes hold booleans, every other field its text. */
@@ -58,3 +59,6 @@ export function storable(entry: Entry, values: FormValues): FormValues {
     return v.type === "secret" || value === undefined ? [] : [[k, value]];
   }));
 }
+
+/** Does the workflow contain a terminal step (at any depth)? Only then the transcript option is offered. */
+export const hasTerminal = (steps: Step[]): boolean => allSteps(steps).some(isTerminal);

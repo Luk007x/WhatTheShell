@@ -18,6 +18,8 @@ from pydantic import TypeAdapter, ValidationError
 
 from whattheshell import paths
 from whattheshell.api.errors import error_response, validation_errors
+from whattheshell.api.terminal import MAX_TERMINALS as MAX_TERMINALS  # defined there: no cycle
+from whattheshell.api.terminal import TerminalHub, terminal_hub
 from whattheshell.catalog import Catalog
 from whattheshell.engine import (
     ConfirmRequest,
@@ -26,6 +28,7 @@ from whattheshell.engine import (
     Prepared,
     RunError,
     Runner,
+    TerminalRequest,
     WorkflowFinished,
     plan,
     plan_text,
@@ -58,6 +61,7 @@ class RunBody(StrictModel):
     variables: dict[str, str] = {}
     cwd: str | None = None
     dry_run: bool = False
+    transcript: bool = False  # save terminal output (SECURITY.md 7.4), off by default
 
 
 class ControlBody(StrictModel):
@@ -235,9 +239,10 @@ class RunInfo:
 class RunManager:
     """All runs of the app, newest last."""
 
-    def __init__(self) -> None:
+    def __init__(self, terminals: TerminalHub) -> None:
         self._runs: dict[str, RunInfo] = {}
         self._lock = threading.Lock()
+        self.terminals = terminals
 
     def get(self, run_id: str) -> RunInfo | None:
         """Look up a run."""
@@ -249,6 +254,7 @@ class RunManager:
         variables: dict[str, str],
         cwd: Path | None,
         catalog: Catalog,
+        transcript: bool = False,
     ) -> tuple[RunInfo, dict[str, Any]]:
         """Validate and prepare a run; returns it with the response body (nothing executed).
 
@@ -263,12 +269,23 @@ class RunManager:
             cwd = paths.config_dir() / "runs" / run_id  # created by `RunInfo.start`
         controller = Controller()
         holder: list[RunInfo] = []
+
+        def terminal(request: TerminalRequest) -> int:
+            return self.terminals.serve(
+                run_id,
+                request,
+                holder[0].publish,
+                transcript=transcript,
+                connect_timeout=CONFIRM_TIMEOUT,
+            )
+
         runner = Runner(
             catalog,
             confirm=lambda request: holder[0].ask(request),
             on_event=lambda event: holder[0]._on_event(event),  # noqa: SLF001
             controller=controller,
             cwd=cwd,
+            terminal=terminal,
         )
         prepared = runner.prepare(workflow, variables)
         info = RunInfo(
@@ -318,7 +335,7 @@ router = APIRouter()
 def _manager(app: FastAPI) -> RunManager:
     manager: RunManager | None = getattr(app.state, "runs", None)
     if manager is None:
-        manager = app.state.runs = RunManager()
+        manager = app.state.runs = RunManager(terminal_hub(app))
     return manager
 
 
@@ -332,6 +349,7 @@ def create_run_response(
     variables: dict[str, str],
     cwd_text: str | None,
     dry_run: bool,
+    transcript: bool = False,
 ) -> Response:
     """Validate, prepare and plan a run; with `dry_run` nothing is kept or created."""
     cwd = Path(cwd_text) if cwd_text else None
@@ -343,7 +361,7 @@ def create_run_response(
             )
         cwd = cwd.resolve()
     try:
-        info, answer = _manager(app).create(document, variables, cwd, app.state.catalog)
+        info, answer = _manager(app).create(document, variables, cwd, app.state.catalog, transcript)
     except ValidationError as err:
         return error_response(422, "validation", "Workflow ungültig", validation_errors(err))
     except RunError as err:
@@ -356,7 +374,9 @@ def create_run_response(
 @router.post("/api/runs")
 def create_run(body: RunBody, request: Request) -> Response:
     """Validate, prepare and plan a run; with `dry_run` nothing is kept or created."""
-    return create_run_response(request.app, body.document, body.variables, body.cwd, body.dry_run)
+    return create_run_response(
+        request.app, body.document, body.variables, body.cwd, body.dry_run, body.transcript
+    )
 
 
 @router.get("/api/runs")

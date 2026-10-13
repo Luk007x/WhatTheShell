@@ -95,6 +95,10 @@ Modusleiste „Graph" / „Blöcke" schaltet die Darstellung um (gespeichert in 
 
 Block-Ansicht: verschachtelte Karten, Slots „dann / sonst / für jede Zeile / bei Fehler". Klick wählt aus. Verschieben per Drag & Drop auf Zwischenräume und Slots; Werkzeuge aus dem Katalog lassen sich ebenfalls dorthin ziehen und werden an der Stelle eingefügt. Per Tastatur per Tastatur auf dem fokussierten Block: Alt+↑/↓ (hoch/runter), Alt+→ (in den vorhergehenden Container), Alt+← (hinter den Container), Entf/Rücktaste (löschen, ohne Rückfrage), Enter (auswählen). Das Menü „⋯" bietet dieselben Aktionen, „+" am Ende jeder Folge fügt einen Kontrollbaustein oder das im Katalog gewählte Werkzeug genau dort ein. Eine `aria-live`-Region meldet Verschiebungen.
 
+## Terminal-Schritte
+
+Schritte mit `kind: terminal` öffnen im Laufpanel ein xterm.js-Terminal (`src/run/Terminal.tsx`), verbunden über den Binär-WebSocket `/ws/runs/{id}/terminal/{step}` (Ausgabe und Tastatur als Bytes, `open`/`resize` als JSON). Escape-Sequenzen für Zwischenablage (OSC 52), Fenstertitel und Hyperlinks (OSC 8) werden verworfen, es gibt keine Link-/Image-Addons; Tastatureingaben werden nirgends gespeichert. Tastaturflucht: Esc, dann Tab. Das Transkript (nur Ausgabe, Opt-in im Ausführen-Dialog, nur sichtbar bei Workflows mit Terminal-Schritt) meldet der Server als Dateiname; „Löschen“ ruft `DELETE /api/terminal/transcripts/{name}`. Trennen der Seite beendet den Prozess, es gibt kein Reattach. Test: `e2e/terminal.spec.ts` (überspringt sich ohne bwrap).
+
 ## Barrierefreiheit
 
 - Skip-Link „Zum Hauptbereich springen" ist das erste fokussierbare Element; Dialoge sind native `<dialog>` (Fokusfalle, Fokus-Rückgabe, Escape).
@@ -104,4 +108,4 @@ Block-Ansicht: verschachtelte Karten, Slots „dann / sonst / für jede Zeile / 
 
 ## E2E (Playwright)
 
-`npm run e2e` baut die GUI und startet `wts gui` auf freiem Port mit temporärem `XDG_CONFIG_HOME` (`e2e/server.ts`); Tests: `e2e/smoke.spec.ts`, `e2e/run.spec.ts` (Modus „Ausführen"), `e2e/design.spec.ts`, `e2e/a11y.spec.ts`, `e2e/ai.spec.ts` (headless Chromium, 1400×900, Sprache de). Einmalig `npx playwright install chromium`. Screenshots bei Fehlschlag: `e2e-results/`. Benötigt `uv`, `bwrap` (Vorschau) und die Systembibliotheken von Chromium.
+`npm run e2e` baut die GUI und startet `wts gui` auf freiem Port mit temporärem `XDG_CONFIG_HOME` (`e2e/server.ts`); Tests: `e2e/smoke.spec.ts`, `e2e/run.spec.ts` (Modus „Ausführen"), `e2e/terminal.spec.ts`, `e2e/design.spec.ts`, `e2e/a11y.spec.ts`, `e2e/ai.spec.ts` (headless Chromium, 1400×900, Sprache de). Einmalig `npx playwright install chromium`. Screenshots bei Fehlschlag: `e2e-results/`. Benötigt `uv`, `bwrap` (Vorschau) und die Systembibliotheken von Chromium.

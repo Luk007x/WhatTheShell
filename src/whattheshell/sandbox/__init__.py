@@ -2,6 +2,7 @@
 """bwrap sandbox for previews. There is deliberately no unsandboxed fallback."""
 
 import logging
+import os
 import shutil
 import tempfile
 from collections.abc import Mapping, Sequence
@@ -58,6 +59,13 @@ def install_hint_for_distro(os_release: Mapping[str, str]) -> str:
     return _GENERIC_HINT
 
 
+def _resolv_conf_target() -> str | None:
+    """Real file behind a /etc/resolv.conf symlink into /run (hidden by the /run tmpfs)."""
+    resolv = Path("/etc/resolv.conf")
+    target = os.path.realpath(resolv)
+    return target if resolv.is_symlink() and target.startswith("/run/") else None
+
+
 def build_bwrap_argv(
     argv: Sequence[str],
     workdir: Path,
@@ -81,7 +89,31 @@ def build_bwrap_argv(
             result += ["--setenv", key, value]
     if network:
         result.append("--share-net")
+        target = _resolv_conf_target()
+        if target is not None:  # DNS: only this one file, read-only
+            result += ["--ro-bind-try", target, target]
     return [*result, "--", *argv]
+
+
+def sandbox_env(extra: Mapping[str, str] | None = None) -> dict[str, str]:
+    """Environment placed inside the sandbox; ``extra`` may override all but PATH."""
+    return {
+        **sanitized_env(),
+        "HOME": WORKDIR_IN_SANDBOX,
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        **(extra or {}),
+        "PATH": SANDBOX_PATH,
+    }
+
+
+def limited_argv(argv: Sequence[str], memory_bytes: int = 512 * 1024 * 1024) -> list[str]:
+    """Prefix ``argv`` with prlimit (address space, process count); warn if prlimit is missing."""
+    prlimit = shutil.which("prlimit", path=SANDBOX_PATH)
+    if prlimit is None:
+        logger.warning("prlimit fehlt: Sandbox läuft ohne Speicher- und Prozesslimit.")
+        return list(argv)
+    return [prlimit, f"--as={memory_bytes}", "--nproc=256", "--", *argv]
 
 
 def run_sandboxed(
@@ -102,22 +134,10 @@ def run_sandboxed(
     bwrap = bwrap_path or shutil.which("bwrap")
     if bwrap is None:
         return None
-    full_env = {
-        **sanitized_env(),
-        "HOME": WORKDIR_IN_SANDBOX,
-        "LANG": "C.UTF-8",
-        "LC_ALL": "C.UTF-8",
-        **(env or {}),
-        "PATH": SANDBOX_PATH,
-    }
-    prlimit = shutil.which("prlimit")
-    if prlimit is None:
-        logger.warning("prlimit fehlt: Sandbox läuft ohne Speicher- und Prozesslimit.")
-        limited = list(argv)
-    else:
-        limited = [prlimit, f"--as={memory_bytes}", "--nproc=256", "--", *argv]
     return run_limited(
-        build_bwrap_argv(limited, workdir, bwrap_path=bwrap, env=full_env),
+        build_bwrap_argv(
+            limited_argv(argv, memory_bytes), workdir, bwrap_path=bwrap, env=sandbox_env(env)
+        ),
         timeout=timeout,
         max_bytes=max_bytes,
         stdin=stdin,
@@ -181,8 +201,10 @@ __all__ = [
     "build_bwrap_argv",
     "install_hint_for_distro",
     "iter_examples",
+    "limited_argv",
     "read_os_release",
     "run_example",
     "run_sandboxed",
+    "sandbox_env",
     "self_test",
 ]

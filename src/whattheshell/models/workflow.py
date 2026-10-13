@@ -290,6 +290,13 @@ class Workflow(_Model):
             if isinstance(step, ForeachStep) and step.as_ in ids:
                 raise ValueError(f"Schritt '{step.id}': as '{step.as_}' überdeckt eine Schritt-id")
         _check_steps(self.steps, set(), frozenset(), set(self.variables), ids)
+        terminals = {s.id for s in iter_steps(self.steps) if isinstance(s, TerminalStep)}
+        for step in iter_steps(self.steps):
+            if isinstance(step, CommandStep) and step.stdin and step.stdin.pipe in terminals:
+                raise ValueError(
+                    f"Schritt '{step.id}': pipe-Quelle {step.stdin.pipe} ist ein "
+                    "Terminal-Schritt und hat keine Ausgabe"
+                )
         if self.layout is not None:
             for unknown in [n for n in self.layout.nodes if n not in ids]:
                 logger.warning("layout: unbekannte Schritt-id '%s' verworfen", unknown)

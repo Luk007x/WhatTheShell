@@ -123,6 +123,8 @@ export interface RunRequest {
   variables: Record<string, string>;
   cwd: string | null;
   dry_run: boolean;
+  /** keep the terminal output (never keystrokes) as a file; default false */
+  transcript?: boolean;
 }
 
 /** Body of `POST /api/workflows/{id}/run`: the document comes from the library index. */

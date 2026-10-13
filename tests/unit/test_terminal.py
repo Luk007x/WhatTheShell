@@ -114,3 +114,25 @@ def test_workdir_writable_home_empty(tmp_path: Path) -> None:
         out = _read_until(proc, b"done").decode()
     assert (tmp_path / "neu").exists()
     assert out.split()[0] == "0"
+
+
+def test_unresolved_or_missing_workdir_refused(tmp_path: Path) -> None:
+    real = tmp_path / "real"
+    real.mkdir()
+    link = tmp_path / "link"
+    link.symlink_to(real)
+    with pytest.raises(ValueError, match="nicht aufgelöst"):
+        spawn(["cat"], workdir=link, env=None, cols=80, rows=24)
+    with pytest.raises(ValueError, match="fehlt"):
+        spawn(["cat"], workdir=tmp_path / "gone", env=None, cols=80, rows=24)
+
+
+@needs_bwrap
+def test_nul_in_argv_closes_fds(tmp_path: Path) -> None:
+    def count() -> int:
+        return len(os.listdir("/proc/self/fd"))
+
+    before = count()
+    with pytest.raises(TerminalUnavailable):
+        spawn(["cat\0x"], workdir=tmp_path, env=None, cols=80, rows=24)
+    assert count() == before

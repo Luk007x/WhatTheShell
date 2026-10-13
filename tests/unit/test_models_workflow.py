@@ -1,12 +1,15 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import copy
+import json
 import logging
+from pathlib import Path
 from typing import Any
 
 import pytest
 from pydantic import ValidationError
 
 from whattheshell.models.workflow import CommandStep, TerminalStep, Workflow, iter_steps
+from whattheshell.modules.loader import DocumentError, load_workflow_file
 
 
 def wf(*steps: dict[str, Any], **extra: Any) -> dict[str, Any]:
@@ -306,3 +309,13 @@ def test_terminal_step_rejects_stdin_and_implicit_kind() -> None:
         Workflow.model_validate(wf({**term, "stdin": {"pipe": "a"}}))
     with pytest.raises(ValidationError):  # without kind it becomes a command step, then no network
         Workflow.model_validate(wf({"id": "t", "tool": "vim", "network": True}))
+
+
+def test_pipe_from_terminal_step_rejected(tmp_path: Path) -> None:
+    doc = wf({"id": "t", "kind": "terminal", "tool": "vim"}, {**B, "stdin": {"pipe": "t"}})
+    with pytest.raises(ValidationError, match="pipe-Quelle t ist ein Terminal-Schritt"):
+        Workflow.model_validate(doc)
+    path = tmp_path / "w.workflow.yaml"
+    path.write_text(json.dumps(doc))
+    with pytest.raises(DocumentError, match="Terminal-Schritt"):
+        load_workflow_file(path)

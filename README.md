@@ -3,7 +3,7 @@
 Ein Linux-Programm mit grafischer Oberfläche, in dem man Kommandozeilen-Tools wie Bausteine
 zu Workflows zusammenklickt, ausführt und die Ausgaben auswertet.
 
-**Status:** Phasen 0 bis 6 umgesetzt (CLI, Web-GUI mit Knoten-Graph und Block-Ansicht, Modul-Editor, optionale KI-Funktionen). Phasenplan in `PROJEKTAUFTRAG.md`.
+**Status:** Phasen 0 bis 7 umgesetzt (CLI, Web-GUI mit Knoten-Graph und Block-Ansicht, Modul-Editor, optionale KI-Funktionen, eingebettetes Terminal für interaktive Programme). Phasenplan in `PROJEKTAUFTRAG.md`.
 
 ## Was geht schon (CLI)
 
@@ -20,9 +20,10 @@ wts workflows                    # Bibliothek: mitgeliefert, ~/.config/whatthesh
 wts run workflow.yaml|ID         # Ausführen mit Bestätigung für caution/dangerous
 wts gui                          # Web-Oberfläche auf 127.0.0.1 mit Sitzungstoken
 wts ai status                    # KI-Funktionen (standardmäßig aus): enable, check, config set, improve-module, examples, draft-workflow, diagnose
+wts terminal transcripts         # Transkripte von Terminal-Schritten auflisten, --delete NAME löscht eines
 ```
 
-Voraussetzungen: Linux, Python ≥ 3.11, `bubblewrap` (`bwrap`) für Vorschau und Beispiele.
+Voraussetzungen: Linux, Python ≥ 3.11, `bubblewrap` (`bwrap`) für Vorschau, Beispiele und Terminal-Schritte (interaktive Programme wie `vim`, `less`, `top` laufen nur in der GUI, immer in der Sandbox; Regeln in `docs/SECURITY.md`, Abschnitt 7).
 
 ## Installation
 

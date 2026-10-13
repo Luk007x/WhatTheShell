@@ -35,14 +35,16 @@ Verbindlicher Vertrag zwischen `src/whattheshell/api/` und `gui/`. Nur `127.0.0.
 | `GET /api/workflows/{id}` | – | `{id, path, document: Workflow, raw: str}` des Gewinners |
 | `PUT /api/workflows/{id}` | `{document: Workflow}` | validiert (422 mit `errors: [{path, message}]`), gewinnt eine Projektdatei, 409 `shadowed`; sonst schreibt YAML in den Nutzerordner (andere Quellen bleiben unberührt; die Nutzerdatei gleicher id überschattet mitgelieferte), lädt den Index neu, antwortet `{id, path}` |
 | `DELETE /api/workflows/{id}` | – | 204 (löscht nur die Nutzerdatei; liegt die id nur in `bundled` oder `project`, 403 mit Hinweis; gewinnt eine Projektdatei, 409 `shadowed`; Projektdateien von Hand entfernen; unbekannt 404) |
-| `POST /api/workflows/{id}/run` | `{variables: {}, cwd: str|null, dry_run: bool}` | Abkürzung: lädt das Dokument des Gewinners aus dem Index und verhält sich wie `POST /api/runs` (gleiche Antwort und Fehler); unbekannte id 404 |
+| `POST /api/workflows/{id}/run` | `{variables: {}, cwd: str|null, dry_run: bool, transcript: bool=false}` | Abkürzung: lädt das Dokument des Gewinners aus dem Index und verhält sich wie `POST /api/runs` (gleiche Antwort und Fehler); unbekannte id 404 |
 | `POST /api/workflows/validate` | `{document}` | `{ok, errors: [...]}` |
-| `POST /api/runs` | `{document: Workflow, variables: {}, cwd: str|null, dry_run: bool}` | `{run_id, plan: str, needs_confirmation: bool, max_safety}`; bei `dry_run` kein Lauf, nur Plan. `prepare` läuft sofort (Tools auflösen, Klassen); Fehler → 422 |
+| `POST /api/runs` | `{document: Workflow, variables: {}, cwd: str|null, dry_run: bool, transcript: bool=false}` | `{run_id, plan: str, needs_confirmation: bool, max_safety}`; bei `dry_run` kein Lauf, nur Plan. `transcript: true` speichert die Programmausgabe von Terminal-Schritten (siehe „Terminal“). `prepare` läuft sofort (Tools auflösen, Klassen); Fehler → 422 |
 | `GET /api/runs` | – | Gestartete Läufe, neueste zuerst, höchstens 50: `[{run_id, status, workflow_name, started, finished, exit_code}]` (ISO-8601, `finished`/`exit_code` null solange der Lauf läuft; nur im Speicher der App) |
 | `POST /api/runs/{id}/start` | – | 202; startet den Lauf im Hintergrund (Workflow-Bestätigung nach 10.6 gilt mit diesem Aufruf als erteilt) |
 | `GET /api/runs/{id}` | – | `{status, events: [...]}` (Verlauf, max 10 000 Events) |
 | `POST /api/runs/{id}/control` | `{action: "abort"|"pause"|"resume"|"step"}` | 204 |
 | `POST /api/runs/{id}/confirm` | `{step_id, ok: bool}` | 204 (Antwort auf `confirm_request`) |
+| `GET /api/terminal/transcripts` | – | `[{name, size, mtime}]` (neueste zuerst; `mtime` Unix-Sekunden) aus `cache_dir()/terminal/` |
+| `DELETE /api/terminal/transcripts/{name}` | – | 204; `name` muss `^[A-Za-z0-9._-]+\.txt$` sein, ohne führenden Punkt und Pfadanteil (sonst 422 `name`), unbekannt 404. CLI: `wts terminal transcripts [--delete NAME]` |
 | `GET /api/settings` | – | Settings-Dokument (siehe unten) plus schreibgeschütztes `key_status: "set"|"missing"` (ist die Umgebungsvariable `ai.api.key_env` gesetzt; der Wert wird nie ausgegeben) |
 | `PUT /api/settings` | Settings-Dokument (ohne `key_status`) | Validierung wie `Settings` (unbekannte oder Schlüsselfelder → 422 `validation`, ohne Eingabewerte), schreibt atomar (0600), lädt die Einstellungen neu; Antwort wie `GET`. `ai.enabled` wird nur hier oder mit `wts ai enable` true |
 | `GET /api/ai/check?network=1\|0` | – | `{ok, provider, items: [{name, ok, detail, hint}]}`: Preflight der konfigurierten Quelle (D-012). Ohne Gate: bei ausgeschalteter KI trotzdem 200 mit dem einzigen Item „KI aus“ (`ok: false`), damit die GUI es anzeigen kann; Anbieter-, Netz- und Prozesscode wird dann nicht geladen. `network=0` kontaktiert keinen Endpunkt; Agenten-CLIs werden immer gestartet (`--version`, Anmeldestatus im Temp-HOME). Fehler und Zeitlimits sind Items, nie 5xx |
@@ -66,9 +68,37 @@ Server → Client, je Nachricht ein JSON-Objekt `{type, ...}` in Reihenfolge, be
 | `step_skipped` | `step_id, reason` |
 | `message` | `step_id, text` |
 | `confirm_request` | `step_id, command, safety, reasons` (Lauf wartet, bis `/confirm` oder WS-Nachricht kommt) |
+| `terminal_request` | `step_id, command` (vom Runner maskiert), `transcript: bool` (Ausgabe wird gespeichert, im UI anzeigen): Terminal-Schritt wartet auf `/ws/runs/{id}/terminal/{step_id}`; ohne Verbindung binnen 600 s → Exit 124 und `message` „Kein Terminal verbunden“ |
+| `terminal_closed` | `step_id, exit_code, transcript: name|null` |
 | `finished` | `status: "success"|"failed"|"aborted", message, exit_code` |
 
 Client → Server: `{type: "confirm", step_id, ok}` und `{type: "control", action}`; gleichwertig zu den REST-Aufrufen.
+
+## Terminal `/ws/runs/{id}/terminal/{step_id}?token=…` (Phase 7, SECURITY.md 7)
+
+Gleiche Token-, Host- und Origin-Prüfung wie alle `/ws/`-Pfade (4401/4403/4400, kein Prozess). Ablauf:
+
+1. Nach `terminal_request` verbindet der Client; erste Nachricht Text `{"type":"open","cols":1–500,"rows":1–500}`. Andere erste Nachricht → Close 1008, Terminal bleibt für eine neue Verbindung frei.
+2. Dann startet der Prozess (immer in bwrap, PTY). Server → Client: Binary-Frames mit Rohausgabe (≤ 64 KiB). Client → Server: Binary-Frames = Tastatureingaben, Text nur `{"type":"resize","cols","rows"}`; Sonstiges → `{"type":"error","message"}`, Verbindung bleibt.
+3. Eingaben werden nie geloggt, publiziert oder gespeichert. Sie blockieren den Server nicht: was das Programm nicht sofort annimmt, wird gepuffert (max. 1 MiB, sonst 4413). Liest der Client die Ausgabe zu langsam (über 1 MiB ausstehend), pausiert der Server das Lesen vom Programm und setzt ab 512 KiB fort; die Verbindung bleibt.
+4. Ablehnungen (4404, 4409, 4429) kommen nach `accept()` mit Begründung, damit der Browser den Code sieht. Trennen beendet den Prozess (SIGHUP, nach 2 s SIGKILL an die Gruppe), kein Reattach.
+
+| Close-Code | Bedeutung | Exit-Code an den Lauf |
+|---|---|---|
+| 1000 `exit:<code>` | Programm beendet (Signal → 128+n) | `<code>` |
+| 1000 `aborted` | Lauf abgebrochen | 130 |
+| 1008 | erste Nachricht kein gültiges `open` | – (wartet weiter) |
+| 1011 | Start fehlgeschlagen (z. B. kein bwrap), plus `message`-Event mit Installationshinweis | 126 |
+| 1011 `Transkript nicht schreibbar` | Schreibfehler im Transkript, plus `message`-Event | 129 |
+| 4404 | Lauf/Schritt unbekannt oder kein offener `terminal_request` | – |
+| 4408 | 15 min ohne Ein-/Ausgabe oder `timeout` des Schritts erreicht | 124 |
+| 4409 | Terminal hat schon eine Verbindung | – |
+| 4413 | Programm nimmt keine Eingaben an: über 1 MiB Eingabe gepuffert | 129 |
+| 4429 | schon 4 Terminals offen (`MAX_TERMINALS`) | – |
+| (Client trennt) | | 129 |
+
+Ohne bwrap startet der Schritt nicht: kein `terminal_request`, `message` mit Installationshinweis, Exit 126.
+Transkript (nur mit `transcript: true` beim Anlegen): `cache_dir()/terminal/<run_id>-<step_id>[-n].txt`, Ordner 0700, Datei 0600 (`O_EXCL`), nur Programmausgabe inklusive Echo, Secret-Werte (Laufzeitwerte aus `TerminalRequest.secrets`) zeilenweise maskiert (best effort).
 
 ## Frontend-Kontrakt
 

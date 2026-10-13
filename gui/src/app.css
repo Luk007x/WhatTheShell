@@ -356,3 +356,10 @@ textarea.rawyaml { width: 100%; font: 0.85rem/1.45 var(--mono); tab-size: 2; }
 .run-footer .run { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .run-footer .run > .toolbar { padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--border); }
 .run-out { flex: 1; min-height: 0; overflow: auto; padding: var(--space-2) var(--space-4) var(--space-3); }
+
+/* ---------- Terminal step ---------- */
+.terminal { margin: var(--space-2) 0; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); padding: var(--space-2); }
+.terminal .hint { margin: 0 0 var(--space-1); }
+.terminal__host { height: 20rem; min-height: 8rem; resize: vertical; overflow: hidden; }
+.terminal__host .xterm { height: 100%; }
+.terminal-end { margin: var(--space-2) 0; }

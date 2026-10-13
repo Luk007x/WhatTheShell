@@ -9,7 +9,7 @@ import { Icon } from "../icons";
 import type { RunListItem, WorkflowListItem } from "../types/api";
 import type { Workflow } from "../types/workflow";
 import { RunForm } from "./RunForm";
-import { initialValues, storable, toOverrides, validate, type FieldError, type FormValues } from "./runForm";
+import { hasTerminal, initialValues, storable, toOverrides, validate, type FieldError, type FormValues } from "./runForm";
 import { Problem, RunControls, RunDialog, RunOutput, StepConfirm } from "./RunPanel";
 import { usePlanThenRun, useRun } from "./useRun";
 
@@ -31,6 +31,8 @@ export function RunView({ active, onOpenInEditor }: { active: boolean; onOpenInE
   const [selId, setSelId] = useState<string | null>(null);
   const [values, setValues] = useState<FormValues>({});
   const [cwd, setCwd] = useState("");
+  const [transcript, setTranscript] = useState(false);
+  const [withTerminal, setWithTerminal] = useState(false); // the picked workflow has a terminal step
   const [errors, setErrors] = useState<Record<string, FieldError>>({});
   const [formError, setFormError] = useState<unknown>(null);
   const [plan, setPlan] = useState<string | null>(null);
@@ -40,12 +42,12 @@ export function RunView({ active, onOpenInEditor }: { active: boolean; onOpenInE
   const out = useRef<HTMLDivElement>(null);
   const entry = items.find((x) => x.id === selId) ?? null;
 
-  const body = (dry: boolean) => ({ variables: entry ? toOverrides(entry, values) : {}, cwd: cwd.trim() === "" ? null : cwd.trim(), dry_run: dry });
+  const body = (dry: boolean) => ({ variables: entry ? toOverrides(entry, values) : {}, cwd: cwd.trim() === "" ? null : cwd.trim(), dry_run: dry, ...(transcript ? { transcript } : {}) }); // omitted when off: the default
   const pr = usePlanThenRun(run, (dry) => {
     if (!entry) return Promise.reject(new Error(t("runview.pick")));
     if (!dry) setRanId(entry.id);
     return runWorkflowById(entry.id, body(dry));
-  });
+  }, transcript);
 
   const reloadRuns = useCallback(() => { listRuns().then(setRuns, setLibError); }, []);
   const reload = useCallback(() => {
@@ -67,7 +69,8 @@ export function RunView({ active, onOpenInEditor }: { active: boolean; onOpenInE
   };
   const pick = (x: WorkflowListItem) => {
     const s = loadStored(x.id);
-    setSelId(x.id); setValues(initialValues(x, s.values)); setCwd(s.cwd); setErrors({}); setFormError(null); setPlan(null);
+    setSelId(x.id); setValues(initialValues(x, s.values)); setCwd(s.cwd); setErrors({}); setFormError(null); setPlan(null); setTranscript(false); setWithTerminal(false);
+    getWorkflow(x.id).then((r) => setWithTerminal(hasTerminal(r.document.steps)), setFormError);
   };
   const checked = (): boolean => {
     if (!entry) return false;
@@ -104,7 +107,8 @@ export function RunView({ active, onOpenInEditor }: { active: boolean; onOpenInE
                 <h3>{entry.name}</h3>
                 {entry.description && <p className="hint">{entry.description}</p>}
                 <RunForm prefix="rf" variables={entry.variables} values={values} errors={errors} cwd={cwd}
-                  onValues={(v) => { setValues(v); save(v, cwd); }} onCwd={(c) => { setCwd(c); save(values, c); }} />
+                  onValues={(v) => { setValues(v); save(v, cwd); }} onCwd={(c) => { setCwd(c); save(values, c); }}
+                  transcript={withTerminal ? transcript : undefined} onTranscript={setTranscript} />
                 {formError !== null && <Problem error={formError} />}
                 <div className="tb-group">
                   <button type="button" onClick={dryRun}>{t("run.dry")}</button>

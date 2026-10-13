@@ -25,6 +25,8 @@ export function useRun() {
   const [lost, setLost] = useState(false);
   const [readOnly, setReadOnly] = useState(false);
   const [answering, setAnswering] = useState(false);
+  const [transcript, setTranscript] = useState(false); // option of the run being followed
+  const [termClose, setTermClose] = useState<number | null>(null); // abnormal close code of the terminal socket
   const [error, setError] = useState<unknown>(null);
   const ws = useRef<WebSocket | null>(null);
   const viewRef = useRef(view);
@@ -52,13 +54,14 @@ export function useRun() {
   };
 
   const select = (id: string, ro: boolean) => {
-    setError(null); setLost(false); setPaused(false); setReadOnly(ro); setRunId(id);
+    setError(null); setTermClose(null); setLost(false); setPaused(false); setReadOnly(ro); setRunId(id);
     return ++seq.current;
   };
 
   /** Follow and start a run created with `POST /api/runs` or `/api/workflows/{id}/run` (dry_run false). */
-  const launch = async (id: string) => {
+  const launch = async (id: string, withTranscript = false) => {
     const n = select(id, false);
+    setTranscript(withTranscript);
     dispatch({ kind: "reset" });
     connect(id);
     try {
@@ -114,7 +117,8 @@ export function useRun() {
   };
 
   return {
-    view, runId, paused, lost, readOnly, answering, error, setError,
+    view, runId, paused, lost, readOnly, answering, error, setError, transcript, termClose,
+    terminalClosed: setTermClose,
     running: view.status === "running" && !readOnly,
     finished: isFinished(view),
     launch, show, control, answer, loadHistory,
@@ -127,7 +131,7 @@ export type Run = ReturnType<typeof useRun>;
  * 10.6: dry run → dialog with plan → real request. The real answer's plan must equal the confirmed one;
  * otherwise the dialog shows the new plan and nothing starts.
  */
-export function usePlanThenRun(run: Run, create: (dry: boolean) => Promise<RunCreated>) {
+export function usePlanThenRun(run: Run, create: (dry: boolean) => Promise<RunCreated>, transcript = false) {
   const [open, setOpen] = useState(false);
   const [prep, setPrep] = useState<RunCreated | null>(null);
   const [error, setError] = useState<unknown>(null);
@@ -135,6 +139,8 @@ export function usePlanThenRun(run: Run, create: (dry: boolean) => Promise<RunCr
   const [changed, setChanged] = useState(false);
   const createRef = useRef(create);
   createRef.current = create;
+  const transcriptRef = useRef(transcript);
+  transcriptRef.current = transcript;
   const seq = useRef(0);
 
   /** Forget the shown plan (inputs changed); `refresh` brings the new one. */
@@ -157,7 +163,7 @@ export function usePlanThenRun(run: Run, create: (dry: boolean) => Promise<RunCr
       if (real.plan !== confirmed.plan || real.max_safety !== confirmed.max_safety) { setPrep(real); setChanged(true); return; }
       setOpen(false);
       setChanged(false);
-      await run.launch(real.run_id);
+      await run.launch(real.run_id, transcriptRef.current);
     } catch (e) {
       if (n === seq.current) setError(e); // dialog is still open
     } finally {

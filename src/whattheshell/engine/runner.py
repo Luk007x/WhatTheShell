@@ -144,6 +144,8 @@ class TerminalRequest:
     argv: list[str]
     env: dict[str, str]  # only the step's own env (blocklist applied), never os.environ
     cwd: Path
+    command: str  # display text, secrets masked
+    secrets: tuple[str, ...]  # run-time secret values, for masking transcripts
     timeout: float
     network: bool
     safety: Safety
@@ -233,6 +235,12 @@ def extra_risks(
     if stdin_file is not None and not inside(stdin_file, root):
         reasons.append("liest Datei außerhalb")
     return Verdict(Safety.caution if reasons else Safety.safe, tuple(reasons))
+
+
+def _terminal_cwd_error(cwd: Path, root: Path) -> str | None:
+    if inside(cwd, root):
+        return None
+    return f"Terminal-Schritt: cwd muss innerhalb von {root} liegen (ist: {cwd.resolve()})"
 
 
 def _static_path(text: str | None, variables: Mapping[str, str], root: Path) -> Path | None:
@@ -334,7 +342,7 @@ class Runner:
         self._confirm = confirm
         self._on_event = on_event
         self._controller = controller or Controller()
-        self._cwd = cwd
+        self._cwd = Path(cwd).resolve()
         self._output_limit = output_limit
         self._step_timeout = step_timeout
         self._terminal = terminal
@@ -378,11 +386,18 @@ class Runner:
                     f"Schritt '{step.id}': Tool '{step.tool}' konnte nicht gelesen werden: {err}"
                 ) from err
             specs[step.id] = info
+            static_cwd = _static_path(step.cwd, variables, self._cwd)
+            if (
+                isinstance(step, TerminalStep)
+                and static_cwd is not None
+                and (message := _terminal_cwd_error(static_cwd, self._cwd))
+            ):
+                raise RunError(f"Schritt '{step.id}': {message}")
             verdicts[step.id] = merge_verdicts(
                 classify_command(info.command, step.args, step.extra_args),
                 extra_risks(
                     has_env=bool(step.env),
-                    cwd=_static_path(step.cwd, variables, self._cwd),
+                    cwd=static_cwd,
                     stdin_file=_static_path(
                         step.stdin.file if isinstance(step, CommandStep) and step.stdin else None,
                         variables,
@@ -564,6 +579,8 @@ class Runner:
             cwd = self._cwd
             if step.cwd:
                 cwd = (self._cwd / render(step.cwd, ctx)).resolve()
+            if isinstance(step, TerminalStep) and (message := _terminal_cwd_error(cwd, self._cwd)):
+                raise _StepError(message)
             if not cwd.is_dir():
                 raise _StepError(f"Arbeitsverzeichnis '{cwd}' existiert nicht")
             stdin, stdin_file, stdin_label = (
@@ -743,6 +760,8 @@ class Runner:
             built.argv,
             built.env,
             built.cwd,
+            built.command,
+            tuple(secret_values(self._prepared.workflow, self._variables)),
             step.timeout or self._step_timeout or _MAX_TIMEOUT,
             step.network,
             built.verdict.safety,

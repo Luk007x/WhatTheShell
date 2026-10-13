@@ -164,6 +164,7 @@ class RunWorkflowBody(StrictModel):
     variables: dict[str, str] = {}
     cwd: str | None = None
     dry_run: bool = False
+    transcript: bool = False  # as RunBody: save terminal output (SECURITY.md 7.4)
 
 
 @router.post("/{workflow_id}/run")
@@ -174,7 +175,9 @@ def run_workflow(workflow_id: str, body: RunWorkflowBody, request: Request) -> R
         document = load_workflow_file(path).model_dump(mode="json")
     except DocumentError as err:
         raise fail(422, "workflow", str(err)) from err
-    return create_run_response(request.app, document, body.variables, body.cwd, body.dry_run)
+    return create_run_response(
+        request.app, document, body.variables, body.cwd, body.dry_run, body.transcript
+    )
 
 
 @router.post("/validate")

@@ -620,3 +620,63 @@ def test_terminal_is_caution_and_asks_for_confirmation(tmp_path: Path) -> None:
     result = runner.run(runner.prepare(make_workflow([_term(network=True)]), {}))
     assert result.status == "aborted"
     assert asked[0].safety is Safety.caution and "Netzzugang" in asked[0].reasons
+
+
+def test_terminal_cwd_outside_root_rejected_before_confirmation(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    (root / "sub").mkdir(parents=True)
+    asked: list[ConfirmRequest] = []
+
+    def confirm(request: ConfirmRequest) -> bool:
+        asked.append(request)
+        return True
+
+    for outside in (str(tmp_path), "../.."):
+        runner, _, requests = _terminal_runner(root, confirm=confirm)
+        with pytest.raises(RunError, match="cwd muss innerhalb von"):
+            runner.prepare(make_workflow([_term(cwd=outside)]), {})
+    assert not asked and not requests
+    runner, _, requests = _terminal_runner(root)
+    result = runner.run(runner.prepare(make_workflow([_term(cwd="sub")]), {}))
+    assert result.status == "success" and requests[0].cwd == (root / "sub").resolve()
+
+
+def test_terminal_cwd_template_pointing_outside_fails_at_runtime(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    wf = make_workflow(
+        [
+            {"id": "s", "kind": "set", "variable": "d", "value": ".."},
+            _term(cwd="{{var.d}}"),
+        ],
+        {"d": {"type": "string", "default": "."}},
+    )
+    runner, _, requests = _terminal_runner(root)
+    result = runner.run(runner.prepare(wf, {}))
+    assert result.status == "failed" and "cwd muss innerhalb von" in result.message
+    assert not requests
+
+
+def test_terminal_request_masks_runtime_secret(tmp_path: Path) -> None:
+    wf = make_workflow(
+        [
+            {"id": "s", "kind": "set", "variable": "pw", "value": "hunter2"},
+            _term(extra_args=["{{var.pw}}"]),
+        ],
+        {"pw": {"type": "secret"}},
+    )
+    runner, _, requests = _terminal_runner(tmp_path)
+    assert runner.run(runner.prepare(wf, {"pw": "old"})).status == "success"
+    (request,) = requests
+    assert "hunter2" not in request.command and "***" in request.command
+    assert "hunter2" in request.secrets
+
+
+def test_symlinked_root_gives_resolved_terminal_cwd(tmp_path: Path) -> None:
+    real = tmp_path / "real"
+    real.mkdir()
+    link = tmp_path / "link"
+    link.symlink_to(real)
+    runner, _, requests = _terminal_runner(link)
+    assert runner.run(runner.prepare(make_workflow([_term()]), {})).status == "success"
+    assert requests[0].cwd == real.resolve()

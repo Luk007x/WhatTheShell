@@ -19,6 +19,7 @@ from whattheshell.api import ai_api, modules_api, rest, settings_api, workflows
 from whattheshell.api.errors import error_response
 from whattheshell.api.runs import router as runs_router
 from whattheshell.api.security import SecurityMiddleware, Session
+from whattheshell.api.terminal import router as terminal_router
 from whattheshell.catalog import Catalog
 from whattheshell.modules.loader import MODULE_SUFFIXES, WORKFLOW_SUFFIXES, DocumentError
 from whattheshell.modules.registry import ModuleRegistry
@@ -121,6 +122,7 @@ def create_app(
     app.include_router(modules_api.templates_router)
     app.include_router(workflows.router)
     app.include_router(runs_router)
+    app.include_router(terminal_router)
     app.include_router(settings_api.router)
     app.include_router(ai_api.router)
     root = STATIC_DIR if static_dir is None else static_dir

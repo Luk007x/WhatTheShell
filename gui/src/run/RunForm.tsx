@@ -4,7 +4,7 @@ import { t } from "../i18n";
 import type { VariableSpec } from "../types/api";
 import type { FieldError, FormValues } from "./runForm";
 
-export function RunForm({ prefix, variables, values, errors = {}, cwd, onValues, onCwd }: {
+export function RunForm({ prefix, variables, values, errors = {}, cwd, onValues, onCwd, transcript, onTranscript }: {
   /** id prefix, unique per page */
   prefix: string;
   variables: Record<string, VariableSpec>;
@@ -13,6 +13,9 @@ export function RunForm({ prefix, variables, values, errors = {}, cwd, onValues,
   cwd: string;
   onValues: (values: FormValues) => void;
   onCwd: (cwd: string) => void;
+  /** undefined: the workflow has no terminal step, the option is not shown */
+  transcript?: boolean;
+  onTranscript?: (on: boolean) => void;
 }) {
   const set = (name: string, v: string | boolean) => onValues({ ...values, [name]: v });
   return (
@@ -62,6 +65,11 @@ export function RunForm({ prefix, variables, values, errors = {}, cwd, onValues,
         <label htmlFor={`${prefix}-cwd`}>{t("step.cwd")}</label>
         <input id={`${prefix}-cwd`} value={cwd} placeholder={t("run.cwd.placeholder")} onChange={(e) => onCwd(e.target.value)} />
       </div>
+      {transcript !== undefined && (
+        <div className="field">
+          <label><input type="checkbox" checked={transcript} onChange={(e) => onTranscript?.(e.target.checked)} /> {t("run.transcript")}</label>
+        </div>
+      )}
     </>
   );
 }

@@ -178,6 +178,11 @@ def main(argv: list[str] | None = None) -> int:
     gui = commands.add_parser("gui", help="Oberfläche starten (nur 127.0.0.1, mit Sitzungstoken)")
     gui.add_argument("--port", type=int, default=0, help="Port (Standard: freier Port)")
     gui.add_argument("--no-browser", action="store_true", help="Browser nicht öffnen")
+    terminal = commands.add_parser("terminal", help="Gespeicherte Terminal-Ausgaben")
+    transcripts = terminal.add_subparsers(dest="terminal_command", required=True).add_parser(
+        "transcripts", help="Transkripte auflisten oder löschen"
+    )
+    transcripts.add_argument("--delete", metavar="NAME", help="Dieses Transkript löschen")
     ai = commands.add_parser("ai", help="Optionale KI-Funktionen (standardmäßig aus)")
     ai_commands = ai.add_subparsers(dest="ai_command", required=True)
     ai_commands.add_parser("enable", help="KI-Funktionen einschalten")
@@ -278,6 +283,8 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
         return _gui(args)
     if args.command == "ai":
         return _ai(args)
+    if args.command == "terminal":
+        return _transcripts(args.delete)
     if args.command == "schema":
         try:
             written = export_schemas(args.out)
@@ -837,6 +844,21 @@ def _workflow_index() -> WorkflowIndex:
     index = WorkflowIndex(paths.workflow_dirs(Path.cwd()))
     index.scan()
     return index
+
+
+def _transcripts(delete: str | None) -> int:
+    from whattheshell.api.terminal import delete_transcript, list_transcripts
+
+    if delete is None:
+        for item in list_transcripts():
+            print(f"{item['name']}\t{item['size']}")
+        return 0
+    try:
+        delete_transcript(delete)
+    except (ValueError, OSError) as err:
+        print(err, file=sys.stderr)
+        return 1
+    return 0
 
 
 def _workflows() -> int:
