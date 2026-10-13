@@ -202,6 +202,11 @@ def _check_type(name: str, spec: VariableSpec, value: str) -> None:
             f"Variable '{name}': '{value}' ist keine erlaubte Auswahl "
             f"({', '.join(spec.choices)}). Einen dieser Werte angeben."
         )
+    if spec.pattern is not None and not re.fullmatch(spec.pattern, value):
+        # the value is not echoed: it may be a secret
+        raise RunError(
+            f"Variable '{name}': Wert passt nicht zum Muster '{spec.pattern}'. Wert korrigieren."
+        )
     if number is not None:
         if spec.min is not None and number < spec.min:
             raise RunError(f"Variable '{name}': {value} ist kleiner als das Minimum {spec.min:g}.")

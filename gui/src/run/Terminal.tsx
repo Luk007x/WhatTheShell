@@ -16,14 +16,16 @@ const theme = () => ({ background: css("--surface"), foreground: css("--text"), 
 /** Close codes with their own message; any other abnormal close gets the generic one. */
 const KNOWN_CLOSE = new Set([4404, 4408, 4409, 4413, 4429]);
 
-export function TerminalPane({ runId, terminal, transcript, onClose }: {
-  runId: string | null; terminal: TerminalState; transcript: boolean; onClose: (code: number | null) => void;
+export function TerminalPane({ runId, terminal, transcript, ended, onClose, onDismiss }: {
+  runId: string | null; terminal: TerminalState; transcript: boolean; ended: boolean; onClose: (code: number | null) => void; onDismiss: () => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const wrap = useRef<HTMLDivElement>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const endedRef = useRef(ended);
+  endedRef.current = ended;
 
   useEffect(() => {
     const el = host.current;
@@ -49,7 +51,7 @@ export function TerminalPane({ runId, terminal, transcript, onClose }: {
     let sock: WebSocket | null = null;
     const send = (o: object) => { if (sock?.readyState === WebSocket.OPEN) sock.send(JSON.stringify(o)); };
     const enc = new TextEncoder();
-    term.onData((d) => { if (sock?.readyState === WebSocket.OPEN) sock.send(enc.encode(d)); }); // never stored
+    term.onData((d) => { if (!endedRef.current && sock?.readyState === WebSocket.OPEN) sock.send(enc.encode(d)); }); // never stored
     const timer = setTimeout(() => {
       const s = new WebSocket(wsUrl(`/ws/runs/${encodeURIComponent(runId)}/terminal/${encodeURIComponent(terminal.stepId)}`));
       sock = s;
@@ -73,7 +75,9 @@ export function TerminalPane({ runId, terminal, transcript, onClose }: {
 
   return (
     <section className="terminal" ref={wrap} tabIndex={-1} aria-label={t("term.region")}>
-      <p className="hint">{t("term.hint")}{(terminal.transcript ?? transcript) && <> <span className="badge badge--caution" role="status">{t("term.recording")}</span></>}</p>
+      {ended
+        ? <p className="hint"><button className="btn--sm" onClick={onDismiss}>{t("term.dismiss")}</button></p>
+        : <p className="hint">{t("term.hint")}{(terminal.transcript ?? transcript) && <> <span className="badge badge--caution" role="status">{t("term.recording")}</span></>}</p>}
       {serverError !== null && <p role="status" className="error">{t("term.server_error", { message: serverError })}</p>}
       <div className="terminal__host" ref={host} role="group" aria-label={t("term.label", { command: terminal.command })} />
     </section>

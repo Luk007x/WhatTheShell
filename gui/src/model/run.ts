@@ -24,7 +24,7 @@ export interface RunView {
   confirm: ConfirmRequest | null;
   message: string | null;
   exitCode: number | null;
-  /** the terminal the browser should be connected to (open between terminal_request and terminal_closed) */
+  /** the last terminal step: live between terminal_request and terminal_closed, afterwards kept as read-only view until the next one replaces it */
   terminal: TerminalState | null;
   terminalEnd: TerminalEnd | null;
 }
@@ -76,10 +76,10 @@ export function reduceEvents(s: RunView, e: RunEvent): RunView {
         blocks: patchLast(running.blocks, id, (b) => ({ ...b, interactive: true })),
       };
     case "terminal_closed":
-      return { ...running, terminal: null, terminalEnd: { stepId: id, exitCode: num(e, "exit_code"), transcript: str(e, "transcript") || null } };
+      return { ...running, terminalEnd: { stepId: id, exitCode: num(e, "exit_code"), transcript: str(e, "transcript") || null } };
     case "finished": {
       const status = e.status === "success" || e.status === "aborted" ? e.status : "failed";
-      return { ...running, status, confirm: null, terminal: null, message: str(e, "message") || null, exitCode: num(e, "exit_code") };
+      return { ...running, status, confirm: null, message: str(e, "message") || null, exitCode: num(e, "exit_code") };
     }
     default:
       return s;

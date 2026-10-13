@@ -1,0 +1,14 @@
+Usage: wget [-c|--continue] [-s|--spider] [-q|--quiet] [-O|--output-document file]
+			[--header 'header: value'] [-Y|--proxy on/off] [-P DIR]
+			[-U|--user-agent agent] url
+
+Retrieve files via HTTP or FTP
+
+Options:
+	-s	Spider mode - only check file existence
+	-c	Continue retrieval of aborted transfer
+	-q	Quiet
+	-P	Set directory prefix to DIR
+	-O	Save to filename ('-' for stdout)
+	-U	Adjust 'User-Agent' field
+	-Y	Use proxy ('on' or 'off')

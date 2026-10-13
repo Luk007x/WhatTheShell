@@ -2,7 +2,7 @@
 // One field per workflow variable plus the working directory; used by the run view and the editor's run dialog.
 import { t } from "../i18n";
 import type { VariableSpec } from "../types/api";
-import type { FieldError, FormValues } from "./runForm";
+import { patternOf, type FieldError, type FormValues } from "./runForm";
 
 export function RunForm({ prefix, variables, values, errors = {}, cwd, onValues, onCwd, transcript, onTranscript }: {
   /** id prefix, unique per page */
@@ -24,7 +24,8 @@ export function RunForm({ prefix, variables, values, errors = {}, cwd, onValues,
         const id = `${prefix}-${name}`;
         const value = values[name];
         const err = errors[name];
-        const help = [v.help, v.type === "path" ? t("runform.path") : null].filter(Boolean).join(" ");
+        const pattern = v.type === "string" ? patternOf(v) : undefined;
+        const help = [v.help, v.type === "path" ? t("runform.path") : null, pattern ? t("runform.pattern", { pattern }) : null].filter(Boolean).join(" ");
         const describedBy = [help && `${id}-help`, err && `${id}-err`].filter(Boolean).join(" ") || undefined;
         const label = <>{v.label ?? name}{v.required && <span className="req" aria-hidden="true"> *</span>}</>;
         if (v.type === "bool") {
@@ -47,7 +48,7 @@ export function RunForm({ prefix, variables, values, errors = {}, cwd, onValues,
             {choices.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         ) : (
-          <input {...common} type={numeric ? "number" : v.type === "secret" ? "password" : "text"} step={v.type === "float" ? "any" : undefined}
+          <input {...common} type={numeric ? "number" : v.type === "secret" ? "password" : "text"} step={v.type === "float" ? "any" : undefined} pattern={pattern} title={pattern ? t("runform.pattern", { pattern }) : undefined}
             min={numeric ? v.min ?? undefined : undefined} max={numeric ? v.max ?? undefined : undefined} value={text}
             autoComplete={v.type === "secret" ? "off" : undefined} onChange={(e) => set(name, e.target.value)} />
         );
@@ -57,7 +58,7 @@ export function RunForm({ prefix, variables, values, errors = {}, cwd, onValues,
             <label htmlFor={id}>{label} <small className="muted">{name}{range ? ` · ${range}` : ""}</small></label>
             {control}
             {help && <small className="muted" id={`${id}-help`}>{help}</small>}
-            {err && <small className="error" id={`${id}-err`}>{t(`runform.err.${err}`, { min: v.min ?? "", max: v.max ?? "" })}</small>}
+            {err && <small className="error" id={`${id}-err`}>{t(`runform.err.${err}`, { min: v.min ?? "", max: v.max ?? "", pattern: pattern ?? "" })}</small>}
           </div>
         );
       })}

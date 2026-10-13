@@ -1,0 +1,6 @@
+{
+  "tool": "click-demo",
+  "argv": ["/usr/bin/demo", "--help"],
+  "exit_code": 0,
+  "note": "click 8.x example app, captured with LC_ALL=C"
+}

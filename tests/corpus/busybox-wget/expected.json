@@ -1,0 +1,67 @@
+{
+  "subcommands": [],
+  "options": [
+    {
+      "flags": [
+        "-c",
+        "--continue"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "-s",
+        "--spider"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "-q",
+        "--quiet"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "-O",
+        "--output-document"
+      ],
+      "takes_value": true,
+      "type": "path"
+    },
+    {
+      "flags": [
+        "--header"
+      ],
+      "takes_value": true,
+      "type": "string"
+    },
+    {
+      "flags": [
+        "-Y",
+        "--proxy"
+      ],
+      "takes_value": true,
+      "type": "string"
+    },
+    {
+      "flags": [
+        "-P"
+      ],
+      "takes_value": true,
+      "type": "path"
+    },
+    {
+      "flags": [
+        "-U",
+        "--user-agent"
+      ],
+      "takes_value": true,
+      "type": "string"
+    }
+  ]
+}

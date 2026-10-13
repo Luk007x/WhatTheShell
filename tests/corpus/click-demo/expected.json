@@ -1,0 +1,45 @@
+{
+  "subcommands": [
+    "export",
+    "sync"
+  ],
+  "options": [
+    {
+      "flags": [
+        "-v",
+        "--verbose"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "--config"
+      ],
+      "takes_value": true,
+      "type": "path"
+    },
+    {
+      "flags": [
+        "-c",
+        "--count"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "--version"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "--help"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    }
+  ]
+}

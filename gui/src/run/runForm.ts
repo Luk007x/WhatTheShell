@@ -1,17 +1,29 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Pure logic of the run form: values per workflow variable, checks, and the string overrides the API expects.
 import { allSteps, isTerminal, type Step } from "../model/ops";
-import type { WorkflowListItem } from "../types/api";
+import type { VariableSpec, WorkflowListItem } from "../types/api";
 
 /** Form state: checkboxes hold booleans, every other field its text. */
 export type FormValues = Record<string, string | boolean>;
-export type FieldError = "required" | "int" | "float" | "choice" | "min" | "max";
+export type FieldError = "required" | "int" | "float" | "choice" | "min" | "max" | "pattern";
 type Entry = Pick<WorkflowListItem, "variables">;
 
 const INT = /^[+-]?\d+$/;
 const FLOAT = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/;
 /** Types whose text is trimmed before sending; string and secret values go out as typed. */
 const TRIMMED = new Set(["int", "float", "path"]);
+
+/** The regex of a string variable, if any. */
+export const patternOf = (v: VariableSpec): string | undefined => v.pattern || undefined;
+
+/** Full match like the backend (`fullmatch`) and the HTML `pattern` attribute; an invalid regex is left to the backend. */
+export function matchesPattern(pattern: string, text: string): boolean {
+  try {
+    return new RegExp(`^(?:${pattern})$`, "v").test(text);
+  } catch {
+    return true;
+  }
+}
 
 /** Stored values (if they fit the variable type) win over defaults; secrets never come from storage. */
 export function initialValues(entry: Entry, stored: unknown): FormValues {
@@ -39,6 +51,7 @@ export function validate(entry: Entry, values: FormValues): Record<string, Field
     else if (v.type === "enum" && v.choices && v.choices.length > 0 && !v.choices.includes(text)) errors[name] = "choice";
     else if ((v.type === "int" || v.type === "float") && v.min != null && Number(text) < v.min) errors[name] = "min";
     else if ((v.type === "int" || v.type === "float") && v.max != null && Number(text) > v.max) errors[name] = "max";
+    else if (v.type === "string" && patternOf(v) !== undefined && !matchesPattern(patternOf(v) ?? "", text)) errors[name] = "pattern";
   }
   return errors;
 }

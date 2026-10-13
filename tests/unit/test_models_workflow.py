@@ -319,3 +319,17 @@ def test_pipe_from_terminal_step_rejected(tmp_path: Path) -> None:
     path.write_text(json.dumps(doc))
     with pytest.raises(DocumentError, match="Terminal-Schritt"):
         load_workflow_file(path)
+
+
+@pytest.mark.parametrize(
+    "spec",
+    [
+        {"type": "string", "pattern": "("},
+        {"type": "string", "pattern": "a" * 501},
+        {"type": "int", "pattern": "[0-9]+"},
+    ],
+)
+def test_variable_pattern_invalid(spec: dict[str, Any]) -> None:
+    with pytest.raises(ValidationError, match="pattern"):
+        Workflow.model_validate(wf(A, variables={"v": spec}))
+    Workflow.model_validate(wf(A, variables={"v": {"type": "string", "pattern": "[a-z]+"}}))

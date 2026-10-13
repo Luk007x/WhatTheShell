@@ -1,0 +1,6 @@
+{
+  "tool": "busybox-sed",
+  "argv": ["busybox", "sed", "--help"],
+  "exit_code": 0,
+  "note": "BusyBox not installed; text copied verbatim from https://busybox.net/downloads/BusyBox.html (applet sed), prefixed with Usage:, indentation as tabs"
+}

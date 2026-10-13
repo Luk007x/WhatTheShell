@@ -1,0 +1,14 @@
+Usage: demo [OPTIONS] COMMAND [ARGS]...
+
+  Example tool for syncing and exporting files.
+
+Options:
+  -v, --verbose  Print more output.
+  --config PATH  Path to the config file.
+  -c, --count    Increase the level of detail.
+  --version      Show the version and exit.
+  --help         Show this message and exit.
+
+Commands:
+  export  Export NAME.
+  sync    Sync SOURCE to the destination.

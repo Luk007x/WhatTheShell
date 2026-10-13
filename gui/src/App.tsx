@@ -256,16 +256,16 @@ export function App() {
       {/* Kopfzeile: name, file, history, status, settings */}
       <header className="app-header">
         <h1 className="brand">{t("app.name")}</h1>
-        <FileMenu wf={wf} fileId={fileId} dirty={dirty}
+        {mode !== "run" && <FileMenu wf={wf} fileId={fileId} dirty={dirty}
           onLoad={loadDoc}
           onSaved={(id) => { setFileId(id); setSavedJson(JSON.stringify(wf)); setNotice(t("file.saved.run", { id })); }}
           onDeleted={(id) => { if (id === fileId) setFileId(null); }}
           onNew={newDoc} saveRef={saveRef}
-          onDraft={(doc) => { dispatch({ type: "load", doc }); setSavedJson(JSON.stringify(emptyWorkflow())); setFileId(null); setSelected(null); }} />
-        <span className="tb-group">
+          onDraft={(doc) => { dispatch({ type: "load", doc }); setSavedJson(JSON.stringify(emptyWorkflow())); setFileId(null); setSelected(null); }} />}
+        {mode !== "run" && <span className="tb-group">
           <button disabled={state.past.length === 0} onClick={() => dispatch({ type: "undo" })}><Icon name="undo" />{t("history.undo")}</button>
           <button disabled={state.future.length === 0} onClick={() => dispatch({ type: "redo" })}><Icon name="redo" />{t("history.redo")}</button>
-        </span>
+        </span>}
         <span className="tb-spacer" />
         <span className="status-pill" title={sandboxTip} role="status" data-testid="sandbox-status" data-available={sandbox?.available ?? "unknown"}>
           <span className={`dot ${sandboxClass}`} aria-hidden="true" /> {sandboxText}

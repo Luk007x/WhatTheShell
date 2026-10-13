@@ -1,0 +1,55 @@
+{
+  "subcommands": [],
+  "options": [
+    {
+      "flags": [
+        "-n",
+        "--retries"
+      ],
+      "takes_value": true,
+      "type": "int"
+    },
+    {
+      "flags": [
+        "--dest"
+      ],
+      "takes_value": true,
+      "type": "path"
+    },
+    {
+      "flags": [
+        "--mode"
+      ],
+      "takes_value": true,
+      "type": "enum",
+      "choices": [
+        "fast",
+        "safe",
+        "auto"
+      ]
+    },
+    {
+      "flags": [
+        "--dry-run",
+        "--no-dry-run"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "-f",
+        "--force"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "--help"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    }
+  ]
+}

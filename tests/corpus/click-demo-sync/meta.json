@@ -1,0 +1,6 @@
+{
+  "tool": "click-demo-sync",
+  "argv": ["/usr/bin/demo", "sync", "--help"],
+  "exit_code": 0,
+  "note": "click 8.x example app, captured with LC_ALL=C"
+}

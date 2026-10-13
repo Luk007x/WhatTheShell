@@ -7,11 +7,14 @@ import pytest
 from whattheshell.sandbox import (
     SANDBOX_PATH,
     WORKDIR_IN_SANDBOX,
+    _resolv_conf_target,
     build_bwrap_argv,
     install_hint_for_distro,
     run_sandboxed,
+    sandbox_env,
     self_test,
 )
+from whattheshell.subproc import run_limited
 
 needs_bwrap = pytest.mark.skipif(shutil.which("bwrap") is None, reason="bwrap not installed")
 
@@ -149,3 +152,28 @@ def test_resolv_conf_bind_only_with_network(
     assert bind[0] not in offline
     assert online[online.index(bind[0]) :][:3] == [*bind, bind[1]]
     # No real DNS test: the sandbox in CI may have no network, so this stays argv-only.
+
+
+@needs_bwrap
+@pytest.mark.skipif(not Path("/etc/resolv.conf").exists(), reason="no /etc/resolv.conf on host")
+def test_resolv_conf_readable_only_with_network(tmp_path: Path) -> None:
+    """Name resolution setup is visible with network=True; a real DNS lookup is not tested
+    on purpose (offline CI)."""
+    bwrap = shutil.which("bwrap")
+    assert bwrap is not None
+    env = sandbox_env()
+    cat = ["/usr/bin/cat", "/etc/resolv.conf"]
+    online = run_limited(
+        build_bwrap_argv(cat, tmp_path, bwrap_path=bwrap, env=env, network=True),
+        timeout=5.0,
+        max_bytes=65536,
+    )
+    assert online is not None and online.exit_code == 0 and online.stdout.strip()
+    if _resolv_conf_target() is None:
+        pytest.skip("host /etc/resolv.conf is no symlink into /run")
+    offline = run_limited(
+        build_bwrap_argv(cat, tmp_path, bwrap_path=bwrap, env=env, network=False),
+        timeout=5.0,
+        max_bytes=65536,
+    )
+    assert offline is not None and (offline.exit_code != 0 or not offline.stdout.strip())

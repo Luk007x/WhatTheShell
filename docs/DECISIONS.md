@@ -44,7 +44,7 @@ Hauptsession ist Manager und delegiert an Sonnet-/Haiku-Agenten (siehe `CLAUDE.m
 - **Cache-Schlüssel** `path + mtime_ns + size` statt `path + version + help_hash` (F-4). Version und Hilfe-Hash kosten je einen Prozessstart; mtime/size erkennen ein Tool-Update ebenso. `version` und `help_hash` werden trotzdem im Eintrag gespeichert.
 - **Annahme:** Ein Tool behandelt `--help` und `-h` harmlos. Für bekannte Ausnahmen gibt es die Denylist `NEVER_PROBE` (shutdown, reboot, halt, poweroff, init, telinit, kexec), geprüft gegen Basisname und aufgelösten Symlink. Jeder Hilfe-Abruf läuft über `subproc.run_limited`: eigene Prozessgruppe, Timeout 5 s, 1 MB Ausgabelimit, bereinigte Umgebung, stdin geschlossen.
 - `fetch_help` liegt im Paket `catalog`, nicht in `helpparse`: der Parser bleibt reine Textverarbeitung und ohne Prozessstart testbar.
-- **Korpus:** 29 Tools statt der Liste aus Abschnitt 9: docker → podman (gleiches cobra-Format), awk → gawk, dazu bat/uv (clap), gh (cobra), pip/json.tool (argparse), ssh und ip (nur Usage), `man grep`. BusyBox und ein click-basiertes Tool sind auf dem Entwicklungssystem nicht installiert und fehlen noch.
+- **Korpus:** 29 Tools statt der Liste aus Abschnitt 9: docker → podman (gleiches cobra-Format), awk → gawk, dazu bat/uv (clap), gh (cobra), pip/json.tool (argparse), ssh und ip (nur Usage), `man grep`. Nachgetragen: 5 Fälle für BusyBox (wget, sed, grep; BusyBox nicht installiert, Text aus der Doku von busybox.net, Tab-Einrückung) und click (`click-demo`, `click-demo-sync`, ad hoc mit `uv run --with click`).
 - Interaktive Programme werden über eine feste Liste erkannt (`INTERACTIVE`), Module können das in Phase 2 überschreiben.
 
 ## D-007 Module (Phase 2), 2026-10-12
@@ -133,3 +133,12 @@ Status: **freigegeben** am 2026-10-13 mit den Antworten kein Host-Terminal, Tran
 - **`TerminalStep` (`kind: terminal`)** ohne `stdin`, Exit-Code steuert den Ablauf, Ausgabe wird nicht an Folgeschritte gereicht; CLI `wts run` lehnt Terminal-Schritte ab.
 - **Abhängigkeit** `@xterm/xterm` (MIT), Backend nur Stdlib plus `setsid` (util-linux). Antworten des Auftraggebers in SECURITY.md 7.8.
 - **Nachtrag aus dem Sicherheitsreview (2026-10-13):** `cwd` eines Terminal-Schritts muss innerhalb des Lauf-Wurzelordners liegen, sonst wird der Schritt abgelehnt (nicht nur auf `caution` gehoben). Grund: `--bind cwd /tmp/work` macht das Verzeichnis beschreibbar; eine fremde Datei könnte sonst `$HOME` oder `/` in die Sandbox holen, und der Bestätigungsdialog sähe aus wie bei jedem Terminal-Schritt. Secrets für Befehlsanzeige und Transkript kommen aus den Laufzeitwerten, nicht aus den Startvariablen.
+
+## D-015 Restpunkte nach Phase 7 und Workflow „WLAN auf 5 GHz", 2026-10-13
+
+- **Korpus:** BusyBox (wget, sed, grep; Texte aus der BusyBox-Doku, da nicht installiert) und click (Beispiel-App, ad hoc über `uv run --with click`) ergänzt, 34 Hilfetexte, Recall 99,1 %, keine Parseränderung.
+- **Variablen `pattern`:** Regex mit fullmatch, nur `type: string`; Runner lehnt beim Start ab, die GUI prüft schon im Formular. Grund: Eingaben wie MAC-Adressen sollen vor dem ersten Befehl geprüft werden, nicht erst durch einen `if`-Schritt.
+- **Mitgeliefert:** Modul `nmcli` (nur `connection modify/up/down/add/delete` sind `caution`, `show` bleibt `safe`) und die Workflows `wlan-5ghz` / `wlan-5ghz-loesen` (Anleitung des Auftraggebers: BSSID des 5-GHz-Eintrags fixieren, prüfen per `iw dev`). Ohne das Modul stufte der Klassifizierer `nmcli connection modify` als `safe` ein und fragte nicht nach.
+- **GUI:** Editor-Kopfzeile im Ausführen-Modus ausgeblendet; Terminalinhalt bleibt nach Ende lesbar bis „Schließen".
+- **Transkript:** Secret-Maskierung überbrückt jetzt auch den 64-KiB-Flush; Sandbox-Test liest `/etc/resolv.conf` nur mit `network=True`.
+

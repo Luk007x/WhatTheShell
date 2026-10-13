@@ -284,6 +284,21 @@ def test_transcript_opt_in_masked_0600(client: TestClient, fakes: list[FakePty])
     assert not path.exists()
 
 
+def test_transcript_masks_secret_split_across_chunks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(terminal_api, "transcript_dir", lambda: tmp_path)
+    transcript = terminal_api._Transcript("r", "s", ["s3cretvalue"])
+    transcript.feed(b"pw=s3cr")
+    transcript.feed(b"etvalue\n")
+    # over the line cap without newline: the tail that could start a secret is held back
+    transcript.feed(b"a" * (terminal_api._LINE_CAP + 1) + b"s3cr")
+    transcript.feed(b"etvalue end")
+    transcript.close()
+    text = (tmp_path / transcript.name).read_text()
+    assert "s3cr" not in text and text.startswith("pw=***\n") and text.endswith("***" + " end")
+
+
 # ------------------------------------------------------------------ 7.7 Nr. 5
 
 

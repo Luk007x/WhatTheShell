@@ -1,0 +1,11 @@
+Usage: demo sync [OPTIONS] SOURCE
+
+  Sync SOURCE to the destination.
+
+Options:
+  -n, --retries INTEGER     Number of retries.  [default: 3]
+  --dest PATH               Destination directory.  [required]
+  --mode [fast|safe|auto]   Sync strategy.  [default: auto]
+  --dry-run / --no-dry-run  Only show what would be done.
+  -f, --force               Overwrite existing files.
+  --help                    Show this message and exit.

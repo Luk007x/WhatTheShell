@@ -241,6 +241,7 @@ class VariableSpec(_Model):
     choices: list[str] = []
     min: float | None = None
     max: float | None = None
+    pattern: str | None = None
 
     @model_validator(mode="after")
     def _check_spec(self) -> VariableSpec:
@@ -253,6 +254,15 @@ class VariableSpec(_Model):
             ValueType.float,
         ):
             raise ValueError("min und max sind nur bei type int oder float erlaubt")
+        if self.pattern is not None:
+            if self.type != ValueType.string:
+                raise ValueError("pattern ist nur bei type string erlaubt")
+            if len(self.pattern) > 500:
+                raise ValueError("pattern: höchstens 500 Zeichen erlaubt")
+            try:
+                re.compile(self.pattern)
+            except re.error as exc:
+                raise ValueError(f"pattern: ungültiger regulärer Ausdruck ({exc})") from None
         return self
 
 

@@ -1,0 +1,159 @@
+{
+  "subcommands": [],
+  "options": [
+    {
+      "flags": [
+        "-H"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "-h"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "-r"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "-i"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "-l"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "-L"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "-n"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "-q"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "-v"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "-s"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "-c"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "-o"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "-w"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "-F"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "-E"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "-z"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "-m"
+      ],
+      "takes_value": true,
+      "type": "int"
+    },
+    {
+      "flags": [
+        "-e"
+      ],
+      "takes_value": true,
+      "type": "string"
+    },
+    {
+      "flags": [
+        "-f"
+      ],
+      "takes_value": true,
+      "type": "path"
+    },
+    {
+      "flags": [
+        "-A"
+      ],
+      "takes_value": true,
+      "type": "int"
+    },
+    {
+      "flags": [
+        "-B"
+      ],
+      "takes_value": true,
+      "type": "int"
+    },
+    {
+      "flags": [
+        "-C"
+      ],
+      "takes_value": true,
+      "type": "int"
+    }
+  ]
+}

@@ -223,7 +223,7 @@ Anforderung F-36 (Projektauftrag 6.8, 16). Entscheidung D-014 (Status „freigeg
 ### 7.4 Eingabeprotokollierung
 
 - **Standard: keine Protokollierung der Tastatureingaben, nie.** Eingaben gehen vom WebSocket direkt auf die PTY-Master-Seite und werden weder in den Event-Verlauf (`RunInfo.publish`) noch in ein Log geschrieben.
-- **Optional je Lauf: Transkript nur der Programmausgabe**, Standard aus, Schalter mit Hinweis im UI („Ausgabe wird gespeichert“, sichtbar während des Laufs). Maskierung mit `secret_values`/`mask_text` wie bei Runs; Datei mit 0600 unter `cache_dir()/terminal/` (Ordner 0700, `O_EXCL`), Löschen über GUI und CLI. Echo getippter Zeichen steht in der Ausgabe; das UI sagt das.
+- **Optional je Lauf: Transkript nur der Programmausgabe**, Standard aus, Schalter mit Hinweis im UI („Ausgabe wird gespeichert“, sichtbar während des Laufs). Maskierung mit `secret_values`/`mask_text` wie bei Runs; Datei mit 0600 unter `cache_dir()/terminal/` (Ordner 0700, `O_EXCL`), Löschen über GUI und CLI. Maskierung zeilenbasiert, best effort: Chunk-Grenzen werden überbrückt; Neuzeichnungen mit Cursorsprüngen bleiben best effort. Echo getippter Zeichen steht in der Ausgabe; das UI sagt das.
 - **Begründung:** Tastatureingaben enthalten Passwörter und sind personenbezogene Daten; eine Speicherung ohne Wissen und Zweck wäre weder datenschutzrechtlich (Datensparsamkeit) noch gegenüber dem Nutzer vertretbar.
 
 ### 7.5 Workflow-Integration

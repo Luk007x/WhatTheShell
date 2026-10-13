@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { expect, test } from "vitest";
-import { initialValues, storable, toOverrides, validate } from "./runForm";
+import { initialValues, matchesPattern, storable, toOverrides, validate } from "./runForm";
 
 const entry = {
   variables: {
@@ -42,4 +42,12 @@ test("toOverrides: strings only, empty dropped, trims only int/float/path", () =
 
 test("storable: whitelist of declared non-secret variables", () => {
   expect(storable(entry, { logdir: "/x", token: "geheim", stray: "y" })).toEqual({ logdir: "/x" });
+});
+
+test("validate: pattern is a full match, invalid regex is left to the backend", () => {
+  const e = { variables: { id: { type: "string" as const, pattern: "[a-z]+\\d" } } };
+  expect(validate(e, { id: "ab1" })).toEqual({});
+  expect(validate(e, { id: "ab1x" })).toEqual({ id: "pattern" });
+  expect(validate(e, { id: "" })).toEqual({});
+  expect(matchesPattern("(", "x")).toBe(true);
 });

@@ -1036,6 +1036,18 @@
           ],
           "default": null,
           "title": "Max"
+        },
+        "pattern": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pattern"
         }
       },
       "title": "VariableSpec",

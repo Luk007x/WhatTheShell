@@ -1,0 +1,13 @@
+Usage: sed [-efinr] SED_CMD [FILE]...
+
+Options:
+	-e CMD	Add CMD to sed commands to be executed
+	-f FILE	Add FILE contents to sed commands to be executed
+	-i	Edit files in-place
+	-n	Suppress automatic printing of pattern space
+	-r	Use extended regex syntax
+
+If no -e or -f is given, the first non-option argument is taken as the sed
+command to interpret. All remaining arguments are names of input files; if no
+input files are specified, then the standard input is read. Source files
+will not be modified unless -i option is given.

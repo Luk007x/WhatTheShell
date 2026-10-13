@@ -7,7 +7,7 @@ import { useDebounced } from "../hooks";
 import { t } from "../i18n";
 import { Icon } from "../icons";
 import { Modal } from "../Modal";
-import type { StepBlock } from "../model/run";
+import type { StepBlock, TerminalState } from "../model/run";
 import type { Workflow } from "../types/workflow";
 import { RunForm } from "./RunForm";
 import { hasTerminal, initialValues, toOverrides, type FormValues } from "./runForm";
@@ -41,6 +41,8 @@ export function RunControls({ run, testId = "run-status" }: { run: Run; testId?:
 
 /** Error line, lost connection and step blocks with their output. */
 export function RunOutput({ run, onSelect, extra }: { run: Run; onSelect?: (id: string) => void; extra?: (b: StepBlock) => ReactNode }) {
+  const [dismissed, setDismissed] = useState<TerminalState | null>(null); // by identity: the next terminal_request makes a new object
+  const term = run.view.terminal;
   return (
     <>
       {run.error !== null && <Problem error={run.error} />}
@@ -69,8 +71,9 @@ export function RunOutput({ run, onSelect, extra }: { run: Run; onSelect?: (id: 
           )}
         </details>
       ))}
-      {run.view.terminal && !run.readOnly && (
-        <TerminalPane key={run.view.terminal.stepId} runId={run.runId} terminal={run.view.terminal} transcript={run.transcript} onClose={run.terminalClosed} />
+      {term && term !== dismissed && !run.readOnly && (
+        <TerminalPane key={term.stepId} runId={run.runId} terminal={term} transcript={run.transcript} onClose={run.terminalClosed}
+          ended={run.view.terminalEnd?.stepId === term.stepId || run.view.status !== "running"} onDismiss={() => setDismissed(term)} />
       )}
       <TerminalEnd end={run.view.terminalEnd} closeCode={run.termClose} />
     </>

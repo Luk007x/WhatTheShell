@@ -128,6 +128,7 @@ test.describe.serial("design", () => {
     await expect(page.getByRole("region", { name: "Eingaben" }).getByLabel("Log-Ordner")).toBeVisible();
     await page.getByRole("region", { name: "Eingaben" }).getByRole("button", { name: "Trockenlauf" }).click();
     await expect(page.getByTestId("runview-plan")).toContainText("grep");
+    await expect(page.getByRole("button", { name: /Speichern/ })).toHaveCount(0); // editor toolbar is hidden in this mode
     await noOverlap("run view", 2);
     await shot("runview");
     await page.getByRole("button", { name: "Erstellen", exact: true }).click();

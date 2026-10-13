@@ -1,0 +1,6 @@
+{
+  "tool": "busybox-wget",
+  "argv": ["busybox", "wget", "--help"],
+  "exit_code": 0,
+  "note": "BusyBox not installed; text copied verbatim from https://busybox.net/downloads/BusyBox.html (applet wget), prefixed with Usage:, indentation as tabs"
+}

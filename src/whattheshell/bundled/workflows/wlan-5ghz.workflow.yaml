@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+name: "WLAN auf 5 GHz fixieren"
+description: "Bindet eine NetworkManager-Verbindung an die BSSID des 5-GHz-Zugangspunkts (Fedora, nmcli). Rückgängig: Workflow „WLAN-5-GHz-Bindung lösen“."
+variables:
+  ssid: { type: string, required: true, label: "Verbindungsname (SSID)", help: "Name der Verbindung laut nmcli connection show." }
+  bssid: { type: string, required: true, label: "BSSID", help: "BSSID des 5-GHz-Eintrags aus Schritt 1 (FREQ ab 5180 MHz), Format AA:BB:CC:DD:EE:FF.", pattern: "([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}" }
+steps:
+  - id: scan
+    label: "WLAN-Liste mit Kanal und Frequenz abrufen"
+    tool: nmcli
+    args: { fields: "BSSID,CHAN,FREQ,SIGNAL,SSID", object: device }
+    extra_args: [wifi, list]
+  - id: liste
+    kind: message
+    label: "Liste anzeigen"
+    text: "Gefundene Netze (5 GHz = FREQ ab 5180 MHz):\n{{ scan.stdout }}"
+  - id: binden
+    label: "Verbindung an die BSSID binden"
+    tool: nmcli
+    command: [connection, modify]
+    extra_args: ["{{ var.ssid }}", 802-11-wireless.bssid, "{{ var.bssid }}"]
+  - id: aktivieren
+    label: "Verbindung neu aktivieren"
+    tool: nmcli
+    command: [connection, up]
+    extra_args: ["{{ var.ssid }}"]
+    on_error:
+      action: fallback
+      steps:
+        - { id: hinweis_up, kind: message, text: "Aktivieren fehlgeschlagen: BSSID prüfen, 5 GHz in Reichweite?\n{{ aktivieren.stderr }}" }
+        - { id: abbruch_up, kind: abort, text: "Verbindung konnte nicht aktiviert werden.", exit_code: 1 }
+  - id: check
+    label: "Aktuellen Kanal prüfen"
+    tool: iw
+    command: [dev]
+  - id: auswertung
+    kind: if
+    label: "Läuft die Verbindung auf 5 GHz?"
+    condition: { source: check.stdout, regex: 'channel \d+ \((5\d{3}|6\d{3}) MHz\)' }
+    then:
+      - { id: ok, kind: message, text: "WLAN läuft auf 5 GHz." }
+    else:
+      - id: nicht_5ghz
+        kind: message
+        text: "Kein 5-GHz-Kanal erkannt. Verbindung neu aufbauen: nmcli connection down \"{{ var.ssid }}\" und nmcli connection up \"{{ var.ssid }}\".\n{{ check.stdout }}"

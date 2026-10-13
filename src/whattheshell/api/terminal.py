@@ -84,8 +84,9 @@ def transcript_dir() -> Path:
 class _Transcript:
     """Program output only, masked line by line before writing.
 
-    Best effort: a secret split by the program itself (cursor movement, redraw) or a line
-    longer than 64 KiB without newline can still slip through unmasked.
+    Chunk boundaries are bridged: the unfinished line is held back, and a line over 64 KiB
+    keeps its last ``len(longest secret) - 1`` characters for the next chunk. Best effort:
+    a secret split by the program itself (cursor movement, redraw) can still slip through.
     """
 
     def __init__(self, run_id: str, step_id: str, secrets: Sequence[str]) -> None:
@@ -106,14 +107,18 @@ class _Transcript:
         self._secrets = secrets
         self._decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
         self._rest = ""
+        self._keep = max(map(len, secrets), default=1) - 1
 
     def feed(self, data: bytes) -> None:
         text = self._rest + self._decoder.decode(data)
-        head, newline, self._rest = text.rpartition("\n")
-        if len(self._rest) > _LINE_CAP:
-            head, newline, self._rest = head + newline + self._rest, "", ""
-        if head or newline:
-            self._file.write(mask_text(head + newline, self._secrets))
+        head, newline, rest = text.rpartition("\n")
+        done = head + newline
+        if len(rest) > _LINE_CAP:
+            cut = len(rest) - self._keep
+            done, rest = done + rest[:cut], rest[cut:]
+        self._rest = rest
+        if done:
+            self._file.write(mask_text(done, self._secrets))
 
     def close(self) -> None:
         rest = self._rest + self._decoder.decode(b"", final=True)

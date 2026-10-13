@@ -1,0 +1,40 @@
+{
+  "subcommands": [],
+  "options": [
+    {
+      "flags": [
+        "-e"
+      ],
+      "takes_value": true,
+      "type": "string"
+    },
+    {
+      "flags": [
+        "-f"
+      ],
+      "takes_value": true,
+      "type": "path"
+    },
+    {
+      "flags": [
+        "-i"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "-n"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    },
+    {
+      "flags": [
+        "-r"
+      ],
+      "takes_value": false,
+      "type": "bool"
+    }
+  ]
+}

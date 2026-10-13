@@ -1,0 +1,27 @@
+Usage: grep [-HhrilLnqvsoweFEABCz] PATTERN [FILE]...
+
+Search for PATTERN in each FILE or standard input
+
+Options:
+	-H	Prefix output lines with filename where match was found
+	-h	Suppress the prefixing filename on output
+	-r	Recurse
+	-i	Ignore case distinctions
+	-l	List names of files that match
+	-L	List names of files that do not match
+	-n	Print line number with output lines
+	-q	Quiet. Return 0 if PATTERN is found, 1 otherwise
+	-v	Select non-matching lines
+	-s	Suppress file open/read error messages
+	-c	Only print count of matching lines
+	-o	Show only the part of a line that matches PATTERN
+	-m MAX	Match up to MAX times per file
+	-w	Match whole words only
+	-F	PATTERN is a set of newline-separated strings
+	-E	PATTERN is an extended regular expression
+	-e PTRN	Pattern to match
+	-f FILE	Read pattern from file
+	-A	Print NUM lines of trailing context
+	-B	Print NUM lines of leading context
+	-C	Print NUM lines of output context
+	-z	Input is NUL terminated

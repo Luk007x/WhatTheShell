@@ -555,6 +555,25 @@ def test_choices_and_bounds_rejected(
     runner.prepare(wf, {"v": ok})
 
 
+def test_pattern_variable(tmp_path: Path) -> None:
+    wf = make_workflow([echo("a", "x")], {"v": {"type": "string", "pattern": "[a-z]+"}})
+    runner, _ = make_runner(tmp_path)
+    runner.prepare(wf, {"v": "abc"})
+    for bad in ("abc1", "xabc1"):
+        with pytest.raises(
+            RunError, match=r"Variable 'v': Wert passt nicht zum Muster '\[a-z\]\+'"
+        ):
+            runner.prepare(wf, {"v": bad})
+
+
+def test_pattern_error_hides_secret_value(tmp_path: Path) -> None:
+    wf = make_workflow([echo("a", "x")], {"v": {"type": "string", "pattern": "[a-z]+"}})
+    runner, _ = make_runner(tmp_path)
+    with pytest.raises(RunError) as caught:
+        runner.prepare(wf, {"v": "S3cret-value"})
+    assert "S3cret" not in str(caught.value)
+
+
 # ---------------------------------------------------------------- terminal steps
 
 

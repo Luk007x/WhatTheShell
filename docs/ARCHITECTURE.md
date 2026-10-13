@@ -60,4 +60,4 @@ Die Datenmodelle sind die einzige Quelle der Wahrheit; `schemas/` wird daraus ge
 
 ## Tests
 
-`tests/unit/` je Paket. `tests/corpus/` hält 29 echte Hilfetexte mit per Hand erstellten `expected.json`; `test_corpus.py` misst Options-Recall (Schwelle 90 % gesamt, 75 % je Tool), Typtreue (90 %) und Subbefehl-Recall (90 %). Neue Parserfehler werden zuerst dort als Fall angelegt. Drift-Test stellt sicher, dass `schemas/` zum Code passt.
+`tests/unit/` je Paket. `tests/corpus/` hält 34 echte Hilfetexte (inkl. BusyBox-Stil und click) mit per Hand erstellten `expected.json`; `test_corpus.py` misst Options-Recall (Schwelle 90 % gesamt, 75 % je Tool), Typtreue (90 %) und Subbefehl-Recall (90 %). Neue Parserfehler werden zuerst dort als Fall angelegt. Drift-Test stellt sicher, dass `schemas/` zum Code passt.

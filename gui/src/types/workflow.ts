@@ -13,6 +13,7 @@ export type Required = boolean;
 export type Choices = string[];
 export type Min = number | null;
 export type Max = number | null;
+export type Pattern = string | null;
 export type Id = string;
 export type Label1 = string | null;
 export type Tool = string;
@@ -117,6 +118,7 @@ export interface VariableSpec {
   choices?: Choices;
   min?: Min;
   max?: Max;
+  pattern?: Pattern;
 }
 /**
  * Runs an external program.

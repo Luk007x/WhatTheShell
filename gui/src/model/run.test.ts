@@ -62,7 +62,7 @@ test("terminal_request opens, terminal_closed ends with exit code and transcript
   expect(open.terminal).toEqual({ stepId: "t", command: "cat" });
   expect(open.blocks[0]?.interactive).toBe(true);
   const closed = reduceEvents(open, { type: "terminal_closed", step_id: "t", exit_code: 0, transcript: "t.log" });
-  expect(closed.terminal).toBeNull();
+  expect(closed.terminal).toEqual(open.terminal); // kept for the read-only view
   expect(closed.terminalEnd).toEqual({ stepId: "t", exitCode: 0, transcript: "t.log" });
   expect(reduceEvents(open, { type: "terminal_closed", step_id: "t", exit_code: 1, transcript: null }).terminalEnd?.transcript).toBeNull();
 });

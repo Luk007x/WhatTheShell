@@ -45,6 +45,8 @@ test.describe.serial("terminal step", () => {
 
     await expect(page.getByTestId("run-status")).toContainText("Erfolgreich", { timeout: 20_000 });
     await expect(page.getByText("Terminal beendet (Exit 0)")).toBeVisible();
+    await expect(term.locator(".xterm-rows")).toContainText("hi"); // content stays, read-only
+    await page.getByRole("button", { name: "Schließen", exact: true }).click();
     await expect(term).toHaveCount(0);
   });
 });
