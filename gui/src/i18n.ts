@@ -40,7 +40,7 @@ const de = {
   "legend.title": "Legende", "legend.flow": "Ablauf: Schritte laufen nacheinander", "legend.data": "Daten: stdout → stdin (Text)", "legend.ports": "Ausgänge unten",
   "legend.safety": "Sicherheit", "legend.category": "Farbige Kopfzeile = Kategorie des Werkzeugs, Bedingung/Schleife und Hilfsschritte eigene Farben.",
   "keys.title": "Tastenkürzel", "keys.col.key": "Taste", "keys.col.do": "Wirkung",
-  "keys.delete.key": "Entf (Graph: auch Rücktaste)", "keys.delete.do": "Ausgewählten Schritt löschen",
+  "keys.delete.key": "Entf / Rücktaste", "keys.delete.do": "Ausgewählten Schritt löschen",
   "keys.undo.key": "Strg+Z", "keys.undo.do": "Rückgängig",
   "keys.redo.key": "Strg+Umschalt+Z / Strg+Y", "keys.redo.do": "Wiederholen",
   "keys.save.key": "Strg+S", "keys.save.do": "Speichern",
@@ -126,7 +126,7 @@ const de = {
   "blocks.slot.then": "dann", "blocks.slot.else": "sonst", "blocks.slot.body": "für jede Zeile", "blocks.slot.fallback": "bei Fehler",
   "blocks.root": "Hauptfolge", "blocks.pos": "{where}, Position {n}", "blocks.pipe": "Eingabe: stdout von {id}", "blocks.empty": "leer: Baustein hierher ziehen",
   "blocks.menu": "Aktionen für {id}", "blocks.up": "Nach oben", "blocks.down": "Nach unten", "blocks.into": "Hinein: {target}", "blocks.out": "Heraus", "blocks.delete": "Löschen",
-  "blocks.delete.confirm": "Schritt „{id}“ löschen?", "blocks.add": "Einfügen in {where}", "blocks.add.tool": "Aus Katalog: {name}",
+  "blocks.add": "Einfügen in {where}", "blocks.add.tool": "Aus Katalog: {name}",
   "blocks.moved": "Schritt {id} nach {to} verschoben", "blocks.added": "Schritt {id} in {where} eingefügt",
 };
 const en: Record<keyof typeof de, string> = {
@@ -170,7 +170,7 @@ const en: Record<keyof typeof de, string> = {
   "legend.title": "Legend", "legend.flow": "Flow: steps run one after another", "legend.data": "Data: stdout → stdin (text)", "legend.ports": "Outputs at the bottom",
   "legend.safety": "Safety", "legend.category": "Coloured header = category of the tool; if/loop and helper steps have their own colours.",
   "keys.title": "Keyboard shortcuts", "keys.col.key": "Key", "keys.col.do": "Effect",
-  "keys.delete.key": "Delete (graph: also Backspace)", "keys.delete.do": "Delete the selected step",
+  "keys.delete.key": "Delete / Backspace", "keys.delete.do": "Delete the selected step",
   "keys.undo.key": "Ctrl+Z", "keys.undo.do": "Undo",
   "keys.redo.key": "Ctrl+Shift+Z / Ctrl+Y", "keys.redo.do": "Redo",
   "keys.save.key": "Ctrl+S", "keys.save.do": "Save",
@@ -256,7 +256,7 @@ const en: Record<keyof typeof de, string> = {
   "blocks.slot.then": "then", "blocks.slot.else": "else", "blocks.slot.body": "for each line", "blocks.slot.fallback": "on error",
   "blocks.root": "Main sequence", "blocks.pos": "{where}, position {n}", "blocks.pipe": "Input: stdout of {id}", "blocks.empty": "empty: drop a block here",
   "blocks.menu": "Actions for {id}", "blocks.up": "Move up", "blocks.down": "Move down", "blocks.into": "Move into: {target}", "blocks.out": "Move out", "blocks.delete": "Delete",
-  "blocks.delete.confirm": "Delete step “{id}”?", "blocks.add": "Insert into {where}", "blocks.add.tool": "From catalog: {name}",
+  "blocks.add": "Insert into {where}", "blocks.add.tool": "From catalog: {name}",
   "blocks.moved": "Step {id} moved to {to}", "blocks.added": "Step {id} inserted into {where}",
 };
 

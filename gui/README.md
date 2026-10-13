@@ -44,7 +44,7 @@ Im Modus „Erstellen“; nicht in Formularfeldern und offenen Dialogen (dort gi
 
 | Taste | Wirkung |
 |---|---|
-| Entf (Graph: auch Rücktaste) | ausgewählten Schritt löschen (die Block-Ansicht fragt nach) |
+| Entf / Rücktaste | ausgewählten Schritt löschen (Strg+Z macht es rückgängig) |
 | Strg+Z | Rückgängig |
 | Strg+Umschalt+Z / Strg+Y | Wiederholen |
 | Strg+S | Speichern (öffnet den Speichern-Dialog, ohne Datei „Speichern unter“) |
@@ -87,12 +87,12 @@ Grid: Kopfzeile (Datei, Rückgängig, Sandbox, Einstellungen) / Modusleiste (Ers
 
 Modusleiste „Graph" / „Blöcke" schaltet die Darstellung um (gespeichert in `localStorage("wts.view")`, Standard Graph). Beide Ansichten zeigen dasselbe Dokument und teilen Auswahl, Rückgängig, Formular und Laufpanel; `layout` bleibt unverändert (D-010).
 
-Block-Ansicht: verschachtelte Karten, Slots „dann / sonst / für jede Zeile / bei Fehler". Klick wählt aus. Verschieben per Drag & Drop auf Zwischenräume und Slots oder per Tastatur auf dem fokussierten Block: Alt+↑/↓ (hoch/runter), Alt+→ (in den vorhergehenden Container), Alt+← (hinter den Container), Entf (löschen, mit Rückfrage), Enter (auswählen). Das Menü „⋯" bietet dieselben Aktionen, „+" am Ende jeder Folge fügt einen Kontrollbaustein oder das im Katalog gewählte Werkzeug genau dort ein. Eine `aria-live`-Region meldet Verschiebungen.
+Block-Ansicht: verschachtelte Karten, Slots „dann / sonst / für jede Zeile / bei Fehler". Klick wählt aus. Verschieben per Drag & Drop auf Zwischenräume und Slots; Werkzeuge aus dem Katalog lassen sich ebenfalls dorthin ziehen und werden an der Stelle eingefügt. Per Tastatur per Tastatur auf dem fokussierten Block: Alt+↑/↓ (hoch/runter), Alt+→ (in den vorhergehenden Container), Alt+← (hinter den Container), Entf/Rücktaste (löschen, ohne Rückfrage), Enter (auswählen). Das Menü „⋯" bietet dieselben Aktionen, „+" am Ende jeder Folge fügt einen Kontrollbaustein oder das im Katalog gewählte Werkzeug genau dort ein. Eine `aria-live`-Region meldet Verschiebungen.
 
 ## Barrierefreiheit
 
 - Skip-Link „Zum Hauptbereich springen" ist das erste fokussierbare Element; Dialoge sind native `<dialog>` (Fokusfalle, Fokus-Rückgabe, Escape).
-- Block-Ansicht: Tastaturbedienung (Alt+Pfeile, Entf, Enter), Escape schließt „+"-Liste und Menü, Verschiebungen werden per `aria-live` gemeldet.
+- Block-Ansicht: Tastaturbedienung (Alt+Pfeile, Entf/Rücktaste, Enter), Escape schließt „+"-Liste und Menü, Verschiebungen werden per `aria-live` gemeldet.
 - Schriftgröße (Einstellungen: klein/normal/groß) skaliert über `--font-scale` auf `html`; alle Größen in `rem`. `prefers-reduced-motion` schaltet Animationen ab.
 - `e2e/a11y.spec.ts` prüft mit axe (WCAG 2.1 A/AA, 0 Verstöße, keine deaktivierten Regeln) Start, Formular, Block-Ansicht (mit „+"-Liste), Laufpanel, Modul-Editor (Rohtext und Formular) und Einstellungen; dazu ein Tastatur-Durchgang ohne Maus. Der Audit dauert ca. 35 s, weil der Katalog alle Programme im PATH listet.
 

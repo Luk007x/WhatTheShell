@@ -241,7 +241,7 @@ export function App() {
       case "build":
         return view === "graph"
           ? <Canvas wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} categoryOf={categoryOf} onNotice={setNotice} theme={theme} addToolRef={addToolRef} knownTools={knownTools} />
-          : <BlockView wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} categoryOf={categoryOf} />;
+          : <BlockView wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} categoryOf={categoryOf} knownTools={knownTools} />;
     }
   })();
   const maxCol = colMax();

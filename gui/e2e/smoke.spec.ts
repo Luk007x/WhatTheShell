@@ -192,6 +192,21 @@ test.describe.serial("smoke", () => {
     await expect(page.getByRole("dialog", { name: "Tastenkürzel" })).toBeHidden();
   });
 
+  test("o) Blockansicht: Drop aus Katalog, Entf ohne Rückfrage", async () => {
+    await page.getByRole("button", { name: "Neu", exact: true }).click();
+    await page.getByRole("button", { name: "Blöcke", exact: true }).click();
+    let dialogs = 0;
+    page.on("dialog", (d) => { dialogs++; void d.dismiss(); });
+    await page.getByRole("searchbox", { name: "Werkzeuge suchen" }).fill("grep");
+    await page.locator("button.tool", { hasText: "grep – Text durchsuchen" }).dragTo(page.locator("li.zone").first());
+    await expect(page.locator(".blocks .blk")).toHaveCount(1);
+    await page.locator(".blocks .blk").first().focus();
+    await page.keyboard.press("Delete");
+    await expect(page.locator(".blocks .blk")).toHaveCount(0);
+    expect(dialogs).toBe(0);
+    await page.getByRole("button", { name: "Graph", exact: true }).click();
+  });
+
   test("j) Sprache", async () => {
     await page.getByRole("button", { name: "Einstellungen" }).click();
     await page.getByLabel("Sprache").selectOption("en");

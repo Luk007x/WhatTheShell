@@ -4,7 +4,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { FlowHelp, headClass, type Edit } from "../canvas/Canvas";
 import { Icon } from "../icons";
 import { t } from "../i18n";
-import { canDrop, commandStep, CONTROL_KINDS, controlStep, dropIndex, moveTargets, placeOf, placeOfPath, toBlocks, type Block, type Move } from "../model/blocks";
+import { canDrop, commandStep, CONTROL_KINDS, controlStep, dropIndex, MIME_KIND, MIME_TOOL, moveTargets, placeOf, placeOfPath, toBlocks, type Block, type Move } from "../model/blocks";
 import { addStep, isCommand, moveStep, removeStep, type SeqPath, type Step } from "../model/ops";
 import { conditionOperator } from "../model/form";
 import type { Workflow } from "../types/workflow";
@@ -34,8 +34,9 @@ export function BlockView(props: {
   catalogTool: string | null;
   safetyOf: (tool: string) => string | null;
   categoryOf: (tool: string) => string | null;
+  knownTools: ReadonlySet<string>;
 }) {
-  const { wf, selected, onSelect, edit, catalogTool, safetyOf, categoryOf } = props;
+  const { wf, selected, onSelect, edit, catalogTool, safetyOf, categoryOf, knownTools } = props;
   const tree = useMemo(() => toBlocks(wf), [wf]);
   const [live, setLive] = useState("");
   const [menu, setMenu] = useState<string | null>(null);
@@ -59,12 +60,11 @@ export function BlockView(props: {
     setLive(t("blocks.moved", { id, to: placeOf(r.wf, id) }));
   };
   const remove = (id: string) => {
-    if (!window.confirm(t("blocks.delete.confirm", { id }))) return;
     edit((w) => removeStep(w, id));
     if (selected === id) onSelect(null);
   };
-  const insert = (step: Step, path: SeqPath) => {
-    edit((w) => addStep(w, step, path));
+  const insert = (step: Step, path: SeqPath, index?: number) => {
+    edit((w) => addStep(w, step, path, index));
     onSelect(step.id);
     setAdding(null);
     setLive(t("blocks.added", { id: step.id, where: placeOfPath(wf, path) }));
@@ -77,11 +77,18 @@ export function BlockView(props: {
       <li
         key={`zone:${key}`}
         className={`zone${tail ? " tail" : ""}${over === key ? " over" : ""}`}
-        onDragOver={(e) => { if (drag && canDrop(path, drag)) { e.preventDefault(); setOver(key); } }}
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.some((x) => x === MIME_TOOL || x === MIME_KIND)) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; setOver(key); }
+          else if (drag && canDrop(path, drag)) { e.preventDefault(); setOver(key); }
+        }}
         onDragLeave={() => setOver(null)}
         onDrop={(e) => {
           e.preventDefault();
-          if (drag && canDrop(path, drag)) move(drag, { path, index: dropIndex(wf, drag, path, index) });
+          const name = e.dataTransfer.getData(MIME_TOOL);
+          const kind = CONTROL_KINDS.find((k) => k === e.dataTransfer.getData(MIME_KIND)); // untrusted string: only known kinds
+          if (name && knownTools.has(name)) insert(commandStep(wf, name), path, index);
+          else if (!name && kind) insert(controlStep(wf, kind), path, index);
+          else if (drag && canDrop(path, drag)) move(drag, { path, index: dropIndex(wf, drag, path, index) });
           setOver(null);
           setDrag(null);
         }}
@@ -141,7 +148,7 @@ export function BlockView(props: {
             else if (e.altKey && e.key === "ArrowDown") move(s.id, m.down);
             else if (e.altKey && e.key === "ArrowRight") move(s.id, m.into[0] ?? null);
             else if (e.altKey && e.key === "ArrowLeft") move(s.id, m.out);
-            else if (e.key === "Delete") remove(s.id);
+            else if (e.key === "Delete" || e.key === "Backspace") remove(s.id);
             else if (e.key === "Enter") onSelect(s.id);
             else return;
             e.preventDefault(); // Alt+Left would otherwise navigate back

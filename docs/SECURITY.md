@@ -191,9 +191,9 @@ Ebenfalls geplant (Phase 7): eingebettetes Terminal (F-36). Sicherheitsabschnitt
 
 Sicherheitsprobleme bitte als GitHub-Issue mit dem Label `security` melden, bis es eine eigene Adresse gibt. Keine Zugangsdaten, Secrets oder ausnutzbaren Details öffentlich posten, die Beschreibung der Art des Problems genügt, Details dann auf Nachfrage. Eine Antwortfrist ist nicht zugesagt (Ein-Personen-Projekt).
 
-## 7. Eingebettetes Terminal (Phase 7) – ENTWURF, Freigabe durch den Auftraggeber ausstehend, nicht umgesetzt
+## 7. Eingebettetes Terminal (Phase 7) – vom Auftraggeber am 2026-10-13 freigegeben, Umsetzung läuft
 
-Anforderung F-36 (Projektauftrag 6.8, 16). Alles in diesem Abschnitt ist **geplant**, nichts davon ist im Code. Entscheidung D-014 (Status „vorgeschlagen“). Grundsatz: Das Terminal ist ein weiterer Prozessstart; es nutzt die bestehenden Mechanismen (Abschnitte 2.3, 2.8, 4) und bekommt nur dort Neues, wo eine PTY es erzwingt.
+Anforderung F-36 (Projektauftrag 6.8, 16). Entscheidung D-014 (Status „freigegeben“). Punkte, die noch nicht im Code sind, werden bei der Umsetzung je Auftrag abgehakt. Grundsatz: Das Terminal ist ein weiterer Prozessstart; es nutzt die bestehenden Mechanismen (Abschnitte 2.3, 2.8, 4) und bekommt nur dort Neues, wo eine PTY es erzwingt.
 
 ### 7.1 Bedrohungsmodell
 
@@ -248,9 +248,9 @@ Anforderung F-36 (Projektauftrag 6.8, 16). Alles in diesem Abschnitt ist **gepla
 6. Workflow-Datei mit `stdin` (oder anderem unbekannten Feld) an einem Terminal-Schritt wird vom Lader abgelehnt (`DocumentError` mit Zeile).
 7. Ohne `network: true` hat der Prozess kein Netz (wie `self_test`); in der Sandbox ist `/home` leer.
 
-### 7.8 Offene Entscheidungen für den Auftraggeber
+### 7.8 Entscheidungen des Auftraggebers (2026-10-13)
 
-1. **Host-Terminal ohne Sandbox?** Empfehlung: nein für Phase 7 (7.2).
-2. **Transkript der Ausgabe standardmäßig an oder aus?** Empfehlung: aus, Opt-in je Lauf (7.4).
-3. **Höchstzahl gleichzeitiger Terminals?** Empfehlung: 4, wie `MAX_RUNNING_RUNS`.
-4. **Reattach nach Neuladen der Seite?** Empfehlung: nein; Trennen beendet den Prozess (7.3).
+1. **Host-Terminal ohne Sandbox:** nein (7.2).
+2. **Transkript der Ausgabe:** standardmäßig aus, Opt-in je Lauf (7.4).
+3. **Höchstzahl gleichzeitiger Terminals:** 4, wie `MAX_RUNNING_RUNS`.
+4. **Reattach nach Neuladen der Seite:** nein; Trennen beendet den Prozess (7.3).

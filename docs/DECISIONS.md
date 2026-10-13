@@ -123,12 +123,12 @@ Rückmeldung des Auftraggebers nach der Verbesserungsrunde: kein Knopf für Syst
 - **Drag & Drop:** Katalog-Einträge und Kontrollbausteine sind `draggable` (eigene MIME-Typen `application/x-wts-tool`, `-kind`); der Drop auf der Fläche hängt den Schritt an das gewählte Ziel und speichert die Drop-Position im `layout`. Fremde Drops werden ignoriert, Tool-Namen gegen den Katalog geprüft (Daten aus anderen Tabs sind untrusted).
 - **Kürzel** (nur im Modus „Erstellen", nicht in Feldern oder Dialogen): Entf/Rücktaste löschen die Auswahl (xyflow `deleteKeyCode`, Dialoge mit `nokey`), Strg+Z/Umschalt+Z/Y, Strg+S, Esc, Strg+Enter im Katalog, `?` öffnet die Kürzel-Übersicht. Enter im Katalog bleibt reines Auswählen, damit Tastaturnutzer nicht versehentlich Schritte anlegen.
 
-## D-014 Phase 7 Sicherheitsabschnitt (Entwurf), 2026-10-13
+## D-014 Phase 7 Sicherheitsabschnitt, 2026-10-13
 
-Status: **vorgeschlagen**, Freigabe durch den Auftraggeber ausstehend (Projektauftrag 6.8 F-36, 16). Inhalt in `docs/SECURITY.md` Abschnitt 7; nichts davon ist umgesetzt.
+Status: **freigegeben** am 2026-10-13 mit den Antworten kein Host-Terminal, Transkript Opt-in (Standard aus), höchstens 4 Terminals, kein Reattach (Projektauftrag 6.8 F-36, 16). Inhalt in `docs/SECURITY.md` Abschnitt 7.
 
 - **Terminal nur in bwrap** mit den Argumenten von `build_bwrap_argv` und `prlimit` wie die Vorschau, plus PTY; ohne bwrap kein Terminal. Netz nur per `network: true` (hebt auf `caution`). Ein Host-Terminal ohne Sandbox entfällt in Phase 7.
 - **Sitzung:** ein PTY-Prozess je Terminal-Schritt, WebSocket unter `/ws/` (Token, Host, Origin aus `SecurityMiddleware`), eine Verbindung je Terminal, höchstens 4, Idle- und harter Timeout, Trennung beendet die Prozessgruppe, kein Reattach.
 - **Keine Protokollierung von Tastatureingaben**; Transkript nur der Ausgabe als Opt-in je Lauf, maskiert, 0600 unter `cache_dir()`.
 - **`TerminalStep` (`kind: terminal`)** ohne `stdin`, Exit-Code steuert den Ablauf, Ausgabe wird nicht an Folgeschritte gereicht; CLI `wts run` lehnt Terminal-Schritte ab.
-- **Abhängigkeit** `@xterm/xterm` (MIT), Backend nur Stdlib plus `setsid` (util-linux). Offene Fragen in SECURITY.md 7.8.
+- **Abhängigkeit** `@xterm/xterm` (MIT), Backend nur Stdlib plus `setsid` (util-linux). Antworten des Auftraggebers in SECURITY.md 7.8.
