@@ -412,11 +412,14 @@ async def _run_session(
         finally:
             for task in tasks:
                 task.cancel()
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-        for result in results:
-            if isinstance(result, Exception) and not isinstance(result, WebSocketDisconnect):
+            # wait, not gather: gather can re-raise a child's CancelledError, which an
+            # outer (anyio) cancel scope does not recognise as its own and lets escape
+            await asyncio.wait(tasks)
+        for task in tasks:
+            error = None if task.cancelled() else task.exception()
+            if isinstance(error, Exception) and not isinstance(error, WebSocketDisconnect):
                 # type and cause only; exceptions here never carry keystrokes
-                logger.warning("Terminal-Sitzung: %s: %s", type(result).__name__, result)
+                logger.warning("Terminal-Sitzung: %s: %s", type(error).__name__, error)
         if watcher.done() and not watcher.cancelled() and watcher.exception() is None:
             exit_code, code, reason = watcher.result()
             close = (code, reason)

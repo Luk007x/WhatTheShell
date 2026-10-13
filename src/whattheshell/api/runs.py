@@ -507,6 +507,11 @@ async def run_socket(websocket: WebSocket, run_id: str) -> None:
         info.unsubscribe(queue)
         for task in (sender, receiver):
             task.cancel()
-        await asyncio.gather(sender, receiver, return_exceptions=True)
+        # wait, not gather: gather can re-raise a child's CancelledError, which the
+        # server's (anyio) cancel scope does not recognise as its own and lets escape
+        await asyncio.wait({sender, receiver})
+        for task in (sender, receiver):  # retrieve, so asyncio does not warn
+            if not task.cancelled():
+                task.exception()
     with contextlib.suppress(WebSocketDisconnect, RuntimeError):  # client already gone
         await websocket.close()
