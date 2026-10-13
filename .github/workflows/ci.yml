@@ -105,13 +105,19 @@ jobs:
           wts tools --search grep | head -3
       - name: Serverstart-Rauchtest
         run: |
-          wts gui --no-browser --port 48777 > gui.log 2>&1 &
-          pid=$!
-          trap 'kill $pid 2>/dev/null || true' EXIT
-          for _ in $(seq 30); do grep -q token= gui.log && break; sleep 0.5; done
-          grep -q token= gui.log || { cat gui.log; exit 1; }
+          export XDG_RUNTIME_DIR="$(mktemp -d)"
+          wts gui start --no-browser --port 48777 > gui.log 2>&1
+          trap 'wts gui stop || true' EXIT
+          wts gui status
+          # the token URL is printed only on a TTY; the state file carries it (0600)
+          test "$(stat -c %a "$XDG_RUNTIME_DIR/whattheshell/gui.json")" = 600
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:48777/)" = 200
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:48777/api/status)" = 401
+          wts gui --no-browser | grep -q "Läuft bereits"
+          wts gui stop
+          trap - EXIT
+          test ! -e "$XDG_RUNTIME_DIR/whattheshell/gui.json"
+          rc=0; wts gui status || rc=$?; test "$rc" = 3
       - name: Sandbox-Hinweis ohne bubblewrap
         run: |
           if command -v bwrap >/dev/null; then echo "bwrap unexpectedly present"; exit 1; fi
