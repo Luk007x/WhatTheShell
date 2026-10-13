@@ -68,3 +68,7 @@ test("connectionProblem: self, wrong ports, backward pipe", () => {
   expect(connectionProblem(wf, { source: "finde", target: "zaehle", sourceHandle: "stdout", targetHandle: "stdin" })).toBeNull();
   expect(connectionProblem(wf, { source: "zaehle", target: "finde", sourceHandle: "next", targetHandle: "in" })).toBeNull();
 });
+
+test("terminal step: flow ports only, no stdin/stdout", () => {
+  expect(ids({ id: "a", kind: "terminal", tool: "vim" })).toEqual(["in:target", "next:source"]);
+});

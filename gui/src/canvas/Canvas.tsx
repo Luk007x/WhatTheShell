@@ -13,7 +13,7 @@ import { Modal } from "../Modal";
 import { commandStep, CONTROL_KINDS, controlStep, MIME_KIND, MIME_TOOL } from "../model/blocks";
 import { connectionKind, connectionProblem, handlesOf, toGraph, type FlowEdge, type HandleSpec, type StepNode } from "../model/graph";
 import {
-  addStep, findStep, isCommand, moveAfter, moveStep, portsOf, removeStep, setLayout, updateStep,
+  addStep, findStep, isCommand, isTerminal, isToolStep, moveAfter, moveStep, portsOf, removeStep, setLayout, updateStep,
   type OpResult, type Port, type Step,
 } from "../model/ops";
 import type { Workflow } from "../types/workflow";
@@ -21,13 +21,13 @@ import type { Workflow } from "../types/workflow";
 export type Edit = (op: (wf: Workflow) => OpResult | Workflow, key?: string) => void;
 
 const subtitle = (s: Step): string => {
-  if (isCommand(s)) return [s.tool, ...(s.command ?? [])].join(" ");
+  if (isToolStep(s)) return [s.tool, ...(s.command ?? [])].join(" ");
   return t(`kind.${s.kind}`);
 };
 
 /** Colour class of a node or block head: tool category for commands, fixed colours for control and helper steps. */
 export const headClass = (s: Step, category: string | null | undefined): string =>
-  isCommand(s) ? categoryClass(category) : s.kind === "if" || s.kind === "foreach" ? "cat-control" : "cat-misc";
+  isToolStep(s) ? categoryClass(category) : s.kind === "if" || s.kind === "foreach" ? "cat-control" : "cat-misc";
 
 const POSITION = { top: Position.Top, bottom: Position.Bottom, left: Position.Left, right: Position.Right } as const;
 
@@ -58,6 +58,7 @@ function StepNodeView({ data, selected }: NodeProps<StepNode>) {
       {at("top")}
       <div className={`node-head ${headClass(s, data.category)}`}>
         <span className="node-title">{s.label ?? s.id}</span>
+        {isTerminal(s) && <span className="badge"><Icon name="terminal" />{t("kind.terminal")}</span>}
         {safety && <span className={`badge badge--${safety}`}>{t(`safety.${safety}`)}</span>}
       </div>
       <div className="node-sub" title={subtitle(s)}>{subtitle(s)}</div>
@@ -127,10 +128,13 @@ export function Canvas(props: {
   theme: Theme;
   /** Names of known catalog tools; a dropped name outside it is ignored. */
   knownTools: ReadonlySet<string>;
+  /** Tools the catalog marks as interactive: they become terminal steps. */
+  interactiveTools: ReadonlySet<string>;
   /** Set to "append this tool at the chosen target" for the catalog's Enter key. */
   addToolRef?: MutableRefObject<((tool: string) => void) | null>;
 }) {
-  const { wf, selected, onSelect, edit, catalogTool, safetyOf, categoryOf, onNotice, addToolRef, knownTools } = props;
+  const { wf, selected, onSelect, edit, catalogTool, safetyOf, categoryOf, onNotice, addToolRef, knownTools, interactiveTools } = props;
+  const toolStep = (name: string) => commandStep(wf, name, { terminal: interactiveTools.has(name) });
   const rf = useRef<ReactFlowInstance<StepNode, FlowEdge> | null>(null);
   const [target, setTarget] = useState("end");
   const graph = useMemo(() => toGraph(wf), [wf]);
@@ -139,12 +143,12 @@ export function Canvas(props: {
   useEffect(() => {
     setNodes(graph.nodes.map((n) => {
       const s = n.data.step;
-      const safety = isCommand(s) ? safetyOf(s.tool) : null;
+      const safety = isToolStep(s) ? safetyOf(s.tool) : null;
       return {
         ...n,
         selected: n.id === selected,
         ariaLabel: [s.label ?? s.id, t(`kind.${s.kind ?? "command"}`), safety ? t(`safety.${safety}`) : ""].filter(Boolean).join(", "),
-        data: { ...n.data, safety, category: isCommand(s) ? categoryOf(s.tool) : null },
+        data: { ...n.data, safety, category: isToolStep(s) ? categoryOf(s.tool) : null },
       };
     }));
   }, [graph, selected, safetyOf, categoryOf]);
@@ -191,7 +195,7 @@ export function Canvas(props: {
   const add = (step: Step) => { edit((w) => addStep(w, step, path)); onSelect(step.id); };
   useEffect(() => {
     if (!addToolRef) return;
-    addToolRef.current = (name) => add(commandStep(wf, name));
+    addToolRef.current = (name) => add(toolStep(name));
     return () => { addToolRef.current = null; };
   }); // every render: `add` closes over the current document and target
   const dragStart = (type: string, value: string) => (e: DragEvent) => { e.dataTransfer.setData(type, value); e.dataTransfer.effectAllowed = "copy"; };
@@ -202,7 +206,7 @@ export function Canvas(props: {
     const pos = rf.current?.screenToFlowPosition({ x: e.clientX, y: e.clientY });
     if (!pos) return;
     if (name ? !knownTools.has(name) : !kind) return; // unknown names may come from another tab: ignore
-    const step = name ? commandStep(wf, name) : controlStep(wf, kind ?? "message"); // `kind` is set when `name` is empty
+    const step = name ? toolStep(name) : controlStep(wf, kind ?? "message"); // `kind` is set when `name` is empty
     edit((w) => { const r = addStep(w, step, path); return r.wf === w ? r : { ...r, wf: setLayout(r.wf, step.id, pos) }; });
     onSelect(step.id);
   };
@@ -223,7 +227,7 @@ export function Canvas(props: {
           </label>
         )}
         <span className="tb-group">
-          <button className="btn--primary" disabled={!catalogTool} onClick={() => catalogTool && add(commandStep(wf, catalogTool))}>
+          <button className="btn--primary" disabled={!catalogTool} onClick={() => catalogTool && add(toolStep(catalogTool))}>
             <Icon name="plus" />{catalogTool ? t("canvas.add.tool", { name: catalogTool }) : t("canvas.add.pick")}
           </button>
           {CONTROL_KINDS.map((k) => (

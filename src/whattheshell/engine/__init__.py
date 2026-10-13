@@ -14,6 +14,7 @@ from whattheshell.engine.events import (
 )
 from whattheshell.engine.plan import PlannedLine, plan, plan_text
 from whattheshell.engine.runner import (
+    TERMINAL_ONLY_GUI,
     Confirmer,
     ConfirmRequest,
     Controller,
@@ -22,6 +23,8 @@ from whattheshell.engine.runner import (
     Runner,
     RunResult,
     StepResult,
+    TerminalProvider,
+    TerminalRequest,
     mask_text,
     secret_values,
 )
@@ -47,7 +50,10 @@ __all__ = [
     "StepResult",
     "StepSkipped",
     "StepStarted",
+    "TERMINAL_ONLY_GUI",
     "TemplateError",
+    "TerminalProvider",
+    "TerminalRequest",
     "WorkflowFinished",
     "build_argv",
     "display",

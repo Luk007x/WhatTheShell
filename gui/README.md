@@ -62,6 +62,12 @@ Modus „Ausführen" (Modusleiste; der zuletzt gewählte Modus steht in `localSt
 - **Trockenlauf** zeigt den Plan unten. **Ausführen** prüft die Eingaben, holt den Plan und zeigt den Bestätigungsdialog (Plan, höchste Sicherheitsklasse, Arbeitsordner); erst „Workflow ausführen" startet den Lauf. Live-Ausgabe, Schritt-Bestätigungen, Pause, Einzelschritt und Abbrechen kommen aus denselben Hooks wie im Editor (`useRun`, `usePlanThenRun` in `src/run/useRun.ts`). Weicht der Plan der echten Anfrage vom bestätigten ab, startet nichts; der Dialog zeigt den neuen Plan zur erneuten Bestätigung. Die Ansicht bleibt beim Moduswechsel gemountet: ein laufender Lauf behält seine Verbindung, Schritt-Bestätigungen erscheinen auch im Editor.
 - Nach dem Ende: „Erneut ausführen" und „Im Editor öffnen" (fragt bei ungespeicherten Änderungen nach). **Letzte Läufe** (`GET /api/runs`) zeigt Status, Startzeit und Exitcode; ein Klick lädt den Verlauf schreibgeschützt in die Ausgabe.
 
+## Terminal-Schritt
+
+Werkzeuge, die der Katalog als interaktiv meldet (Badge „Terminal“), werden als Terminal-Schritt angelegt; im Schritt-Panel
+lässt sich das per Checkbox umschalten. Er hat nur die Ports Ablauf/weiter (kein stdin/stdout), sein Output geht nicht an
+Folgeschritte, und `network` (Netzzugang) hebt die Sicherheitsklasse auf Vorsicht. Das eingebettete Terminal selbst folgt später.
+
 ## Wie Daten fließen
 
 Schritte laufen nacheinander (Ablaufkante). Ein Befehl schreibt seine Ausgabe (stdout) in den Lauf-Verlauf. Eine Datenkante stdout → stdin übergibt diese Ausgabe als Text an den nächsten Befehl (wie `|` in der Shell, nur nacheinander). Alles andere holt man per `{{ schritt.stdout }}`, `{{ schritt.exit_code }}` oder `{{ var.name }}` in ein Feld; Bedingungen und Schleifen lesen so ebenfalls.

@@ -21,8 +21,10 @@ from whattheshell.engine import (
     RunResult,
     StepSkipped,
     StepStarted,
+    TerminalRequest,
     WorkflowFinished,
 )
+from whattheshell.models.common import Safety
 from whattheshell.models.workflow import Workflow
 from whattheshell.modules.loader import load_workflow_file
 from whattheshell.modules.registry import ModuleRegistry
@@ -551,3 +553,70 @@ def test_choices_and_bounds_rejected(
         runner.prepare(wf, {"v": value})
     ok = {"enum": "a", "int": "2", "float": "1.5"}[spec["type"]]
     runner.prepare(wf, {"v": ok})
+
+
+# ---------------------------------------------------------------- terminal steps
+
+
+def _terminal_runner(
+    tmp_path: Path, code: int = 0, **kwargs: Any
+) -> tuple[Runner, list[Event], list[TerminalRequest]]:
+    requests: list[TerminalRequest] = []
+
+    def provider(request: TerminalRequest) -> int:
+        requests.append(request)
+        return code
+
+    runner, events = make_runner(tmp_path, terminal=provider, **kwargs)
+    return runner, events, requests
+
+
+def _term(step_id: str = "t", **extra: Any) -> dict[str, Any]:
+    return {"id": step_id, "kind": "terminal", "tool": "echo-args", "extra_args": ["hi"], **extra}
+
+
+def test_terminal_provider_gets_request_and_next_step_runs(tmp_path: Path) -> None:
+    runner, events, requests = _terminal_runner(tmp_path)
+    result = runner.run(runner.prepare(make_workflow([_term(network=True), echo("b", "x")]), {}))
+    assert result.status == "success" and result.results["b"].stdout == "x\n"
+    (request,) = requests
+    assert request.argv[1:] == ["hi"] and request.network and request.safety is Safety.caution
+    assert result.results["t"].stdout == ""
+    assert "PATH" not in request.env and "HOME" not in request.env
+
+
+def test_terminal_nonzero_exit_follows_on_error(tmp_path: Path) -> None:
+    runner, _, _ = _terminal_runner(tmp_path, code=1)
+    result = runner.run(runner.prepare(make_workflow([_term(), echo("b", "x")]), {}))
+    assert (
+        result.status == "failed" and "Exit-Code 1" in result.message and "b" not in result.results
+    )
+    runner, _, _ = _terminal_runner(tmp_path, code=1)
+    wf = make_workflow([_term(on_error={"action": "continue"}), echo("b", "x")])
+    assert runner.run(runner.prepare(wf, {})).status == "success"
+
+
+def test_terminal_without_provider_fails_before_any_process(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def forbidden(*args: object, **kwargs: object) -> None:
+        raise AssertionError("process started")
+
+    monkeypatch.setattr("whattheshell.engine.runner.run_limited", forbidden)
+    runner, events = make_runner(tmp_path)
+    result = runner.run(runner.prepare(make_workflow([echo("a", "x"), _term()]), {}))
+    assert result.status == "failed" and "wts gui" in result.message
+    assert events == [WorkflowFinished("failed", result.message)]
+
+
+def test_terminal_is_caution_and_asks_for_confirmation(tmp_path: Path) -> None:
+    asked: list[ConfirmRequest] = []
+
+    def refuse(request: ConfirmRequest) -> bool:
+        asked.append(request)
+        return False
+
+    runner, _, _ = _terminal_runner(tmp_path, confirm=refuse)
+    result = runner.run(runner.prepare(make_workflow([_term(network=True)]), {}))
+    assert result.status == "aborted"
+    assert asked[0].safety is Safety.caution and "Netzzugang" in asked[0].reasons

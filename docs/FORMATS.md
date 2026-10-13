@@ -146,12 +146,25 @@ layout:                            # optional, nur für den Knoten-Graph
 | kind | Pflichtfelder | Bedeutung |
 |---|---|---|
 | `command` | `tool` | Externes Programm, argv aus `args` nach Katalog/Modul erzeugt. Pipe über `stdin.pipe`. |
+| `terminal` | `tool` | Interaktives Programm, nur in der GUI (siehe unten). |
 | `if` | `condition`, `then` | `else` optional. |
 | `foreach` | `source`, `body` | Iteriert über Zeilen der Quelle. `as` benennt das Element (Standard `item`). |
 | `set` | `variable`, `value` | Variable setzen/überschreiben. `variable` muss unter `variables` deklariert sein. |
 | `wait` | `seconds` | Verzögerung. |
 | `message` | `text` | Meldung an den Nutzer. |
 | `abort` | – | Workflow beenden, `text` und `exit_code` optional. |
+
+#### Terminal-Schritt
+
+Felder wie `command` (`tool`, `command`, `args`, `extra_args`, `cwd`, `env`, `timeout`, `ok_exit_codes`, `on_error`), aber ohne `stdin`; dazu `network` (bool, Standard `false`). `kind: terminal` muss explizit stehen. Läuft nur in der GUI in bwrap mit PTY; die Ausgabe wird nicht an Folgeschritte gereicht: `{{ schritt.stdout }}` (und `stderr`) eines Terminal-Schritts ist leer, `exit_code` ist gesetzt. Details und Rechte: `docs/SECURITY.md`, Abschnitt 7.
+
+```yaml
+- id: notizen
+  kind: terminal
+  tool: vim
+  args: { file: [notes.txt] }   # Name des Positionsarguments laut Katalog
+  network: false
+```
 
 ### Bedingungen (`Condition`, F-18)
 

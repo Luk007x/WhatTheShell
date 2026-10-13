@@ -25,6 +25,7 @@ from whattheshell.ai.check import CheckResult, check
 from whattheshell.ai.protocol import Prompt, make_provider
 from whattheshell.catalog import Catalog, ToolNotFound
 from whattheshell.engine import (
+    TERMINAL_ONLY_GUI,
     ConfirmRequest,
     Controller,
     Event,
@@ -46,6 +47,7 @@ from whattheshell.engine import (
 from whattheshell.models.catalog import CommandSpec, ToolInfo
 from whattheshell.models.common import Safety
 from whattheshell.models.schema import export_schemas
+from whattheshell.models.workflow import TerminalStep, iter_steps
 from whattheshell.modules.loader import (
     MODULE_SUFFIXES,
     WORKFLOW_SUFFIXES,
@@ -912,6 +914,9 @@ def _run(args: argparse.Namespace) -> int:
     if args.dry_run:
         print(overview)
         return 0
+    if any(isinstance(step, TerminalStep) for step in iter_steps(workflow.steps)):
+        print(TERMINAL_ONLY_GUI, file=sys.stderr)
+        return 3
     print(overview, file=sys.stderr if args.json else sys.stdout, flush=True)
     risky = any(v.safety is not Safety.safe for v in prepared.verdicts.values())
     if risky and not args.yes:

@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import Field, ValidationError
 
 from whattheshell import APP_NAME, __version__, paths
-from whattheshell.catalog import Catalog, ToolNotFound
+from whattheshell.catalog import INTERACTIVE, Catalog, ToolNotFound
 from whattheshell.engine.argv import ArgvError, build_argv, display
 from whattheshell.models.catalog import ToolInfo
 from whattheshell.models.common import StrictModel, ToolName
@@ -135,7 +135,10 @@ def list_tools(request: Request, search: str = "", lang: Lang = "de") -> list[di
             and needle not in (display_name or "").lower()
         ):
             continue
-        entry: dict[str, Any] = {"name": tool.name, "path": tool.path}
+        interactive = tool.name in INTERACTIVE  # same rule as Catalog._build, no process start
+        if module and module.interactive is not None:
+            interactive = module.interactive
+        entry: dict[str, Any] = {"name": tool.name, "path": tool.path, "interactive": interactive}
         if module:
             extra = {
                 "display_name": display_name,

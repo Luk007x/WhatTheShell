@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { expect, test } from "vitest";
-import { canDrop, dropIndex, moveTargets, toBlocks, type Block, type Move } from "./blocks";
+import { canDrop, commandStep, dropIndex, moveTargets, toBlocks, type Block, type Move } from "./blocks";
 import { logErrors as wf } from "./fixture";
 import { allSteps, moveStep } from "./ops";
 
@@ -55,4 +55,9 @@ test("drop rules", () => {
   expect(dropIndex(wf, "suche", [], 3)).toBe(2); // zone behind zaehle, step taken out first
   expect(dropIndex(wf, "suche", [], 0)).toBe(0);
   expect(dropIndex(wf, "ok", [], 4)).toBe(4);
+});
+
+test("commandStep: interactive tool becomes a terminal step", () => {
+  expect(commandStep(wf, "vim", { terminal: true })).toMatchObject({ id: "vim", kind: "terminal", tool: "vim" });
+  expect(commandStep(wf, "ls").kind).toBeUndefined();
 });

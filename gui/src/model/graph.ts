@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Derives the React Flow graph from the workflow document. Never stored (F-33).
 // Ports by step kind (D-012): every step `in` (target, top) and `next` (source, bottom); if: `then`/`else`; foreach: `body`;
-// on_error.action fallback: `fallback`; only command: `stdin` (target, left) and `stdout` (source, right).
+// on_error.action fallback: `fallback`; only command (not terminal): `stdin` (target, left) and `stdout` (source, right).
 import dagre from "@dagrejs/dagre";
 import { MarkerType, type Edge, type Node } from "@xyflow/react";
 import type { Workflow } from "../types/workflow";
-import { childSeq, isCommand, portsOf, visibleSteps, type Port, type SeqPath, type Step } from "./ops";
+import { childSeq, isCommand, isToolStep, portsOf, visibleSteps, type Port, type SeqPath, type Step } from "./ops";
 
 export interface StepNodeData extends Record<string, unknown> {
   step: Step;
@@ -40,7 +40,7 @@ export function handlesOf(step: Step): HandleSpec[] {
   if (isCommand(step)) out.push({ id: "stdin", type: "target", side: "left", kind: "data" }, { id: "stdout", type: "source", side: "right", kind: "data" });
   const kind = step.kind ?? "command";
   const branches: Port[] =
-    kind === "if" ? ["then", "else"] : kind === "foreach" ? ["body"] : isCommand(step) && (step.on_error?.action === "fallback" || step.on_error?.steps) ? ["fallback"] : []; // steps without the action would otherwise leave an edge without handle
+    kind === "if" ? ["then", "else"] : kind === "foreach" ? ["body"] : isToolStep(step) && (step.on_error?.action === "fallback" || step.on_error?.steps) ? ["fallback"] : []; // steps without the action would otherwise leave an edge without handle
   // `next` in the middle, then/body left, else/fallback right
   const x: Record<Port, number> = { then: 18, body: 18, else: 82, fallback: 82 };
   out.push({ id: "next", type: "source", side: "bottom", kind: "flow", x: 50 });

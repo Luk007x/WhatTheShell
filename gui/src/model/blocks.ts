@@ -64,8 +64,9 @@ export function placeOf(wf: Workflow, id: string): string {
   return hit ? t("blocks.pos", { where: placeOfPath(wf, hit.path), n: hit.index + 1 }) : "";
 }
 
-/** New command step for a catalog tool. */
-export const commandStep = (wf: Workflow, tool: string): Step => ({ id: newId(wf, tool), tool, args: {} });
+/** New step for a catalog tool; `terminal` (catalog says the tool is interactive) makes it a terminal step. */
+export const commandStep = (wf: Workflow, tool: string, opts: { terminal?: boolean } = {}): Step =>
+  opts.terminal ? { id: newId(wf, tool), kind: "terminal", tool, args: {} } : { id: newId(wf, tool), tool, args: {} };
 
 /** Drag payload types: a catalog tool name, a control block kind. */
 export const MIME_TOOL = "application/x-wts-tool";

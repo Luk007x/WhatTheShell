@@ -18,6 +18,7 @@ const PATHS = {
   redo: <path d="m15 7 4.5 4.5L15 16M19 11.5H9.5a5 5 0 0 0 0 10H12" />,
   graph: <><rect x="3.5" y="3.5" width="7" height="5" rx="1" /><rect x="13.5" y="15.5" width="7" height="5" rx="1" /><path d="M7 8.5v5.5a2 2 0 0 0 2 2h4.5" /></>,
   blocks: <><rect x="3.5" y="4" width="17" height="5" rx="1" /><rect x="7.5" y="11" width="13" height="4" rx="1" /><rect x="3.5" y="17" width="17" height="3.5" rx="1" /></>,
+  terminal: <><rect x="3" y="4.5" width="18" height="15" rx="2" /><path d="m7 9.5 3 2.5-3 2.5M12.5 15h4.5" /></>,
   help: <><circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6" /><circle cx="12" cy="17.3" r=".6" /></>,
 } satisfies Record<string, ReactNode>;
 

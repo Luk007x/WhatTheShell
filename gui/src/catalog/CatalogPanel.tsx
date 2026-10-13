@@ -99,6 +99,7 @@ export function CatalogPanel({ selected, onSelect, onLoaded, onAdd, reloadKey = 
                         </>
                       )}
                       {label(tool)}
+                      {tool.interactive && <span className="badge"><Icon name="terminal" />{t("kind.terminal")}<span className="sr-only">: {t("catalog.interactive")}</span></span>}
                     </span>
                     {tool.summary && <span className="summary">{tool.summary}</span>}
                   </button>

@@ -96,3 +96,15 @@ def test_json_output_has_no_secret(tmp_path: Path, capsys: pytest.CaptureFixture
     assert main(["run", _file(tmp_path, text), "--var", 'pw=h"unter2', "--json", "--yes"]) == 0
     out = capsys.readouterr().out
     assert "unter2" not in out and json.loads(out)["variables"] == {"pw": "***"}
+
+
+TERMINAL = "schema_version: 1\nname: t\nsteps:\n  - { id: t, kind: terminal, tool: echo-args }\n"
+
+
+def test_terminal_workflow_is_refused_but_dry_run_shows_plan(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["run", _file(tmp_path, TERMINAL), "--dry-run"]) == 0
+    assert "[terminal] interaktiv" in capsys.readouterr().out
+    assert main(["run", _file(tmp_path, TERMINAL), "--yes"]) != 0
+    assert "nur in `wts gui`" in capsys.readouterr().err

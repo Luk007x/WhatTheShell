@@ -49,6 +49,7 @@ from whattheshell.models.workflow import (
     MessageStep,
     SetStep,
     Step,
+    TerminalStep,
     VariableSpec,
     WaitStep,
     Workflow,
@@ -87,6 +88,7 @@ _BLOCKED_ENV_PREFIXES = ("LD_", "GIT_CONFIG")
 _ENV_KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _MAX_TIMEOUT = 86400.0
 _POLL = 0.1
+TERMINAL_ONLY_GUI = "Terminal-Schritte laufen nur in `wts gui`. Workflow dort starten."
 
 
 class RunError(Exception):
@@ -132,6 +134,25 @@ class ConfirmRequest:
 
 
 Confirmer = Callable[[ConfirmRequest], bool]
+
+
+@dataclass(frozen=True)
+class TerminalRequest:
+    """Interactive process the provider must run; `abort` is set when the run is cancelled."""
+
+    step_id: str
+    argv: list[str]
+    env: dict[str, str]  # only the step's own env (blocklist applied), never os.environ
+    cwd: Path
+    timeout: float
+    network: bool
+    safety: Safety
+    reasons: tuple[str, ...]
+    abort: threading.Event
+
+
+# Blocks the runner thread until the process ends; returns its exit code.
+TerminalProvider = Callable[[TerminalRequest], int]
 
 
 @dataclass
@@ -191,9 +212,20 @@ def env_blocked(key: str) -> bool:
     return key.startswith(_BLOCKED_ENV_PREFIXES) or key in _BLOCKED_ENV or not _ENV_KEY.match(key)
 
 
-def extra_risks(*, has_env: bool, cwd: Path | None, stdin_file: Path | None, root: Path) -> Verdict:
-    """Caution for environment changes and for paths outside the workflow folder."""
+def extra_risks(
+    *,
+    has_env: bool,
+    cwd: Path | None,
+    stdin_file: Path | None,
+    root: Path,
+    terminal: TerminalStep | None = None,
+) -> Verdict:
+    """Caution for environment changes, paths outside the workflow folder, terminal steps."""
     reasons: list[str] = []
+    if terminal is not None:
+        reasons.append("interaktiv")
+        if terminal.network:
+            reasons.append("Netzzugang")
     if has_env:
         reasons.append("setzt Umgebungsvariablen")
     if cwd is not None and not inside(cwd, root):
@@ -296,6 +328,7 @@ class Runner:
         cwd: Path,
         output_limit: int = 1_048_576,
         step_timeout: float | None = None,
+        terminal: TerminalProvider | None = None,
     ) -> None:
         self._catalog = catalog
         self._confirm = confirm
@@ -304,6 +337,7 @@ class Runner:
         self._cwd = cwd
         self._output_limit = output_limit
         self._step_timeout = step_timeout
+        self._terminal = terminal
 
     def prepare(self, workflow: Workflow, overrides: Mapping[str, str]) -> Prepared:
         """Check variables, resolve every tool and classify every command; runs nothing.
@@ -333,7 +367,7 @@ class Runner:
         specs: dict[str, ToolInfo] = {}
         verdicts: dict[str, Verdict] = {}
         for step in iter_steps(workflow.steps):
-            if not isinstance(step, CommandStep):
+            if not isinstance(step, CommandStep | TerminalStep):
                 continue
             try:
                 info = self._catalog.get(step.tool, step.command)
@@ -350,9 +384,12 @@ class Runner:
                     has_env=bool(step.env),
                     cwd=_static_path(step.cwd, variables, self._cwd),
                     stdin_file=_static_path(
-                        step.stdin.file if step.stdin else None, variables, self._cwd
+                        step.stdin.file if isinstance(step, CommandStep) and step.stdin else None,
+                        variables,
+                        self._cwd,
                     ),
                     root=self._cwd,
+                    terminal=step if isinstance(step, TerminalStep) else None,
                 ),
             )
         return Prepared(workflow, variables, specs, verdicts, self._cwd)
@@ -368,7 +405,11 @@ class Runner:
         self._results: dict[str, StepResult] = {}
         self._final: tuple[Literal["success", "failed", "aborted"], str, int] | None = None
         ctx = Context(self._variables, self._outputs)
-        if self._steps(prepared.workflow.steps, ctx):
+        if self._terminal is None and any(
+            isinstance(step, TerminalStep) for step in iter_steps(prepared.workflow.steps)
+        ):
+            self._finish("failed", TERMINAL_ONLY_GUI, 3)  # before any process starts
+        elif self._steps(prepared.workflow.steps, ctx):
             self._finish("success", "Workflow abgeschlossen", 0)
         assert self._final is not None  # noqa: S101
         status, message, exit_code = self._final
@@ -438,7 +479,7 @@ class Runner:
 
     def _step(self, step: Step, ctx: Context) -> bool:
         match step:
-            case CommandStep():
+            case CommandStep() | TerminalStep():
                 return self._command(step, ctx)
             case IfStep():
                 try:
@@ -501,14 +542,15 @@ class Runner:
 
     # -------------------------------------------------------------- command
 
-    def _build(self, step: CommandStep, ctx: Context) -> _Built:
+    def _build(self, step: CommandStep | TerminalStep, ctx: Context) -> _Built:
         """Render and assemble everything for one run; the class is recomputed from real values."""
         info = self._prepared.specs[step.id]
         try:
             args = {k: render_value(v, ctx) for k, v in step.args.items()}
             extra = [render(a, ctx) for a in step.extra_args]
             argv = build_argv(info.command, args, extra, tool_path=info.path)
-            env = dict(os.environ)
+            # terminal steps get only their own env; the sandbox supplies the base
+            env = {} if isinstance(step, TerminalStep) else dict(os.environ)
             added: dict[str, str] = {}
             for key, value in step.env.items():
                 if env_blocked(key):
@@ -524,7 +566,9 @@ class Runner:
                 cwd = (self._cwd / render(step.cwd, ctx)).resolve()
             if not cwd.is_dir():
                 raise _StepError(f"Arbeitsverzeichnis '{cwd}' existiert nicht")
-            stdin, stdin_file, stdin_label = self._stdin(step, ctx, cwd)
+            stdin, stdin_file, stdin_label = (
+                self._stdin(step, ctx, cwd) if isinstance(step, CommandStep) else (None, None, None)
+            )
         except (TemplateError, OSError, ValueError) as err:  # ArgvError is a ValueError
             raise _StepError(str(err)) from err
         verdict = merge_verdicts(
@@ -536,6 +580,7 @@ class Runner:
                 cwd=cwd if step.cwd else None,
                 stdin_file=stdin_file,
                 root=self._cwd,
+                terminal=step if isinstance(step, TerminalStep) else None,
             ),
         )
         shown = describe(
@@ -567,7 +612,7 @@ class Runner:
         except (OSError, ValueError) as err:
             raise _StepError(f"stdin.file '{path}' nicht lesbar: {err}") from err
 
-    def _command(self, step: CommandStep, ctx: Context) -> bool:
+    def _command(self, step: CommandStep | TerminalStep, ctx: Context) -> bool:
         try:
             built = self._build(step, ctx)
         except _StepError as err:
@@ -596,7 +641,10 @@ class Runner:
         self._emit(StepStarted(step.id, built.command, verdict.safety))
         attempts = 1 + (step.on_error.retries or 0)
         for attempt in range(1, attempts + 1):
-            ok, reason = self._execute(step, built, attempt)
+            if isinstance(step, TerminalStep):
+                ok, reason = self._run_terminal(step, built, attempt)
+            else:
+                ok, reason = self._execute(step, built, attempt)
             if ok:
                 return True
             if self._controller.abort.is_set():
@@ -604,7 +652,7 @@ class Runner:
                 return False
         return self._failed(step, ctx, reason)
 
-    def _failed(self, step: CommandStep, ctx: Context, reason: str) -> bool:
+    def _failed(self, step: CommandStep | TerminalStep, ctx: Context, reason: str) -> bool:
         """Apply `on_error` after the final failed attempt; True means the run goes on."""
         action = step.on_error.action
         if action == "continue":
@@ -685,9 +733,42 @@ class Runner:
             return ok, "Abgebrochen"
         return ok, f"Exit-Code {raw.exit_code}, erlaubt: {step.ok_exit_codes}"
 
+    def _run_terminal(self, step: TerminalStep, built: _Built, attempt: int) -> tuple[bool, str]:
+        """One interactive attempt; later steps get no output (empty stdout/stderr)."""
+        assert self._terminal is not None  # noqa: S101 (checked at the start of `run`)
+        started = datetime.now().astimezone()
+        clock = time.monotonic()
+        request = TerminalRequest(
+            step.id,
+            built.argv,
+            built.env,
+            built.cwd,
+            step.timeout or self._step_timeout or _MAX_TIMEOUT,
+            step.network,
+            built.verdict.safety,
+            built.verdict.reasons,
+            self._controller.abort,
+        )
+        code: int | None = None
+        error = None
+        try:
+            code = self._terminal(request)
+        except OSError as err:
+            error = f"Terminal konnte nicht gestartet werden: {err}"
+        ok = code in step.ok_exit_codes and not self._controller.abort.is_set()
+        self._record(
+            step, built.argv, built.command, started, code, error, b"", b"", False, ok, attempt
+        )
+        self._emit(StepFinished(step.id, code, ok, time.monotonic() - clock, attempt))
+        if error:
+            return False, error
+        if self._controller.abort.is_set():
+            return False, "Abgebrochen"
+        return ok, f"Exit-Code {code}, erlaubt: {step.ok_exit_codes}"
+
     def _record(
         self,
-        step: CommandStep,
+        step: CommandStep | TerminalStep,
         argv: list[str],
         command: str,
         started: datetime,

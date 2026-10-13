@@ -126,6 +126,7 @@ export function App() {
   const [outputOpen, setOutputOpen] = useState(true);
   const [keysOpen, setKeysOpen] = useState(false);
   const [knownTools, setKnownTools] = useState<ReadonlySet<string>>(new Set());
+  const [interactiveTools, setInteractiveTools] = useState<ReadonlySet<string>>(new Set());
   const saveRef = useRef<(() => void) | null>(null);
   const addToolRef = useRef<((tool: string) => void) | null>(null);
   const [fileId, setFileId] = useState<string | null>(null);
@@ -151,6 +152,7 @@ export function App() {
   const edit: Edit = useCallback((op, key) => dispatch({ type: "edit", op, key }), []);
   const onLoaded = useCallback((tools: ToolSummary[]) => {
     setKnownTools((s) => new Set([...s, ...tools.map((x) => x.name)]));
+    setInteractiveTools((s) => new Set([...[...s].filter((n) => !tools.some((x) => x.name === n)), ...tools.filter((x) => x.interactive).map((x) => x.name)]));
     setSafety((m) => ({ ...m, ...Object.fromEntries(tools.flatMap((x) => (x.safety ? [[x.name, x.safety]] : []))) }));
     setCategory((m) => ({ ...m, ...Object.fromEntries(tools.flatMap((x) => (x.category ? [[x.name, x.category]] : []))) }));
   }, []);
@@ -240,8 +242,8 @@ export function App() {
         return null; // RunView replaces the whole editor grid
       case "build":
         return view === "graph"
-          ? <Canvas wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} categoryOf={categoryOf} onNotice={setNotice} theme={theme} addToolRef={addToolRef} knownTools={knownTools} />
-          : <BlockView wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} categoryOf={categoryOf} knownTools={knownTools} />;
+          ? <Canvas wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} categoryOf={categoryOf} onNotice={setNotice} theme={theme} addToolRef={addToolRef} knownTools={knownTools} interactiveTools={interactiveTools} />
+          : <BlockView wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} categoryOf={categoryOf} knownTools={knownTools} interactiveTools={interactiveTools} />;
     }
   })();
   const maxCol = colMax();
@@ -297,7 +299,7 @@ export function App() {
         <CatalogPanel selected={catalogTool} onSelect={setCatalogTool} onLoaded={onLoaded} reloadKey={refresh} onAdd={(name) => {
           if (mode !== "build") return;
           if (addToolRef.current) addToolRef.current(name); // graph view: honours the chosen target
-          else { const step = commandStep(wf, name); edit((w) => addStep(w, step, [])); setSelected(step.id); }
+          else { const step = commandStep(wf, name, { terminal: interactiveTools.has(name) }); edit((w) => addStep(w, step, [])); setSelected(step.id); }
         }} />
         <Resizer label={t("layout.catalog")} value={cols.catalog} min={COL_MIN.catalog} max={maxCol} onChange={(catalog) => setCols({ ...cols, catalog })} />
         {center}

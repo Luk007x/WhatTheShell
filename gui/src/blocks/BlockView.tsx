@@ -5,7 +5,7 @@ import { FlowHelp, headClass, type Edit } from "../canvas/Canvas";
 import { Icon } from "../icons";
 import { t } from "../i18n";
 import { canDrop, commandStep, CONTROL_KINDS, controlStep, dropIndex, MIME_KIND, MIME_TOOL, moveTargets, placeOf, placeOfPath, toBlocks, type Block, type Move } from "../model/blocks";
-import { addStep, isCommand, moveStep, removeStep, type SeqPath, type Step } from "../model/ops";
+import { addStep, isCommand, isToolStep, moveStep, removeStep, type SeqPath, type Step } from "../model/ops";
 import { conditionOperator } from "../model/form";
 import type { Workflow } from "../types/workflow";
 
@@ -13,7 +13,8 @@ import type { Workflow } from "../types/workflow";
 const subtitle = (s: Step): string => {
   switch (s.kind) {
     case undefined:
-    case "command": return [s.tool, ...(s.command ?? [])].join(" ");
+    case "command":
+    case "terminal": return [s.tool, ...(s.command ?? [])].join(" ");
     case "if": {
       const op = conditionOperator(s.condition);
       return [s.condition.source, op, op ? String(Reflect.get(s.condition, op)) : ""].join(" ").trim();
@@ -35,8 +36,10 @@ export function BlockView(props: {
   safetyOf: (tool: string) => string | null;
   categoryOf: (tool: string) => string | null;
   knownTools: ReadonlySet<string>;
+  interactiveTools: ReadonlySet<string>;
 }) {
-  const { wf, selected, onSelect, edit, catalogTool, safetyOf, categoryOf, knownTools } = props;
+  const { wf, selected, onSelect, edit, catalogTool, safetyOf, categoryOf, knownTools, interactiveTools } = props;
+  const toolStep = (name: string) => commandStep(wf, name, { terminal: interactiveTools.has(name) });
   const tree = useMemo(() => toBlocks(wf), [wf]);
   const [live, setLive] = useState("");
   const [menu, setMenu] = useState<string | null>(null);
@@ -86,7 +89,7 @@ export function BlockView(props: {
           e.preventDefault();
           const name = e.dataTransfer.getData(MIME_TOOL);
           const kind = CONTROL_KINDS.find((k) => k === e.dataTransfer.getData(MIME_KIND)); // untrusted string: only known kinds
-          if (name && knownTools.has(name)) insert(commandStep(wf, name), path, index);
+          if (name && knownTools.has(name)) insert(toolStep(name), path, index);
           else if (!name && kind) insert(controlStep(wf, kind), path, index);
           else if (drag && canDrop(path, drag)) move(drag, { path, index: dropIndex(wf, drag, path, index) });
           setOver(null);
@@ -100,7 +103,7 @@ export function BlockView(props: {
             {adding === key && (
               <ul className="add-list" aria-label={t("blocks.add", { where })}>
                 <li>
-                  <button disabled={!catalogTool} onClick={() => catalogTool && insert(commandStep(wf, catalogTool), path)}>
+                  <button disabled={!catalogTool} onClick={() => catalogTool && insert(toolStep(catalogTool), path)}>
                     {catalogTool ? t("blocks.add.tool", { name: catalogTool }) : t("canvas.add.pick")}
                   </button>
                 </li>
@@ -123,7 +126,7 @@ export function BlockView(props: {
   const block = (b: Block) => {
     const s = b.step;
     const kind = s.kind ?? "command";
-    const safety = isCommand(s) ? safetyOf(s.tool) : null;
+    const safety = isToolStep(s) ? safetyOf(s.tool) : null;
     const pipe = isCommand(s) ? s.stdin?.pipe : null;
     const mt = menu === s.id ? moveTargets(wf, s.id) : null;
     const title = s.label ?? s.id;
@@ -154,7 +157,7 @@ export function BlockView(props: {
             e.preventDefault(); // Alt+Left would otherwise navigate back
           }}
         >
-          <div className={`blk-head ${headClass(s, isCommand(s) ? categoryOf(s.tool) : null)}`}>
+          <div className={`blk-head ${headClass(s, isToolStep(s) ? categoryOf(s.tool) : null)}`}>
             <span className="blk-title">{title}</span>
             <span className="badge">{t(`kind.${kind}`)}</span>
             {safety && <span className={`badge badge--${safety}`}>{t(`safety.${safety}`)}</span>}

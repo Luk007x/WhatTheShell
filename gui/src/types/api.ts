@@ -40,6 +40,8 @@ export interface ToolSummary {
   category?: string | null;
   summary?: string | null;
   safety?: Safety | null;
+  /** Interactive tool (same source as `ToolInfo.command.interactive`). */
+  interactive?: boolean;
 }
 
 export interface SandboxStatus {

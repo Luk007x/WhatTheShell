@@ -82,3 +82,10 @@ def test_plan_flags_cwd_and_stdin_file_outside_root(tmp_path: Path) -> None:
     assert "Arbeitsverzeichnis außerhalb des Workflow-Ordners" in text
     assert "liest Datei außerhalb" in text
     assert text.count("<caution") == 2
+
+
+def test_plan_terminal_step_is_marked_interactive(tmp_path: Path) -> None:
+    wf = make_workflow([{"id": "t", "kind": "terminal", "tool": "echo-args", "network": True}])
+    text = _text(tmp_path, wf)
+    assert "t [terminal] interaktiv, wird im Trockenlauf übersprungen: echo-args" in text
+    assert "caution: interaktiv; Netzzugang" in text

@@ -23,6 +23,7 @@ from whattheshell.models.workflow import (
     MessageStep,
     SetStep,
     Step,
+    TerminalStep,
     WaitStep,
 )
 from whattheshell.safety import Verdict, classify_command, merge_verdicts
@@ -54,7 +55,7 @@ def plan(prepared: Prepared) -> list[PlannedLine]:
     def soft(text: str) -> str:
         return render(text, ctx, keep_unknown=True)
 
-    def command(step: CommandStep) -> tuple[str, Verdict]:
+    def command(step: CommandStep | TerminalStep) -> tuple[str, Verdict]:
         info = prepared.specs[step.id]
         verdict = prepared.verdicts[step.id]
         try:
@@ -65,7 +66,7 @@ def plan(prepared: Prepared) -> list[PlannedLine]:
         except ArgvError as err:
             return f"{step.tool} (Argumente noch nicht prüfbar: {err})", verdict
         stdin = None
-        if step.stdin is not None:
+        if isinstance(step, CommandStep) and step.stdin is not None:
             if step.stdin.pipe is not None:
                 stdin = f"pipe: {step.stdin.pipe}"
             else:
@@ -85,12 +86,13 @@ def plan(prepared: Prepared) -> list[PlannedLine]:
     def walk(steps: Sequence[Step], indent: int) -> None:
         for step in steps:
             match step:
-                case CommandStep():
+                case CommandStep() | TerminalStep():
                     text, verdict = command(step)
+                    kind = "terminal" if isinstance(step, TerminalStep) else "command"
+                    if kind == "terminal":
+                        text = f"interaktiv, wird im Trockenlauf übersprungen: {text}"
                     lines.append(
-                        PlannedLine(
-                            indent, "command", step.id, text, verdict.safety, verdict.reasons
-                        )
+                        PlannedLine(indent, kind, step.id, text, verdict.safety, verdict.reasons)
                     )
                     if step.on_error.steps is not None:
                         block("fallback", step.on_error.steps, indent + 1)

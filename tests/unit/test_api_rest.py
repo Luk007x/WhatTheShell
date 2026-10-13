@@ -99,6 +99,14 @@ def test_tools_search(client: TestClient) -> None:
     assert len(client.get("/api/tools").json()) > 1
 
 
+def test_tools_list_marks_interactive(client: TestClient, tmp_path: Path) -> None:
+    (tmp_path / "bin" / "vim").write_text("#!/bin/sh\n")
+    (tmp_path / "bin" / "vim").chmod(0o755)
+    by_name = {t["name"]: t for t in client.get("/api/tools").json()}
+    assert by_name["vim"]["interactive"] is True
+    assert by_name["demo"]["interactive"] is False
+
+
 def test_tool_detail(client: TestClient) -> None:
     body = client.get("/api/tools/demo").json()
     assert body["name"] == "demo"

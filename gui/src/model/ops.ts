@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Pure, immutable edit operations on the workflow document (F-33). The graph is derived, never edited.
-import type { CommandStep, ForeachStep, IfStep, Workflow } from "../types/workflow";
+import type { CommandStep, ForeachStep, IfStep, TerminalStep, Workflow } from "../types/workflow";
 
 export type Step = Workflow["steps"][number];
 export type Port = "then" | "else" | "body" | "fallback";
@@ -19,6 +19,10 @@ const PORTS: readonly Port[] = ["then", "else", "body", "fallback"];
 
 export const isPort = (s: string | undefined): s is Port => PORTS.includes(s as Port); // widening check only
 export const isCommand = (s: Step): s is CommandStep => s.kind === undefined || s.kind === "command";
+/** Interactive step: shares the command fields, but has no stdin and no recorded output. */
+export const isTerminal = (s: Step): s is TerminalStep => s.kind === "terminal";
+/** Steps that run a tool (command or terminal). */
+export const isToolStep = (s: Step): s is CommandStep | TerminalStep => isCommand(s) || isTerminal(s);
 const isIf = (s: Step): s is IfStep => s.kind === "if";
 const isForeach = (s: Step): s is ForeachStep => s.kind === "foreach";
 
@@ -26,13 +30,13 @@ const isForeach = (s: Step): s is ForeachStep => s.kind === "foreach";
 export function portsOf(step: Step): Port[] {
   if (isIf(step)) return ["then", "else"];
   if (isForeach(step)) return ["body"];
-  return isCommand(step) && step.on_error?.steps ? ["fallback"] : [];
+  return isToolStep(step) && step.on_error?.steps ? ["fallback"] : [];
 }
 
 export function childSeq(step: Step, port: Port): Step[] | undefined {
   if (isIf(step)) return port === "then" ? step.then : port === "else" ? (step.else ?? undefined) : undefined;
   if (isForeach(step)) return port === "body" ? step.body : undefined;
-  return isCommand(step) && port === "fallback" ? (step.on_error?.steps ?? undefined) : undefined;
+  return isToolStep(step) && port === "fallback" ? (step.on_error?.steps ?? undefined) : undefined;
 }
 
 function setChild(step: Step, port: Port, seq: Step[]): Step {
@@ -43,7 +47,7 @@ function setChild(step: Step, port: Port, seq: Step[]): Step {
     return seq.length === 0 ? rest : { ...rest, else: seq };
   }
   if (isForeach(step)) return port === "body" ? { ...step, body: seq } : step;
-  if (isCommand(step) && port === "fallback") {
+  if (isToolStep(step) && port === "fallback") {
     const { on_error: _oe, ...rest } = step;
     // empty fallback sequence: drop the whole on_error (a leftover `action: fallback` without steps is invalid)
     return seq.length > 0 ? { ...rest, on_error: { ...step.on_error, steps: seq } } : rest;

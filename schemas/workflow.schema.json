@@ -73,12 +73,6 @@
           "default": null,
           "title": "Label"
         },
-        "kind": {
-          "const": "command",
-          "default": "command",
-          "title": "Kind",
-          "type": "string"
-        },
         "tool": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$",
           "title": "Tool",
@@ -106,17 +100,6 @@
           },
           "title": "Extra Args",
           "type": "array"
-        },
-        "stdin": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Stdin"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
         },
         "cwd": {
           "anyOf": [
@@ -165,6 +148,23 @@
         },
         "on_error": {
           "$ref": "#/$defs/OnError"
+        },
+        "kind": {
+          "const": "command",
+          "default": "command",
+          "title": "Kind",
+          "type": "string"
+        },
+        "stdin": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stdin"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -397,6 +397,7 @@
                 "if": "#/$defs/IfStep",
                 "message": "#/$defs/MessageStep",
                 "set": "#/$defs/SetStep",
+                "terminal": "#/$defs/TerminalStep",
                 "wait": "#/$defs/WaitStep"
               },
               "propertyName": "kind"
@@ -404,6 +405,9 @@
             "oneOf": [
               {
                 "$ref": "#/$defs/CommandStep"
+              },
+              {
+                "$ref": "#/$defs/TerminalStep"
               },
               {
                 "$ref": "#/$defs/IfStep"
@@ -477,6 +481,7 @@
                 "if": "#/$defs/IfStep",
                 "message": "#/$defs/MessageStep",
                 "set": "#/$defs/SetStep",
+                "terminal": "#/$defs/TerminalStep",
                 "wait": "#/$defs/WaitStep"
               },
               "propertyName": "kind"
@@ -484,6 +489,9 @@
             "oneOf": [
               {
                 "$ref": "#/$defs/CommandStep"
+              },
+              {
+                "$ref": "#/$defs/TerminalStep"
               },
               {
                 "$ref": "#/$defs/IfStep"
@@ -520,6 +528,7 @@
                     "if": "#/$defs/IfStep",
                     "message": "#/$defs/MessageStep",
                     "set": "#/$defs/SetStep",
+                    "terminal": "#/$defs/TerminalStep",
                     "wait": "#/$defs/WaitStep"
                   },
                   "propertyName": "kind"
@@ -527,6 +536,9 @@
                 "oneOf": [
                   {
                     "$ref": "#/$defs/CommandStep"
+                  },
+                  {
+                    "$ref": "#/$defs/TerminalStep"
                   },
                   {
                     "$ref": "#/$defs/IfStep"
@@ -662,6 +674,7 @@
                     "if": "#/$defs/IfStep",
                     "message": "#/$defs/MessageStep",
                     "set": "#/$defs/SetStep",
+                    "terminal": "#/$defs/TerminalStep",
                     "wait": "#/$defs/WaitStep"
                   },
                   "propertyName": "kind"
@@ -669,6 +682,9 @@
                 "oneOf": [
                   {
                     "$ref": "#/$defs/CommandStep"
+                  },
+                  {
+                    "$ref": "#/$defs/TerminalStep"
                   },
                   {
                     "$ref": "#/$defs/IfStep"
@@ -810,6 +826,122 @@
         }
       },
       "title": "Stdin",
+      "type": "object"
+    },
+    "TerminalStep": {
+      "additionalProperties": false,
+      "description": "Interactive program; runs only in the GUI inside bwrap with a PTY.\n\nIts output is not passed to later steps. Only set explicitly, never inferred\n(see docs/SECURITY.md, section 7).",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "tool": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$",
+          "title": "Tool",
+          "type": "string"
+        },
+        "command": {
+          "default": [],
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+            "type": "string"
+          },
+          "title": "Command",
+          "type": "array"
+        },
+        "args": {
+          "additionalProperties": true,
+          "default": {},
+          "title": "Args",
+          "type": "object"
+        },
+        "extra_args": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Extra Args",
+          "type": "array"
+        },
+        "cwd": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cwd"
+        },
+        "env": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "title": "Env",
+          "type": "object"
+        },
+        "timeout": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timeout"
+        },
+        "ok_exit_codes": {
+          "default": [
+            0
+          ],
+          "items": {
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": "Ok Exit Codes",
+          "type": "array"
+        },
+        "on_error": {
+          "$ref": "#/$defs/OnError"
+        },
+        "kind": {
+          "const": "terminal",
+          "title": "Kind",
+          "type": "string"
+        },
+        "network": {
+          "default": false,
+          "title": "Network",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "tool",
+        "kind"
+      ],
+      "title": "TerminalStep",
       "type": "object"
     },
     "ValueType": {
@@ -994,6 +1126,7 @@
             "if": "#/$defs/IfStep",
             "message": "#/$defs/MessageStep",
             "set": "#/$defs/SetStep",
+            "terminal": "#/$defs/TerminalStep",
             "wait": "#/$defs/WaitStep"
           },
           "propertyName": "kind"
@@ -1001,6 +1134,9 @@
         "oneOf": [
           {
             "$ref": "#/$defs/CommandStep"
+          },
+          {
+            "$ref": "#/$defs/TerminalStep"
           },
           {
             "$ref": "#/$defs/IfStep"

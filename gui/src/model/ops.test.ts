@@ -110,3 +110,12 @@ test("moveStep inside a one-step fallback keeps on_error.action", () => {
   expect(moveStep(w, "x", ["a", "fallback"], 0).wf).toEqual(w);
   expect(moveStep(w, "x", ["a", "fallback"]).wf).toEqual(w);
 });
+
+test("switching command <-> terminal drops stdin / network", () => {
+  const base: Workflow = { schema_version: 1, name: "t", steps: [{ id: "a", tool: "cat", stdin: { text: "x" } }] };
+  const term = updateStep(base, "a", { kind: "terminal", stdin: undefined }).wf.steps[0];
+  expect(term).toEqual({ id: "a", tool: "cat", kind: "terminal" });
+  const withNet = updateStep(base, "a", { kind: "terminal", stdin: undefined, network: true }).wf;
+  const back = updateStep(withNet, "a", { kind: undefined, network: undefined }).wf.steps[0];
+  expect(back).toEqual({ id: "a", tool: "cat" });
+});

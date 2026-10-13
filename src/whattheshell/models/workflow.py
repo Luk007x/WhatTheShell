@@ -118,20 +118,36 @@ class _Step(_Model):
     _id_not_reserved = field_validator("id")(_not_reserved)
 
 
-class CommandStep(_Step):
-    """Runs an external program."""
+class _ProcessStep(_Step):
+    """Fields shared by steps that start a program."""
 
-    kind: Literal["command"] = "command"
     tool: ToolName
     command: list[Annotated[str, Field(pattern=r"^[A-Za-z][A-Za-z0-9_-]*$")]] = []
     args: dict[str, Any] = {}
     extra_args: list[str] = []
-    stdin: Stdin | None = None
     cwd: str | None = None
     env: dict[str, str] = {}
     timeout: float | None = Field(default=None, gt=0)
     ok_exit_codes: list[Annotated[int, Field(ge=0, le=255)]] = [0]
     on_error: OnError = Field(default_factory=OnError)
+
+
+class CommandStep(_ProcessStep):
+    """Runs an external program."""
+
+    kind: Literal["command"] = "command"
+    stdin: Stdin | None = None
+
+
+class TerminalStep(_ProcessStep):
+    """Interactive program; runs only in the GUI inside bwrap with a PTY.
+
+    Its output is not passed to later steps. Only set explicitly, never inferred
+    (see docs/SECURITY.md, section 7).
+    """
+
+    kind: Literal["terminal"]
+    network: bool = False
 
 
 class IfStep(_Step):
@@ -185,7 +201,14 @@ class AbortStep(_Step):
 
 
 Step = Annotated[
-    CommandStep | IfStep | ForeachStep | SetStep | WaitStep | MessageStep | AbortStep,
+    CommandStep
+    | TerminalStep
+    | IfStep
+    | ForeachStep
+    | SetStep
+    | WaitStep
+    | MessageStep
+    | AbortStep,
     Field(discriminator="kind"),
 ]
 
@@ -279,7 +302,7 @@ def _children(step: Step) -> list[Sequence[Step]]:
         return [step.then, step.else_ or []]
     if isinstance(step, ForeachStep):
         return [step.body]
-    if isinstance(step, CommandStep) and step.on_error.steps is not None:
+    if isinstance(step, _ProcessStep) and step.on_error.steps is not None:
         return [step.on_error.steps]
     return []
 
@@ -361,7 +384,7 @@ def _check_steps(
         inner = names | {step.as_, "item"} if isinstance(step, ForeachStep) else names
         for child in _children(step):
             # a fallback sequence may reference the failed step itself
-            is_fallback = isinstance(step, CommandStep) and child is step.on_error.steps
+            is_fallback = isinstance(step, _ProcessStep) and child is step.on_error.steps
             _check_steps(
                 child, visible | {step.id} if is_fallback else visible, inner, variables, ids
             )
@@ -372,4 +395,5 @@ OnError.model_rebuild()
 IfStep.model_rebuild()
 ForeachStep.model_rebuild()
 CommandStep.model_rebuild()
+TerminalStep.model_rebuild()
 Workflow.model_rebuild()

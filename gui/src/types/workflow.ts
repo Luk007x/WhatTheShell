@@ -15,21 +15,28 @@ export type Min = number | null;
 export type Max = number | null;
 export type Id = string;
 export type Label1 = string | null;
-export type Kind = "command";
 export type Tool = string;
 export type Command = string[];
 export type ExtraArgs = string[];
-export type Pipe = string | null;
-export type Text = string | null;
-export type File = string | null;
 export type Cwd = string | null;
 export type Timeout = number | null;
 export type OkExitCodes = number[];
 export type Action = "abort" | "continue" | "retry" | "fallback";
 export type Retries = number | null;
-export type Steps1 = (CommandStep | IfStep | ForeachStep | SetStep | WaitStep | MessageStep | AbortStep)[] | null;
+export type Steps1 =
+  (CommandStep | TerminalStep | IfStep | ForeachStep | SetStep | WaitStep | MessageStep | AbortStep)[] | null;
 export type Id1 = string;
 export type Label2 = string | null;
+export type Tool1 = string;
+export type Command1 = string[];
+export type ExtraArgs1 = string[];
+export type Cwd1 = string | null;
+export type Timeout1 = number | null;
+export type OkExitCodes1 = number[];
+export type Kind = "terminal";
+export type Network = boolean;
+export type Id2 = string;
+export type Label3 = string | null;
 export type Kind1 = "if";
 export type Source = string;
 export type Eq = string | number | boolean | null;
@@ -44,33 +51,40 @@ export type NumberLt = number | null;
 export type NumberEq = number | null;
 export type JsonPath = string | null;
 export type FileExists = boolean | null;
-export type Id2 = string;
-export type Label3 = string | null;
+export type Id3 = string;
+export type Label4 = string | null;
 export type Kind2 = "foreach";
 export type Source1 = string;
 export type As = string;
-export type Id3 = string;
-export type Label4 = string | null;
+export type Id4 = string;
+export type Label5 = string | null;
 export type Kind3 = "set";
 export type Variable = string;
 export type Value = string;
-export type Id4 = string;
-export type Label5 = string | null;
-export type Kind4 = "wait";
-export type Seconds = number;
 export type Id5 = string;
 export type Label6 = string | null;
-export type Kind5 = "message";
-export type Text1 = string;
+export type Kind4 = "wait";
+export type Seconds = number;
 export type Id6 = string;
 export type Label7 = string | null;
+export type Kind5 = "message";
+export type Text = string;
+export type Id7 = string;
+export type Label8 = string | null;
 export type Kind6 = "abort";
-export type Text2 = string | null;
+export type Text1 = string | null;
 export type ExitCode = number;
-export type Body = (CommandStep | IfStep | ForeachStep | SetStep | WaitStep | MessageStep | AbortStep)[];
-export type Then = (CommandStep | IfStep | ForeachStep | SetStep | WaitStep | MessageStep | AbortStep)[];
-export type Else = (CommandStep | IfStep | ForeachStep | SetStep | WaitStep | MessageStep | AbortStep)[] | null;
-export type Steps = (CommandStep | IfStep | ForeachStep | SetStep | WaitStep | MessageStep | AbortStep)[];
+export type Body = (CommandStep | TerminalStep | IfStep | ForeachStep | SetStep | WaitStep | MessageStep | AbortStep)[];
+export type Then = (CommandStep | TerminalStep | IfStep | ForeachStep | SetStep | WaitStep | MessageStep | AbortStep)[];
+export type Else =
+  (CommandStep | TerminalStep | IfStep | ForeachStep | SetStep | WaitStep | MessageStep | AbortStep)[] | null;
+export type Kind7 = "command";
+export type Pipe = string | null;
+export type Text2 = string | null;
+export type File = string | null;
+export type Steps = (
+  CommandStep | TerminalStep | IfStep | ForeachStep | SetStep | WaitStep | MessageStep | AbortStep
+)[];
 export type X = number;
 export type Y = number;
 
@@ -110,28 +124,20 @@ export interface VariableSpec {
 export interface CommandStep {
   id: Id;
   label?: Label1;
-  kind?: Kind;
   tool: Tool;
   command?: Command;
   args?: Args;
   extra_args?: ExtraArgs;
-  stdin?: Stdin | null;
   cwd?: Cwd;
   env?: Env;
   timeout?: Timeout;
   ok_exit_codes?: OkExitCodes;
   on_error?: OnError;
+  kind?: Kind7;
+  stdin?: Stdin | null;
 }
 export interface Args {
   [k: string]: unknown;
-}
-/**
- * Standard input of a command: exactly one of pipe, text, file.
- */
-export interface Stdin {
-  pipe?: Pipe;
-  text?: Text;
-  file?: File;
 }
 export interface Env {
   [k: string]: string;
@@ -145,11 +151,38 @@ export interface OnError {
   steps?: Steps1;
 }
 /**
+ * Interactive program; runs only in the GUI inside bwrap with a PTY.
+ *
+ * Its output is not passed to later steps. Only set explicitly, never inferred
+ * (see docs/SECURITY.md, section 7).
+ */
+export interface TerminalStep {
+  id: Id1;
+  label?: Label2;
+  tool: Tool1;
+  command?: Command1;
+  args?: Args1;
+  extra_args?: ExtraArgs1;
+  cwd?: Cwd1;
+  env?: Env1;
+  timeout?: Timeout1;
+  ok_exit_codes?: OkExitCodes1;
+  on_error?: OnError;
+  kind: Kind;
+  network?: Network;
+}
+export interface Args1 {
+  [k: string]: unknown;
+}
+export interface Env1 {
+  [k: string]: string;
+}
+/**
  * Branch on a condition.
  */
 export interface IfStep {
-  id: Id1;
-  label?: Label2;
+  id: Id2;
+  label?: Label3;
   kind: Kind1;
   condition: Condition;
   then: Then;
@@ -177,8 +210,8 @@ export interface Condition {
  * Iterate over the lines of a source.
  */
 export interface ForeachStep {
-  id: Id2;
-  label?: Label3;
+  id: Id3;
+  label?: Label4;
   kind: Kind2;
   source: Source1;
   as?: As;
@@ -188,8 +221,8 @@ export interface ForeachStep {
  * Set a variable.
  */
 export interface SetStep {
-  id: Id3;
-  label?: Label4;
+  id: Id4;
+  label?: Label5;
   kind: Kind3;
   variable: Variable;
   value: Value;
@@ -198,8 +231,8 @@ export interface SetStep {
  * Delay.
  */
 export interface WaitStep {
-  id: Id4;
-  label?: Label5;
+  id: Id5;
+  label?: Label6;
   kind: Kind4;
   seconds: Seconds;
 }
@@ -207,20 +240,28 @@ export interface WaitStep {
  * Message to the user.
  */
 export interface MessageStep {
-  id: Id5;
-  label?: Label6;
+  id: Id6;
+  label?: Label7;
   kind: Kind5;
-  text: Text1;
+  text: Text;
 }
 /**
  * End the workflow.
  */
 export interface AbortStep {
-  id: Id6;
-  label?: Label7;
+  id: Id7;
+  label?: Label8;
   kind: Kind6;
-  text?: Text2;
+  text?: Text1;
   exit_code?: ExitCode;
+}
+/**
+ * Standard input of a command: exactly one of pipe, text, file.
+ */
+export interface Stdin {
+  pipe?: Pipe;
+  text?: Text2;
+  file?: File;
 }
 /**
  * Graph view positions, kept apart from the logic.

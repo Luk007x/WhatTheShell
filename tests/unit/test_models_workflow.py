@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from whattheshell.models.workflow import CommandStep, Workflow, iter_steps
+from whattheshell.models.workflow import CommandStep, TerminalStep, Workflow, iter_steps
 
 
 def wf(*steps: dict[str, Any], **extra: Any) -> dict[str, Any]:
@@ -288,3 +288,21 @@ def test_variable_choices_and_bounds_need_matching_type(spec: dict[str, Any]) ->
         Workflow.model_validate(wf(A, variables={"v": spec}))
     Workflow.model_validate(wf(A, variables={"v": {"type": "enum", "choices": ["a"]}}))
     Workflow.model_validate(wf(A, variables={"v": {"type": "int", "min": 1, "max": 3}}))
+
+
+def test_terminal_step() -> None:
+    term = {"id": "t", "kind": "terminal", "tool": "vim", "args": {"file": ["notes.txt"]}}
+    w = Workflow.model_validate(wf(term))
+    step = w.steps[0]
+    assert isinstance(step, TerminalStep)
+    assert step.network is False
+    assert Workflow.model_validate_json(w.model_dump_json()) == w
+    assert "terminal" in str(Workflow.model_json_schema())
+
+
+def test_terminal_step_rejects_stdin_and_implicit_kind() -> None:
+    term = {"id": "t", "kind": "terminal", "tool": "vim"}
+    with pytest.raises(ValidationError, match="stdin"):
+        Workflow.model_validate(wf({**term, "stdin": {"pipe": "a"}}))
+    with pytest.raises(ValidationError):  # without kind it becomes a command step, then no network
+        Workflow.model_validate(wf({"id": "t", "tool": "vim", "network": True}))

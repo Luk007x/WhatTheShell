@@ -8,9 +8,9 @@ import {
   argsFromForm, conditionOperator, conditionWith, fieldKind, firstSentence, linesOf, matchesQuery,
   OPERATORS, rawFromArg, sortOptions, type OperatorName, type RawValue, type Spec,
 } from "../model/form";
-import { isCommand, visibleSteps, type Step } from "../model/ops";
+import { findStep, isCommand, isTerminal, isToolStep, visibleSteps, type Step } from "../model/ops";
 import type { CommandResult, OptionSpec, PreviewResult, SandboxStatus, ToolInfo } from "../types/api";
-import type { CommandStep, Workflow } from "../types/workflow";
+import type { CommandStep, TerminalStep, Workflow } from "../types/workflow";
 
 export type Update = (patch: Record<string, unknown>, key?: string) => void;
 
@@ -96,7 +96,7 @@ function Field({ idPrefix, spec, value, onChange }: { idPrefix: string; spec: Sp
 }
 
 function CommandForm({ step, wf, sandbox, onRetest, update, autoPreview }: {
-  step: CommandStep; wf: Workflow; sandbox: SandboxStatus | null; onRetest: () => void; update: Update; autoPreview: boolean;
+  step: CommandStep | TerminalStep; wf: Workflow; sandbox: SandboxStatus | null; onRetest: () => void; update: Update; autoPreview: boolean;
 }) {
   const sub = step.command ?? [];
   const [root, setRoot] = useState<ToolInfo | null>(null);
@@ -128,6 +128,22 @@ function CommandForm({ step, wf, sandbox, onRetest, update, autoPreview }: {
   return (
     <>
       {error && <p role="alert" className="error">{t("error.network", { message: error })}</p>}
+      <div className="field">
+        <label>
+          <input type="checkbox" checked={isTerminal(step)} onChange={(e) => update(e.target.checked ? { kind: "terminal", stdin: undefined } : { kind: undefined, network: undefined })} /> {t("step.terminal")}
+        </label>
+      </div>
+      {isTerminal(step) && (
+        <>
+          <p className="muted help">{t("step.terminal.hint")}</p>
+          <div className="field">
+            <label>
+              <input type="checkbox" checked={step.network === true} onChange={(e) => update({ network: e.target.checked ? true : undefined }, "network")} /> {t("step.network")}
+            </label>
+            <small className="muted">{t("step.network.help")}</small>
+          </div>
+        </>
+      )}
       {subs.length > 0 && (
         <div className="field">
           <label htmlFor={`${prefix}-sub`}>{t("step.sub")}</label>
@@ -167,16 +183,16 @@ function CommandForm({ step, wf, sandbox, onRetest, update, autoPreview }: {
       </div>
       <StdinAndErrors step={step} wf={wf} update={update} />
       <CommandView step={step} />
-      <Preview step={step} info={info} sandbox={sandbox} onRetest={onRetest} update={update} autoPreview={autoPreview} />
+      {isCommand(step) && <Preview step={step} info={info} sandbox={sandbox} onRetest={onRetest} update={update} autoPreview={autoPreview} />}
     </>
   );
 }
 
-function StdinAndErrors({ step, wf, update }: { step: CommandStep; wf: Workflow; update: Update }) {
+function StdinAndErrors({ step, wf, update }: { step: CommandStep | TerminalStep; wf: Workflow; update: Update }) {
   const p = `f-${step.id}`;
-  const stdin = step.stdin ?? {};
+  const stdin = (isCommand(step) ? step.stdin : undefined) ?? {};
   const mode = stdin.pipe !== undefined ? "pipe" : stdin.text !== undefined ? "text" : stdin.file !== undefined ? "file" : "none";
-  const before = visibleSteps(wf, step.id);
+  const before = visibleSteps(wf, step.id).filter((b) => findStep(wf, b)?.step.kind !== "terminal"); // terminal steps record no output
   const setMode = (m: string) =>
     update({ stdin: m === "pipe" ? { pipe: before[before.length - 1] ?? "" } : m === "text" ? { text: "" } : m === "file" ? { file: "" } : undefined });
   const action = step.on_error?.action ?? "abort";
@@ -196,6 +212,7 @@ function StdinAndErrors({ step, wf, update }: { step: CommandStep; wf: Workflow;
   };
   return (
     <>
+      {isCommand(step) && (
       <div className="field">
         <label htmlFor={`${p}-stdin`}>{t("step.stdin")}</label>
         <select id={`${p}-stdin`} value={mode} onChange={(e) => setMode(e.target.value)}>
@@ -210,6 +227,7 @@ function StdinAndErrors({ step, wf, update }: { step: CommandStep; wf: Workflow;
         {mode === "text" && <textarea aria-label={t("stdin.text")} rows={3} value={stdin.text ?? ""} onChange={(e) => update({ stdin: { text: e.target.value } }, "stdin")} />}
         {mode === "file" && <input aria-label={t("stdin.file")} value={stdin.file ?? ""} placeholder={t("field.path.placeholder")} onChange={(e) => update({ stdin: { file: e.target.value } }, "stdin")} />}
       </div>
+      )}
       <div className="field">
         <label htmlFor={`${p}-cwd`}>{t("step.cwd")}</label>
         <input id={`${p}-cwd`} value={step.cwd ?? ""} placeholder={t("field.path.placeholder")} onChange={(e) => update({ cwd: e.target.value || undefined }, "cwd")} />
@@ -241,7 +259,7 @@ function StdinAndErrors({ step, wf, update }: { step: CommandStep; wf: Workflow;
 }
 
 /** F-10: the resulting command as text, with copy button and safety class. */
-function CommandView({ step }: { step: CommandStep }) {
+function CommandView({ step }: { step: CommandStep | TerminalStep }) {
   const req = useDebounced(JSON.stringify({ tool: step.tool, command: step.command ?? [], args: step.args ?? {}, extra_args: step.extra_args ?? [] }), 300);
   const [res, setRes] = useState<CommandResult | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -253,7 +271,7 @@ function CommandView({ step }: { step: CommandStep }) {
       .catch((e: unknown) => { if (!stale) { setRes(null); setErr(msg(e)); } });
     return () => { stale = true; };
   }, [req]);
-  const stdin = step.stdin;
+  const stdin = isCommand(step) ? step.stdin : undefined;
   const suffix = stdin?.pipe ? ` < pipe: ${stdin.pipe}` : stdin?.text !== undefined ? " < text" : stdin?.file ? ` < datei: ${stdin.file}` : "";
   const copy = () => res && navigator.clipboard.writeText(res.display + suffix).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }, (e: unknown) => setErr(msg(e)));
   return (
@@ -348,11 +366,12 @@ function Text({ id, label, value, onChange, type = "text", list }: { id: string;
   );
 }
 
-function ControlForm({ step, wf, update }: { step: Exclude<Step, CommandStep>; wf: Workflow; update: Update }) {
+function ControlForm({ step, wf, update }: { step: Exclude<Step, CommandStep | TerminalStep>; wf: Workflow; update: Update }) {
   const p = `f-${step.id}`;
   const before = visibleSteps(wf, step.id);
   const sources = [
-    ...before.flatMap((b) => ["stdout", "stderr", "exit_code"].map((k) => `${b}.${k}`)),
+    // terminal steps record no stdout/stderr
+    ...before.flatMap((b) => (findStep(wf, b)?.step.kind === "terminal" ? ["exit_code"] : ["stdout", "stderr", "exit_code"]).map((k) => `${b}.${k}`)),
     ...Object.keys(wf.variables ?? {}).map((v) => `var.${v}`),
     "item",
   ];
@@ -430,7 +449,7 @@ export function StepPanel(props: {
       <Text id={`f-${step.id}-id`} label={t("step.id")} value={idDraft} onChange={(v) => { setIdDraft(v); }} />
       {idDraft !== step.id && <button onClick={() => props.rename(idDraft)}>{t("step.rename")}</button>}
       <Text id={`f-${step.id}-label`} label={t("step.label")} value={step.label ?? ""} onChange={(v) => props.update({ label: v || undefined }, "label")} />
-      {isCommand(step) ? (
+      {isToolStep(step) ? (
         <CommandForm step={step} wf={props.wf} sandbox={props.sandbox} onRetest={props.onRetest} update={props.update} autoPreview={props.autoPreview} />
       ) : (
         <ControlForm step={step} wf={props.wf} update={props.update} />
