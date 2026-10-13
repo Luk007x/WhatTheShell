@@ -105,10 +105,21 @@ test.describe.serial("design", () => {
   });
 
   test("dark mode", async () => {
-    await page.emulateMedia({ colorScheme: "dark" });
+    const toggle = page.getByTestId("theme-toggle");
+    const html = page.locator("html");
+    await page.emulateMedia({ colorScheme: "dark" }); // theme "system" follows the OS
+    await expect(html).toHaveAttribute("data-theme", "dark");
+    await page.emulateMedia({ colorScheme: "light" });
+    await expect(html).toHaveAttribute("data-theme", "light");
+    while ((await toggle.getAttribute("data-theme")) !== "dark") await toggle.click(); // system -> light -> dark
+    await expect(html).toHaveAttribute("data-theme", "dark");
     await noOverlap("dark");
     await shot("dark");
-    await page.emulateMedia({ colorScheme: "light" });
+    await page.goto(server.url); // reload would lose the one-time token
+    await expect(toggle).toHaveAttribute("data-theme", "dark");
+    await expect(html).toHaveAttribute("data-theme", "dark");
+    await toggle.click(); // dark -> system
+    await expect(toggle).toHaveAttribute("data-theme", "system");
   });
 
   test("run view", async () => {

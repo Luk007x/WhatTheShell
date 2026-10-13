@@ -14,7 +14,7 @@ export function Modal({ open, title, onCancel, children }: { open: boolean; titl
     if (!open && d.open) d.close();
   }, [open]);
   return (
-    <dialog ref={ref} aria-label={title} onCancel={(e) => { e.preventDefault(); onCancel(); }}>
+    <dialog ref={ref} className="nokey" aria-label={title} onCancel={(e) => { e.preventDefault(); onCancel(); }}>
       {open && (
         <>
           <header className="modal__head"><h2>{title}</h2></header>

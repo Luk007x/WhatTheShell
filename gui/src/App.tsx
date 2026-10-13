@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { errMsg, getSettings, getStatus, getTool, hasToken, postSelftest, validateWorkflow } from "./api";
 import { BlockView } from "./blocks/BlockView";
 import { Canvas, type Edit } from "./canvas/Canvas";
+import { Modal } from "./Modal";
+import { commandStep } from "./model/blocks";
 import { AiContext } from "./ai/AiDialog";
 import { FileMenu } from "./files/FileMenu";
 import { RunPanel } from "./run/RunPanel";
@@ -16,9 +18,10 @@ import { mergeTemplate } from "./model/templates";
 import { VariablesPanel } from "./detail/VariablesPanel";
 import { useDebounced } from "./hooks";
 import { Icon } from "./icons";
+import { applyTheme, getTheme, setTheme, THEMES, type Theme } from "./theme";
 import { clampCol, COL_MIN, colMax, Resizer } from "./Resizer";
 import { getLang, setLang, t, type Lang } from "./i18n";
-import { captureOutput, evaluateOutput, findStep, newId, removeStep, renameStep, setVariables, stepIdAtErrorPath, updateStep, type OpResult } from "./model/ops";
+import { addStep, captureOutput, evaluateOutput, findStep, newId, removeStep, renameStep, setVariables, stepIdAtErrorPath, updateStep, type OpResult } from "./model/ops";
 import type { SandboxStatus, ToolInfo, ToolSummary } from "./types/api";
 import type { Workflow } from "./types/workflow";
 
@@ -28,6 +31,7 @@ type View = "graph" | "blocks";
 const loadView = (): View => {
   try { return localStorage.getItem("wts.view") === "blocks" ? "blocks" : "graph"; } catch { return "graph"; }
 };
+const THEME_ICON = { system: "contrast", light: "sun", dark: "moon" } as const satisfies Record<Theme, string>;
 const emptyWorkflow = (): Workflow => ({ schema_version: 1, name: "", steps: [] });
 
 /** Modes of the mode bar; a new mode is one entry here plus one case in `center`. */
@@ -118,7 +122,12 @@ export function App() {
   const [aiEnabled, setAiEnabled] = useState(false);
   const [refresh, setRefresh] = useState(0); // bumped when ToolInfos must be reloaded (language, module saved)
   const [view, setViewState] = useState<View>(loadView);
+  const [theme, setThemeState] = useState<Theme>(getTheme);
   const [outputOpen, setOutputOpen] = useState(true);
+  const [keysOpen, setKeysOpen] = useState(false);
+  const [knownTools, setKnownTools] = useState<ReadonlySet<string>>(new Set());
+  const saveRef = useRef<(() => void) | null>(null);
+  const addToolRef = useRef<((tool: string) => void) | null>(null);
   const [fileId, setFileId] = useState<string | null>(null);
   const [savedJson, setSavedJson] = useState(JSON.stringify(emptyWorkflow()));
   const [validation, setValidation] = useState<{ ok: boolean; errors: { path: string; message: string }[] } | "checking" | string>("checking");
@@ -136,8 +145,12 @@ export function App() {
   }, [dirty]);
 
   useEffect(() => { applyFontSize(fontSize); }, [fontSize]);
+  const nextTheme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length] ?? "system";
+  const themeLabel = t("theme.label", { cur: t(`theme.${theme}`), next: t(`theme.${nextTheme}`) });
+  const cycleTheme = () => { setThemeState(nextTheme); setTheme(nextTheme); applyTheme(nextTheme); };
   const edit: Edit = useCallback((op, key) => dispatch({ type: "edit", op, key }), []);
   const onLoaded = useCallback((tools: ToolSummary[]) => {
+    setKnownTools((s) => new Set([...s, ...tools.map((x) => x.name)]));
     setSafety((m) => ({ ...m, ...Object.fromEntries(tools.flatMap((x) => (x.safety ? [[x.name, x.safety]] : []))) }));
     setCategory((m) => ({ ...m, ...Object.fromEntries(tools.flatMap((x) => (x.category ? [[x.name, x.category]] : []))) }));
   }, []);
@@ -176,16 +189,21 @@ export function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "z") return;
-      // leave native text undo alone inside form fields and while a dialog is open
-      if (e.target instanceof HTMLElement && e.target.closest("input, textarea, select, dialog")) return;
+      const mod = e.ctrlKey || e.metaKey;
+      const k = e.key.toLowerCase();
+      // always swallowed: the browser's "save page" dialog is never wanted; the action itself needs the editor
+      if (mod && k === "s") { e.preventDefault(); if (mode === "build" && !document.querySelector("dialog[open]")) saveRef.current?.(); return; }
+      // leave native text editing alone inside form fields and while a dialog is open
+      if (e.target instanceof HTMLElement && e.target.closest("input, textarea, select, dialog, [contenteditable]")) return;
       if (document.querySelector("dialog[open]")) return;
-      e.preventDefault();
-      dispatch({ type: e.shiftKey ? "redo" : "undo" });
+      if (e.key === "?") { e.preventDefault(); setKeysOpen(true); return; }
+      if (mode !== "build") return; // no editor shortcuts in the other modes
+      if (mod && (k === "z" || k === "y")) { e.preventDefault(); dispatch({ type: k === "y" || e.shiftKey ? "redo" : "undo" }); }
+      else if (e.key === "Escape") { setSelected(null); setNotice(null); } // Delete is handled by the canvas and the block view
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [mode]);
 
   const setView = (v: View) => {
     setViewState(v);
@@ -222,7 +240,7 @@ export function App() {
         return null; // RunView replaces the whole editor grid
       case "build":
         return view === "graph"
-          ? <Canvas wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} categoryOf={categoryOf} onNotice={setNotice} />
+          ? <Canvas wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} categoryOf={categoryOf} onNotice={setNotice} theme={theme} addToolRef={addToolRef} knownTools={knownTools} />
           : <BlockView wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} categoryOf={categoryOf} />;
     }
   })();
@@ -240,7 +258,7 @@ export function App() {
           onLoad={loadDoc}
           onSaved={(id) => { setFileId(id); setSavedJson(JSON.stringify(wf)); setNotice(t("file.saved.run", { id })); }}
           onDeleted={(id) => { if (id === fileId) setFileId(null); }}
-          onNew={newDoc}
+          onNew={newDoc} saveRef={saveRef}
           onDraft={(doc) => { dispatch({ type: "load", doc }); setSavedJson(JSON.stringify(emptyWorkflow())); setFileId(null); setSelected(null); }} />
         <span className="tb-group">
           <button disabled={state.past.length === 0} onClick={() => dispatch({ type: "undo" })}><Icon name="undo" />{t("history.undo")}</button>
@@ -250,6 +268,7 @@ export function App() {
         <span className="status-pill" title={sandboxTip} role="status" data-testid="sandbox-status" data-available={sandbox?.available ?? "unknown"}>
           <span className={`dot ${sandboxClass}`} aria-hidden="true" /> {sandboxText}
         </span>
+        <button className="btn--icon" data-testid="theme-toggle" data-theme={theme} aria-label={themeLabel} title={themeLabel} onClick={cycleTheme}><Icon name={THEME_ICON[theme]} /></button>
         <button className="btn--icon" aria-label={t("settings.title")} title={t("settings.title")} onClick={() => setSettingsOpen(true)}><Icon name="settings" /></button>
       </header>
 
@@ -275,7 +294,11 @@ export function App() {
       {/* Hauptgrid: catalog | center | details */}
       {mode !== "run" && <main id="main" tabIndex={-1} className="app-main"
         style={{ gridTemplateColumns: `minmax(12rem, ${cols.catalog}px) auto minmax(18rem, 1fr) auto minmax(16rem, ${cols.details}px)` }}>
-        <CatalogPanel selected={catalogTool} onSelect={setCatalogTool} onLoaded={onLoaded} reloadKey={refresh} />
+        <CatalogPanel selected={catalogTool} onSelect={setCatalogTool} onLoaded={onLoaded} reloadKey={refresh} onAdd={(name) => {
+          if (mode !== "build") return;
+          if (addToolRef.current) addToolRef.current(name); // graph view: honours the chosen target
+          else { const step = commandStep(wf, name); edit((w) => addStep(w, step, [])); setSelected(step.id); }
+        }} />
         <Resizer label={t("layout.catalog")} value={cols.catalog} min={COL_MIN.catalog} max={maxCol} onChange={(catalog) => setCols({ ...cols, catalog })} />
         {center}
         <Resizer label={t("layout.details")} value={cols.details} min={COL_MIN.details} max={maxCol} invert onChange={(details) => setCols({ ...cols, details })} />
@@ -344,6 +367,18 @@ export function App() {
             onEvaluate={(id) => { const created = newId(wf, `${id}_pruefe`); edit((w) => evaluateOutput(w, id)); setSelected(created); }} />
         </div>
       </footer>
+      <Modal open={keysOpen} title={t("keys.title")} onCancel={() => setKeysOpen(false)}>
+        <table>
+          <thead><tr><th scope="col">{t("keys.col.key")}</th><th scope="col">{t("keys.col.do")}</th></tr></thead>
+          <tbody>
+            {(["delete", "undo", "redo", "save", "esc", "enter", "help"] as const).map((r) => (
+              <tr key={r}><td><kbd>{t(`keys.${r}.key`)}</kbd></td><td>{t(`keys.${r}.do`)}</td></tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="muted">{t("keys.drag")}</p>
+        <div className="actions"><button data-autofocus onClick={() => setKeysOpen(false)}>{t("settings.close")}</button></div>
+      </Modal>
       <Settings open={settingsOpen} onClose={() => setSettingsOpen(false)} onAiChanged={setAiEnabled} lang={getLang()} onLang={changeLang}
         fontSize={fontSize} onFontSize={(s) => { saveFontSize(s); setFontSize(s); }}
         autoPreview={autoPreview} onAutoPreview={(on) => { saveAutoPreview(on); setAutoPreview(on); }} />

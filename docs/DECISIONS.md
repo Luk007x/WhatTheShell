@@ -114,3 +114,21 @@ Hauptsession ist Manager und delegiert an Sonnet-/Haiku-Agenten (siehe `CLAUDE.m
 - **Ports am Knoten nur nach Schrittart:** jeder Schritt `in`/`next`; `if` zusätzlich `then`/`else`; `foreach` `body`; Fallback `fallback`; nur `command` hat `stdin`/`stdout`. Ports sind beschriftet, Kanten unterscheiden Ablauf (durchgezogen) und Daten (gestrichelt, „stdout → stdin"). Eine Legende und ein Hilfetext erklären, was fließt: die aufgezeichnete Textausgabe eines Schritts als Eingabe des nächsten; alle anderen Übergaben per `{{ schritt.stdout }}` in Feldern.
 - **Design-System:** CSS-Variablen für Abstände, Farben (hell und dunkel per `prefers-color-scheme`), Radien, Schatten, Typografie; einheitliche Buttons, Felder, Panelköpfe; kein Überlappen (Grid mit Mindestbreiten, Umbruch in Toolbars). Weiterhin ohne UI-Bibliothek.
 - **Workflow-Bibliothek und Ausführen-Modus:** Workflows werden aus festen Ordnern indexiert (mitgeliefert, `~/.config/whattheshell/workflows`, projektlokal `.whattheshell/workflows`) und live nachgeladen; die GUI hat die Modi „Erstellen" (Editor) und „Ausführen" (Liste, Eingabeformular aus `variables`, Bestätigung, Live-Ausgabe, Verlauf der letzten Läufe). Dateidialoge entfallen.
+
+## D-013 Bedienung: Theme-Umschalter, Drag & Drop, Tastenkürzel, 2026-10-13
+
+Rückmeldung des Auftraggebers nach der Verbesserungsrunde: kein Knopf für System/Hell/Dunkel (es gab nur `prefers-color-scheme`), Wunsch nach Maus- und Tastaturbedienung.
+
+- **Theme:** `gui/src/theme.ts` löst „system" per `matchMedia` auf und setzt `html[data-theme]`; CSS kennt nur noch `:root[data-theme="dark"]`, kein Media-Query. Wahl in `localStorage("wts.theme")`, Knopf in der Kopfzeile (system → hell → dunkel), xyflow bekommt denselben Wert als `colorMode`.
+- **Drag & Drop:** Katalog-Einträge und Kontrollbausteine sind `draggable` (eigene MIME-Typen `application/x-wts-tool`, `-kind`); der Drop auf der Fläche hängt den Schritt an das gewählte Ziel und speichert die Drop-Position im `layout`. Fremde Drops werden ignoriert, Tool-Namen gegen den Katalog geprüft (Daten aus anderen Tabs sind untrusted).
+- **Kürzel** (nur im Modus „Erstellen", nicht in Feldern oder Dialogen): Entf/Rücktaste löschen die Auswahl (xyflow `deleteKeyCode`, Dialoge mit `nokey`), Strg+Z/Umschalt+Z/Y, Strg+S, Esc, Strg+Enter im Katalog, `?` öffnet die Kürzel-Übersicht. Enter im Katalog bleibt reines Auswählen, damit Tastaturnutzer nicht versehentlich Schritte anlegen.
+
+## D-014 Phase 7 Sicherheitsabschnitt (Entwurf), 2026-10-13
+
+Status: **vorgeschlagen**, Freigabe durch den Auftraggeber ausstehend (Projektauftrag 6.8 F-36, 16). Inhalt in `docs/SECURITY.md` Abschnitt 7; nichts davon ist umgesetzt.
+
+- **Terminal nur in bwrap** mit den Argumenten von `build_bwrap_argv` und `prlimit` wie die Vorschau, plus PTY; ohne bwrap kein Terminal. Netz nur per `network: true` (hebt auf `caution`). Ein Host-Terminal ohne Sandbox entfällt in Phase 7.
+- **Sitzung:** ein PTY-Prozess je Terminal-Schritt, WebSocket unter `/ws/` (Token, Host, Origin aus `SecurityMiddleware`), eine Verbindung je Terminal, höchstens 4, Idle- und harter Timeout, Trennung beendet die Prozessgruppe, kein Reattach.
+- **Keine Protokollierung von Tastatureingaben**; Transkript nur der Ausgabe als Opt-in je Lauf, maskiert, 0600 unter `cache_dir()`.
+- **`TerminalStep` (`kind: terminal`)** ohne `stdin`, Exit-Code steuert den Ablauf, Ausgabe wird nicht an Folgeschritte gereicht; CLI `wts run` lehnt Terminal-Schritte ab.
+- **Abhängigkeit** `@xterm/xterm` (MIT), Backend nur Stdlib plus `setsid` (util-linux). Offene Fragen in SECURITY.md 7.8.

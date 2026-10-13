@@ -176,6 +176,22 @@ test.describe.serial("smoke", () => {
     await expect(page.locator('input[aria-label="Name"]').first()).toHaveValue("pattern");
   });
 
+  test("n) Drag & Drop, Entf, Kürzel", async () => {
+    await page.getByRole("button", { name: "Neu", exact: true }).click();
+    await expect(nodes()).toHaveCount(0);
+    await page.getByRole("searchbox", { name: "Werkzeuge suchen" }).fill("grep");
+    await page.locator("button.tool", { hasText: "grep – Text durchsuchen" }).dragTo(page.locator(".react-flow__pane"), { targetPosition: { x: 300, y: 200 } });
+    await expect(nodes()).toHaveCount(1);
+    await nodes().first().click();
+    await page.keyboard.press("Delete");
+    await expect(nodes()).toHaveCount(0);
+    await page.locator("body").click({ position: { x: 5, y: 5 } }); // focus off any field
+    await page.keyboard.press("Shift+?");
+    await expect(page.getByRole("dialog", { name: "Tastenkürzel" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: "Tastenkürzel" })).toBeHidden();
+  });
+
   test("j) Sprache", async () => {
     await page.getByRole("button", { name: "Einstellungen" }).click();
     await page.getByLabel("Sprache").selectOption("en");

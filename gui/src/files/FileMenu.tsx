@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { useState } from "react";
+import { useEffect, useState, type MutableRefObject } from "react";
 import { ApiError, deleteWorkflow, getWorkflow, listWorkflows, putWorkflow } from "../api";
 import { AiDialog, useAi } from "../ai/AiDialog";
 import { t } from "../i18n";
@@ -12,11 +12,13 @@ import type { Workflow } from "../types/workflow";
 
 type Mode = null | "open" | "save" | "draft";
 
-export function FileMenu({ wf, fileId, dirty, onLoad, onSaved, onDeleted, onNew, onDraft }: {
+export function FileMenu({ wf, fileId, dirty, onLoad, onSaved, onDeleted, onNew, onDraft, saveRef }: {
   wf: Workflow; fileId: string | null; dirty: boolean;
   onLoad: (doc: Workflow, id: string) => void; onSaved: (id: string) => void; onDeleted: (id: string) => void; onNew: () => void;
   /** An AI draft: load it unsaved (the user saves it explicitly). */
   onDraft: (doc: Workflow) => void;
+  /** Set to the "Save" action so a shortcut outside can trigger it. */
+  saveRef?: MutableRefObject<(() => void) | null>;
 }) {
   const { enabled: aiOn } = useAi();
   const [desc, setDesc] = useState("");
@@ -51,12 +53,19 @@ export function FileMenu({ wf, fileId, dirty, onLoad, onSaved, onDeleted, onNew,
     putWorkflow(id, wf).then((r) => { onSaved(r.id); setMode(null); }, setError);
   };
 
+  const openSave = () => open("save", fileId ?? slugify(wf.name));
+  useEffect(() => {
+    if (!saveRef) return;
+    saveRef.current = openSave;
+    return () => { saveRef.current = null; };
+  }); // every render: `openSave` closes over the current document and file
+
   const err = error instanceof Error ? error : null;
   return (
     <span className="filemenu" role="group" aria-label={t("file.menu")}>
       <button onClick={() => { if (discard()) onNew(); }}>{t("canvas.new")}</button>
       <button onClick={() => open("open")}>{t("file.open")}</button>
-      <button onClick={() => (fileId ? open("save", fileId) : open("save", slugify(wf.name)))}>{t("file.save")}</button>
+      <button onClick={openSave}>{t("file.save")}</button>
       <button onClick={() => open("save", slugify(wf.name))}>{t("file.saveas")}</button>
       {aiOn && <button onClick={() => { setDesc(""); setDraftName(""); setMode("draft"); }}>{t("ai.draft")}</button>}
       <span className="muted docname" role="status">{wf.name || t("file.untitled")}{dirty && <strong title={t("file.dirty")}> ● {t("file.dirty")}</strong>}</span>

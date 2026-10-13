@@ -31,12 +31,27 @@ Start the backend first (`uv run wts gui --no-browser`), then open `http://local
 1. **Starten**: `uv run wts gui --no-browser`, die URL mit `#token=...` aus der Konsole öffnen.
 2. **Katalog** (links): Werkzeug suchen und auswählen. Der Stern merkt Favoriten.
 3. **Hinzufügen**: Toolbar „Hinzufügen: <Werkzeug>" fügt einen Befehlsschritt ein; Kontrollbausteine (Bedingung, Schleife, Variable, Warten, Meldung, Abbrechen) daneben. Ist ein `if`/`foreach` gewählt, wählt das Ziel-Select „ans Ende / in Dann / in Sonst / in Schleife".
-4. **Verbinden**: Ablaufkante vom unteren Anschluss „weiter" (setzt die Reihenfolge) oder „dann/sonst/Rumpf/bei Fehler" (Teilfolge) auf den oberen Eingang „Ablauf"; Datenkante von „stdout" (rechts) nach „stdin" (links, nur Befehle). Andere Kombinationen werden abgelehnt, die Statuszeile sagt warum. Entf löscht Knoten oder Pipe-Kanten. Strg+Z / Strg+Umschalt+Z: Rückgängig/Wiederholen.
+4. **Verbinden**: Ablaufkante vom unteren Anschluss „weiter" (setzt die Reihenfolge) oder „dann/sonst/Rumpf/bei Fehler" (Teilfolge) auf den oberen Eingang „Ablauf"; Datenkante von „stdout" (rechts) nach „stdin" (links, nur Befehle). Andere Kombinationen werden abgelehnt, die Statuszeile sagt warum. Entf löscht Knoten oder Pipe-Kanten. Katalog-Einträge und Kontrollbausteine lassen sich auf die Fläche ziehen. Tastenkürzel: siehe „Tastenkürzel“ (`?` öffnet die Übersicht).
 5. **Formular** (rechts): Schritt anklicken; Eingaben, Optionen, „Freie Argumente", stdin, Fehlerbehandlung. Darunter der fertige Befehl (kopierbar) mit Sicherheitsklasse.
 6. **Vorschau**: Beispiel wählen, „Beispiel ausführen" (nur in der Sandbox; bei sicheren Befehlen mit Beispiel automatisch).
 7. **Trockenlauf**: zeigt den Plan, führt nichts aus.
 8. **Ausführen**: Dialog mit Plan, höchster Sicherheitsklasse, Arbeitsordner und Variablen-Überschreibungen; danach Live-Ausgabe pro Schritt, Pause, Einzelschritt, Abbrechen. Gefährliche Schritte fragen einzeln nach. Bei beendeten Schritten: „Als Variable übernehmen" und „Hier auswerten".
 9. **Speichern**: Kopfzeile „Speichern" / „Speichern unter" (id wird aus dem Namen vorgeschlagen), „Öffnen" zeigt die Workflow-Bibliothek (Suche, Quellen-Badges). Gespeichert wird in den Nutzerordner; der Workflow erscheint damit sofort im Modus „Ausführen". Ungespeicherte Änderungen sind markiert.
+
+## Tastenkürzel
+
+Im Modus „Erstellen“; nicht in Formularfeldern und offenen Dialogen (dort gilt die Browser-Bearbeitung). Strg gilt auch als Cmd. `?` zeigt dieselbe Tabelle in der App.
+
+| Taste | Wirkung |
+|---|---|
+| Entf (Graph: auch Rücktaste) | ausgewählten Schritt löschen (die Block-Ansicht fragt nach) |
+| Strg+Z | Rückgängig |
+| Strg+Umschalt+Z / Strg+Y | Wiederholen |
+| Strg+S | Speichern (öffnet den Speichern-Dialog, ohne Datei „Speichern unter“) |
+| Esc | Auswahl aufheben, Hinweis löschen |
+| Strg+Eingabe im Katalog | Werkzeug am gewählten Ziel anhängen (Eingabe/Klick wählt nur aus) |
+| ? | Tastenkürzel-Dialog |
+| Ziehen | Katalog-Eintrag oder Kontrollbaustein auf die Fläche: Schritt entsteht an der Drop-Stelle |
 
 ## Ausführen
 
@@ -66,7 +81,7 @@ Ablaufkanten sind durchgezogen mit Pfeil, Datenkanten gestrichelt in zweiter Far
 
 ## Oberfläche
 
-Grid: Kopfzeile (Datei, Rückgängig, Sandbox, Einstellungen) / Modusleiste (Erstellen, Ausführen, Module; Graph/Blöcke) / Katalog | Mitte | Details / Fuss (Statuszeile, Ausgabe). Die Spaltenbreiten lassen sich an den Trennern ziehen oder per Tastatur ändern (Trenner fokussieren, ←/→, Umschalt für große Schritte, Pos1/Ende), gespeichert in `localStorage("wts.cols")`. Design-Tokens (Abstände, Farben hell/dunkel per `prefers-color-scheme`, Radien, Schatten) stehen am Anfang von `src/app.css`; Icons in `src/icons.tsx`. `e2e/design.spec.ts` prüft bei 1280×720 (auch Schrift „groß" und dunkel), dass sich Bereiche und Knöpfe nicht überlappen, und legt `e2e-results/design-*.png` ab.
+Grid: Kopfzeile (Datei, Rückgängig, Sandbox, Einstellungen) / Modusleiste (Erstellen, Ausführen, Module; Graph/Blöcke) / Katalog | Mitte | Details / Fuss (Statuszeile, Ausgabe). Die Spaltenbreiten lassen sich an den Trennern ziehen oder per Tastatur ändern (Trenner fokussieren, ←/→, Umschalt für große Schritte, Pos1/Ende), gespeichert in `localStorage("wts.cols")`. Design-Tokens (Abstände, Farben hell/dunkel über `data-theme` am `<html>`, Radien, Schatten) stehen am Anfang von `src/app.css`; Icons in `src/icons.tsx`. Der Knopf links vom Zahnrad schaltet Darstellung System → Hell → Dunkel (gespeichert in `localStorage("wts.theme")`, „System" folgt `prefers-color-scheme`; Logik in `src/theme.ts`). `e2e/design.spec.ts` prüft bei 1280×720 (auch Schrift „groß" und dunkel), dass sich Bereiche und Knöpfe nicht überlappen, und legt `e2e-results/design-*.png` ab.
 
 ## Ansichten
 

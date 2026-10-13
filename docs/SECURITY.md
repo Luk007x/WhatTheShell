@@ -182,7 +182,7 @@ Bekannte Grenzen und Restrisiken:
 - Anmeldedaten: Auf dem Entwicklungsrechner (Linux) liegen sie als Datei `~/.claude/.credentials.json` (0600); mit dieser Kopie meldet `claude auth status` „loggedIn: true“. Liegen sie in einem Schlüsselbund (z. B. macOS-Keychain), fehlt die Datei: der Agent ist im Temp-HOME dann nicht angemeldet, der Preflight meldet das; Abhilfe `ANTHROPIC_API_KEY`. Ungeprüft: Erneuert der Agent im Temp-HOME ein OAuth-Token mit rotierendem Refresh-Token, verfällt die Kopie mit dem Löschen und das Original könnte ungültig werden (dann `claude login`).
 - Die Datenvorschau zeigt, was **WhatTheShell** sendet; was ein Agent-Programm selbst nachlädt oder an den Anbieter schickt, zeigt sie nicht.
 
-Ebenfalls geplant (Phase 7): eingebettetes Terminal (F-36). Vor der Umsetzung ist ein eigener Sicherheitsabschnitt zu schreiben und freizugeben.
+Ebenfalls geplant (Phase 7): eingebettetes Terminal (F-36). Sicherheitsabschnitt als Entwurf in Abschnitt 7, Freigabe ausstehend.
 
 
 - HTTP-Antworten der Provider werden auf 2 MiB begrenzt (`ai/providers/http.py`: `_send`, `get_json`, `post_json`); größere Antworten werden mit Fehler abgewiesen.
@@ -190,3 +190,67 @@ Ebenfalls geplant (Phase 7): eingebettetes Terminal (F-36). Vor der Umsetzung is
 ## 6. Meldung von Sicherheitsproblemen
 
 Sicherheitsprobleme bitte als GitHub-Issue mit dem Label `security` melden, bis es eine eigene Adresse gibt. Keine Zugangsdaten, Secrets oder ausnutzbaren Details öffentlich posten, die Beschreibung der Art des Problems genügt, Details dann auf Nachfrage. Eine Antwortfrist ist nicht zugesagt (Ein-Personen-Projekt).
+
+## 7. Eingebettetes Terminal (Phase 7) – ENTWURF, Freigabe durch den Auftraggeber ausstehend, nicht umgesetzt
+
+Anforderung F-36 (Projektauftrag 6.8, 16). Alles in diesem Abschnitt ist **geplant**, nichts davon ist im Code. Entscheidung D-014 (Status „vorgeschlagen“). Grundsatz: Das Terminal ist ein weiterer Prozessstart; es nutzt die bestehenden Mechanismen (Abschnitte 2.3, 2.8, 4) und bekommt nur dort Neues, wo eine PTY es erzwingt.
+
+### 7.1 Bedrohungsmodell
+
+- **Entscheidung:** Angreifer sind (a) ein Browser-Tab fremder Herkunft, der den Terminal-WebSocket öffnen oder Tastendrücke einspeisen will, (b) eine bösartige Workflow-Datei, die über einen Terminal-Schritt Eingaben vorbelegt oder ein gefährliches Programm interaktiv tarnt, (c) das interaktive Programm selbst, das über Escape-Sequenzen den Browser angreift (Zwischenablage, Titel, Links, Dateianfragen) oder Geheimnisse in der Ausgabe hinterlässt, (d) andere lokale Nutzer, die Transkripte oder Prozessdaten lesen wollen. Schutzgüter: Dateien und Netz des Nutzers, Tastatureingaben (Passwörter), Zwischenablage, das Sitzungstoken.
+- **Begründung:** Neu gegenüber Abschnitt 1 ist der Rückkanal (Eingaben in einen laufenden Prozess) und die Rohausgabe mit Steuersequenzen. Wie in Abschnitt 4 nicht im Modell: Prozesse desselben Nutzers (sie erreichen Port und Token-Datei ohnehin) und bewusst bestätigte Schäden.
+
+### 7.2 Rechte
+
+- **Nutzer, nie root.** Das Terminal läuft im Prozess von `wts gui`, das bei `os.geteuid() == 0` abbricht (`cli.py:_gui`). Ein späterer CLI-Einstieg (`wts terminal`) muss dieselbe Prüfung aufrufen. Begründung: Eine Terminal-Sitzung als root wäre stilles Sudo (2.5).
+- **Standard: bwrap mit denselben Regeln wie die Vorschau, plus PTY.** Argumente aus `sandbox.build_bwrap_argv` unverändert (`--ro-bind / /`, `--tmpfs` für `/home`, `/root`, `/tmp`, `/var/tmp`, `/run`, `--unshare-all`, `--die-with-parent`, `--new-session`, `--clearenv`, `HOME=/tmp/work`, fester `SANDBOX_PATH`), innen `prlimit --as --nproc` wie in `run_sandboxed`. Arbeitsverzeichnis: das `cwd` des Schritts wird statt eines Temp-Ordners als einzige Schreibstelle unter `/tmp/work` gebunden; ein `cwd` außerhalb des Workflow-Ordners hebt wie bisher auf `caution` (`extra_risks`) und erscheint im Bestätigungstext. Begründung: Eine bewährte, getestete Sandbox statt einer zweiten; `--die-with-parent` und `--unshare-pid` sorgen dafür, dass mit bwrap der ganze PID-Namensraum endet, was stärker ist als der Gruppen-Kill.
+- **Ohne bwrap kein Terminal.** Meldet `self_test` `available=False`, ist das Terminal deaktiviert, mit demselben Installationshinweis (`install_hint_for_distro`). Begründung: Abschnitt 10.3 (kein ungeschützter Ersatzmodus) gilt sinngemäß.
+- **Netz nur per Opt-in je Schritt** (`network: true`), über den vorhandenen Parameter `build_bwrap_argv(network=True)` (`--share-net`). `network: true` hebt den Schritt mindestens auf `caution`, die Bestätigung nennt „Netzzugang“. Begründung: `ssh`, `ftp`, `telnet` stehen in `INTERACTIVE` und brauchen Netz; sichtbar und bestätigt statt pauschal. Offen: `--tmpfs /run` verdeckt `/run/systemd/resolve/stub-resolv.conf`, auf das `/etc/resolv.conf` z. B. unter Fedora zeigt; mit Netz braucht es dafür ein `--ro-bind` nur dieser Datei, sonst scheitert DNS.
+- **Host-Terminal ohne Sandbox: Empfehlung „entfällt in Phase 7“.** Alternative wäre ein eigener Modus mit Klasse `dangerous`, rotem Rahmen und Bestätigungsdialog je Start. Begründung für den Verzicht: Mit vollem Nutzerkonto ist ein Terminal-Schritt aus einer fremden Datei eine Shell mit allen Rechten; die Sandbox ist der einzige Unterschied zu einem normalen Terminal, das der Nutzer ohnehin hat. Nachrüsten bleibt möglich (eigener D-Eintrag).
+- **Umgebung:** Basis `subproc.sanitized_env()` (Allowlist, keine Nutzerumgebung, anders als reale Läufe in 2a), überschrieben mit `TERM=xterm-256color`, `COLUMNS`/`LINES` aus der Browsergröße, `LANG`/`LC_ALL=C.UTF-8`, `HOME` und `PATH` wie in `run_sandboxed`. `env` eines Terminal-Schritts läuft durch `env_blocked`. Fenstergröße wird per `TIOCSWINSZ` gesetzt, nicht über weitere Variablen.
+- **Keine setuid-Programme:** bwrap setzt `PR_SET_NO_NEW_PRIVS`; `sudo`, `su`, `pkexec` funktionieren in der Sandbox nicht und bleiben `dangerous` (2.5). Begründung: Rechteerhöhung ist im Terminal ausdrücklich nicht vorgesehen.
+- **Steuerterminal trotz `--new-session`:** Der Kindprozess bekommt die PTY-Slave-Seite als stdin/stdout/stderr über `subprocess.Popen(..., start_new_session=True)`; innen macht `setsid --ctty` (util-linux) die Slave-Seite zum Steuerterminal. Kein `pty.fork`/`os.forkpty` und kein `preexec_fn`. Begründung: D-008 (kein Fork mit Python-Code im Mehrthread-Prozess); `--new-session` bleibt, weil es TIOCSTI-Einschleusung in ein fremdes Terminal verhindert, und die eigene PTY ist kein fremdes. Offen: `--dev /dev` legt ein eigenes devpts an, die Host-PTY hat darin keinen Pfad; `ttyname()` schlägt fehl (betrifft z. B. `tty`, `ssh`, `tmux`). Host-`/dev/pts` einzubinden würde alle Terminals des Nutzers sichtbar machen und entfällt; Verhalten mit `vim`, `less`, `top`, `ssh` vor Abnahme prüfen.
+
+### 7.3 Sitzungsisolation
+
+- **Ein PTY-Prozess je Terminal-Schritt**, gebunden an eine Run-ID aus `RunManager` und damit an das Sitzungstoken von `Session`. Pfad `/ws/runs/{id}/terminal/{step_id}`: liegt unter `GUARDED_PREFIXES` (`/ws/`), also gelten Token (`?token=`, `compare_digest`), Host- und Origin-Prüfung aus `SecurityMiddleware` und `ws_max_size` 1 MiB ohne neuen Code; der Server ist nur an `127.0.0.1` gebunden. Begründung: dieselben Prüfungen wie `/api/runs`, keine zweite Implementierung.
+- **Genau eine Verbindung je Terminal.** Ein zweiter Verbindungsversuch auf denselben Schritt wird mit Close-Code abgewiesen. Begründung: Anders als bei Bestätigungen (Abschnitt 4, „jeder Tab kann antworten“) sollen Tastendrücke aus genau einer Quelle kommen.
+- **Limits:** höchstens 4 gleichzeitige Terminals (eigene Konstante neben `MAX_RUNNING_RUNS`), Idle-Timeout 15 min ohne Ein- oder Ausgabe, harter Timeout = `timeout` des Schritts, Obergrenze `_MAX_TIMEOUT` (24 h). Begründung: Jedes Terminal hält einen Prozessbaum und einen Thread des Laufs.
+- **Trennung beendet den Prozess.** Bei WebSocket-Trennung, Abbruch über `Controller` oder Serverende: `SIGHUP`, dann nach 2 s `SIGKILL` an die Prozessgruppe (`_kill_group`); bwrap reißt den PID-Namensraum mit. Kein Reattach. Begründung: Ein weiterlebender Prozess ohne Bildschirm ist unsichtbar; Reattach bräuchte ein zweites Geheimnis je Terminal und Pufferung der Ausgabe.
+- **Eingaben nur über den WebSocket.** Ein Terminal-Schritt hat kein Feld `stdin` und keine Vorbelegung von Tastendrücken; das Modell lehnt solche Felder ab (`extra="forbid"`). Begründung: Workflow-Dateien sind untrusted (10.6); vorbelegte Eingaben wären ein Skript, das an Bestätigung und Klassifizierung vorbei Befehle in eine Shell tippt.
+- **Escape-Sequenzen zum Browser:** xterm.js rendert, aber OSC 52 (Zwischenablage), Fenstertitel, OSC 8 (Hyperlinks) und Datei-/Bildprotokolle sind clientseitig aus (keine entsprechenden Addons, Handler für OSC 52 und Titel registriert und verworfen). Begründung: Ein Programm (oder eine angezeigte Datei, z. B. `less boese.txt`) könnte sonst die Zwischenablage des Nutzers überschreiben oder Links und Titel fälschen; der Nutzer sieht davon nichts.
+
+### 7.4 Eingabeprotokollierung
+
+- **Standard: keine Protokollierung der Tastatureingaben, nie.** Eingaben gehen vom WebSocket direkt auf die PTY-Master-Seite und werden weder in den Event-Verlauf (`RunInfo.publish`) noch in ein Log geschrieben.
+- **Optional je Lauf: Transkript nur der Programmausgabe**, Standard aus, Schalter mit Hinweis im UI („Ausgabe wird gespeichert“, sichtbar während des Laufs). Maskierung mit `secret_values`/`mask_text` wie bei Runs; Datei mit 0600 unter `cache_dir()/terminal/` (Ordner 0700, `O_EXCL`), Löschen über GUI und CLI. Echo getippter Zeichen steht in der Ausgabe; das UI sagt das.
+- **Begründung:** Tastatureingaben enthalten Passwörter und sind personenbezogene Daten; eine Speicherung ohne Wissen und Zweck wäre weder datenschutzrechtlich (Datensparsamkeit) noch gegenüber dem Nutzer vertretbar.
+
+### 7.5 Workflow-Integration
+
+- **`TerminalStep` (`kind: terminal`)** mit `tool`, `command`, `args`, `extra_args` wie `CommandStep`, dazu `network` (Standard `false`), `timeout`, `cwd`, `env`; **kein** `stdin`, **kein** `ok_exit_codes`-Sonderfall nötig (wird übernommen). argv über `build_argv`, nie Shell (2.1).
+- **Exit-Code steuert den Ablauf wie bei `CommandStep`** (`on_error`, `ok_exit_codes`). Die Ausgabe wird **nicht** als `stdout` an Folgeschritte gereicht: Sie enthält Cursor- und Farbsequenzen, Neuzeichnungen und Echo, also keinen verlässlichen Text. Empfehlung: kein `strip-ansi`-Opt-in in Phase 7; wer Text weiterreichen will, schreibt eine Datei ins Arbeitsverzeichnis.
+- **Klassifizierung:** `classify_command` wie bei Befehlen, zweimal (prepare und Laufzeit, Maximum); `network: true` hebt auf `caution`; `dangerous` verlangt Bestätigung (`needs_confirmation`). Die Planübersicht zeigt Terminal-Schritte mit Kennzeichnung „interaktiv“.
+- **Trockenlauf** (`plan`, `--dry-run`) zeigt den Schritt als „interaktiv, wird übersprungen“. `wts run` im CLI lehnt Workflows mit Terminal-Schritt vor dem ersten Prozessstart mit Hinweis auf `wts gui` ab. Begründung: Das CLI hat keinen Terminal-Kanal mit denselben Garantien.
+
+### 7.6 Abhängigkeiten
+
+- Frontend: `@xterm/xterm` (MIT) und `@xterm/addon-fit` (MIT, Größe an Container), Eintrag in `docs/DEPENDENCIES.md` mit Version und Lizenz bei der Umsetzung. Keine Links-, Image- oder Clipboard-Addons.
+- Backend: nur Stdlib (`os.openpty`, `fcntl`/`termios` für `TIOCSWINSZ`, `asyncio`, `subprocess`), dazu `setsid` aus util-linux (wie `prlimit` bereits vorausgesetzt). Keine weitere Python-Abhängigkeit.
+
+### 7.7 Tests vor Abnahme
+
+1. Terminal-WebSocket ohne/mit falschem Token, fremdem Origin, fremdem Host: abgewiesen (Close 4401/4403/4400), kein Prozess gestartet.
+2. Nach WebSocket-Trennung ist die Prozessgruppe samt Enkelprozess innerhalb von 3 s tot (`os.killpg(pgid, 0)` wirft `ProcessLookupError`).
+3. Fünftes gleichzeitiges Terminal wird abgelehnt; zweite Verbindung auf dasselbe Terminal wird abgelehnt.
+4. Ohne Transkript-Opt-in entsteht nach einem Lauf mit Eingaben keine Datei unter `cache_dir()` und kein Eingabetext im Event-Verlauf; mit Opt-in Datei 0600, Secret maskiert.
+5. Ohne bwrap (`self_test` → `available=False` bzw. gepatchtes `shutil.which`) verweigert das Terminal den Start; kein Prozess ohne bwrap.
+6. Workflow-Datei mit `stdin` (oder anderem unbekannten Feld) an einem Terminal-Schritt wird vom Lader abgelehnt (`DocumentError` mit Zeile).
+7. Ohne `network: true` hat der Prozess kein Netz (wie `self_test`); in der Sandbox ist `/home` leer.
+
+### 7.8 Offene Entscheidungen für den Auftraggeber
+
+1. **Host-Terminal ohne Sandbox?** Empfehlung: nein für Phase 7 (7.2).
+2. **Transkript der Ausgabe standardmäßig an oder aus?** Empfehlung: aus, Opt-in je Lauf (7.4).
+3. **Höchstzahl gleichzeitiger Terminals?** Empfehlung: 4, wie `MAX_RUNNING_RUNS`.
+4. **Reattach nach Neuladen der Seite?** Empfehlung: nein; Trennen beendet den Prozess (7.3).

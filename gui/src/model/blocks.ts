@@ -67,6 +67,10 @@ export function placeOf(wf: Workflow, id: string): string {
 /** New command step for a catalog tool. */
 export const commandStep = (wf: Workflow, tool: string): Step => ({ id: newId(wf, tool), tool, args: {} });
 
+/** Drag payload types: a catalog tool name, a control block kind. */
+export const MIME_TOOL = "application/x-wts-tool";
+export const MIME_KIND = "application/x-wts-kind";
+
 export const CONTROL_KINDS = ["if", "foreach", "set", "wait", "message", "abort"] as const;
 export type ControlKind = (typeof CONTROL_KINDS)[number];
 

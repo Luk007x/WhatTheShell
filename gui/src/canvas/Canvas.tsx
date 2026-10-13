@@ -2,14 +2,15 @@
 import "@xyflow/react/dist/style.css";
 import {
   applyNodeChanges, Background, Controls, Handle, MiniMap, Panel, Position, ReactFlow, useReactFlow,
-  type Connection, type NodeChange, type NodeProps, type OnConnectEnd,
+  type Connection, type NodeChange, type NodeProps, type OnConnectEnd, type ReactFlowInstance,
 } from "@xyflow/react";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type DragEvent, type MutableRefObject } from "react";
 import { categoryClass } from "../catalog/groupTools";
 import { t } from "../i18n";
+import type { Theme } from "../theme";
 import { Icon } from "../icons";
 import { Modal } from "../Modal";
-import { commandStep, CONTROL_KINDS, controlStep } from "../model/blocks";
+import { commandStep, CONTROL_KINDS, controlStep, MIME_KIND, MIME_TOOL } from "../model/blocks";
 import { connectionKind, connectionProblem, handlesOf, toGraph, type FlowEdge, type HandleSpec, type StepNode } from "../model/graph";
 import {
   addStep, findStep, isCommand, moveAfter, moveStep, portsOf, removeStep, setLayout, updateStep,
@@ -123,8 +124,14 @@ export function Canvas(props: {
   categoryOf: (tool: string) => string | null;
   /** Short message for the status line; null clears it. */
   onNotice: (text: string | null) => void;
+  theme: Theme;
+  /** Names of known catalog tools; a dropped name outside it is ignored. */
+  knownTools: ReadonlySet<string>;
+  /** Set to "append this tool at the chosen target" for the catalog's Enter key. */
+  addToolRef?: MutableRefObject<((tool: string) => void) | null>;
 }) {
-  const { wf, selected, onSelect, edit, catalogTool, safetyOf, categoryOf, onNotice } = props;
+  const { wf, selected, onSelect, edit, catalogTool, safetyOf, categoryOf, onNotice, addToolRef, knownTools } = props;
+  const rf = useRef<ReactFlowInstance<StepNode, FlowEdge> | null>(null);
   const [target, setTarget] = useState("end");
   const graph = useMemo(() => toGraph(wf), [wf]);
   const [nodes, setNodes] = useState<StepNode[]>(graph.nodes);
@@ -182,6 +189,23 @@ export function Canvas(props: {
   const targets = selHit ? portsOf(selHit.step).filter((p): p is Exclude<Port, "fallback"> => p !== "fallback") : [];
   const path = selected && targets.some((p) => p === target) ? [selected, target] : [];
   const add = (step: Step) => { edit((w) => addStep(w, step, path)); onSelect(step.id); };
+  useEffect(() => {
+    if (!addToolRef) return;
+    addToolRef.current = (name) => add(commandStep(wf, name));
+    return () => { addToolRef.current = null; };
+  }); // every render: `add` closes over the current document and target
+  const dragStart = (type: string, value: string) => (e: DragEvent) => { e.dataTransfer.setData(type, value); e.dataTransfer.effectAllowed = "copy"; };
+  const onDrop = (e: DragEvent) => {
+    e.preventDefault(); // also for foreign drops (files): the browser must not navigate away
+    const name = e.dataTransfer.getData(MIME_TOOL);
+    const kind = CONTROL_KINDS.find((k) => k === e.dataTransfer.getData(MIME_KIND)); // untrusted string: only known kinds
+    const pos = rf.current?.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+    if (!pos) return;
+    if (name ? !knownTools.has(name) : !kind) return; // unknown names may come from another tab: ignore
+    const step = name ? commandStep(wf, name) : controlStep(wf, kind ?? "message"); // `kind` is set when `name` is empty
+    edit((w) => { const r = addStep(w, step, path); return r.wf === w ? r : { ...r, wf: setLayout(r.wf, step.id, pos) }; });
+    onSelect(step.id);
+  };
   return (
     <section className="panel canvas" aria-labelledby="canvas-h">
       <h2 id="canvas-h" className="sr-only">{t("canvas.title")}</h2>
@@ -203,7 +227,7 @@ export function Canvas(props: {
             <Icon name="plus" />{catalogTool ? t("canvas.add.tool", { name: catalogTool }) : t("canvas.add.pick")}
           </button>
           {CONTROL_KINDS.map((k) => (
-            <button key={k} onClick={() => add(controlStep(wf, k))}>{t(`kind.${k}`)}</button>
+            <button key={k} draggable onDragStart={dragStart(MIME_KIND, k)} onClick={() => add(controlStep(wf, k))}>{t(`kind.${k}`)}</button>
           ))}
         </span>
         <button className="btn--danger" disabled={!selected} onClick={() => selected && edit((w) => removeStep(w, selected))}><Icon name="trash" />{t("canvas.delete")}</button>
@@ -215,7 +239,11 @@ export function Canvas(props: {
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
-          colorMode="system"
+          colorMode={props.theme}
+          onInit={(i) => { rf.current = i; }}
+          onDragOver={(e) => { if (e.dataTransfer.types.some((x) => x === MIME_TOOL || x === MIME_KIND)) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } }}
+          onDrop={onDrop}
+          deleteKeyCode={["Delete", "Backspace"]}
           onNodesChange={onNodesChange}
           onConnect={onConnect}
           onConnectEnd={onConnectEnd}
@@ -225,6 +253,7 @@ export function Canvas(props: {
           onNodeDragStop={(_, n) => edit((w) => setLayout(w, n.id, n.position))}
           onDelete={({ nodes: ns, edges: es }) => {
             const gone = new Set(ns.map((n) => n.id));
+            if (selected && gone.has(selected)) onSelect(null);
             if (ns.length > 0) edit((w) => ns.reduce<OpResult>((r, n) => removeStep(r.wf, n.id), { wf: w, warnings: [] }));
             for (const e of es) {
               if (gone.has(e.source) || gone.has(e.target)) continue; // edges of deleted nodes vanish silently

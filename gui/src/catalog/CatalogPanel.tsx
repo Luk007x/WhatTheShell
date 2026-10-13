@@ -5,6 +5,7 @@ import { t } from "../i18n";
 import type { ToolSummary } from "../types/api";
 import { Icon } from "../icons";
 import { categoryClass, groupTools, label, OTHER } from "./groupTools";
+import { MIME_TOOL } from "../model/blocks";
 
 const FAV_KEY = "wts.favorites";
 
@@ -17,7 +18,7 @@ function loadFavorites(): string[] {
   }
 }
 
-export function CatalogPanel({ selected, onSelect, onLoaded, reloadKey = 0 }: { selected: string | null; onSelect: (name: string) => void; onLoaded?: (tools: ToolSummary[]) => void; reloadKey?: number }) {
+export function CatalogPanel({ selected, onSelect, onLoaded, onAdd, reloadKey = 0 }: { selected: string | null; onSelect: (name: string) => void; /** Ctrl/Cmd+Enter on an entry: append the tool to the workflow. */ onAdd?: (name: string) => void; onLoaded?: (tools: ToolSummary[]) => void; reloadKey?: number }) {
   const [query, setQuery] = useState("");
   const [tools, setTools] = useState<ToolSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +54,7 @@ export function CatalogPanel({ selected, onSelect, onLoaded, reloadKey = 0 }: { 
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && e.target instanceof HTMLElement && e.target.matches("button.tool")) { e.preventDefault(); if (!e.repeat) onAdd?.(e.target.dataset.tool ?? ""); return; }
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
     const items = [...e.currentTarget.querySelectorAll<HTMLElement>("button.tool")];
     const i = items.indexOf(document.activeElement as HTMLElement); // activeElement is an Element; only compared by identity
@@ -87,7 +89,8 @@ export function CatalogPanel({ selected, onSelect, onLoaded, reloadKey = 0 }: { 
             <ul className="tools">
               {g.tools.map((tool) => (
                 <li key={tool.name}>
-                  <button className="tool" aria-current={selected === tool.name} onClick={() => onSelect(tool.name)}>
+                  <button className="tool" data-tool={tool.name} aria-current={selected === tool.name} onClick={() => onSelect(tool.name)}
+                    draggable onDragStart={(e) => { e.dataTransfer.setData(MIME_TOOL, tool.name); e.dataTransfer.effectAllowed = "copy"; }}>
                     <span className="name">
                       {tool.safety && (
                         <>
