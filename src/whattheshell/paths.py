@@ -19,6 +19,12 @@ def config_dir() -> Path:
     return Path(base) / APP_NAME.lower()
 
 
+def runtime_dir() -> Path:
+    """Return ``$XDG_RUNTIME_DIR/whattheshell`` or ``cache_dir()/run``; it is not created."""
+    base = os.environ.get("XDG_RUNTIME_DIR")
+    return Path(base) / APP_NAME.lower() if base else cache_dir() / "run"
+
+
 def module_dirs(project_root: Path | None = None) -> list[Path]:
     """Return module search directories in ascending priority; they may not exist."""
     dirs = [bundled.MODULES_DIR, config_dir() / "modules"]

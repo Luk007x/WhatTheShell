@@ -65,6 +65,9 @@ export const api = {
   del: <T>(path: string) => request<T>("DELETE", path),
 };
 
+/** uvicorn closes sockets with 1012 (service restart) on shutdown, 1001 is "going away". */
+export const isShutdownClose = (code: number): boolean => code === 1001 || code === 1012;
+
 export function wsUrl(path: string): string {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   return `${proto}//${location.host}${path}?token=${encodeURIComponent(token ?? "")}`;
@@ -97,6 +100,7 @@ export const controlRun = (id: string, action: RunAction) =>
 export const confirmRun = (id: string, stepId: string, ok: boolean) =>
   api.post<void>(`/api/runs/${enc(id)}/confirm`, { step_id: stepId, ok });
 export const deleteTranscript = (name: string) => api.del<void>(`/api/terminal/transcripts/${enc(name)}`);
+export const postShutdown = () => api.post<{ status: "stopping" }>("/api/shutdown");
 export const postSelftest = () => api.post<SandboxStatus>("/api/sandbox/selftest");
 
 export interface ModuleList {

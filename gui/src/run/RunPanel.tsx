@@ -46,6 +46,7 @@ export function RunOutput({ run, onSelect, extra }: { run: Run; onSelect?: (id: 
   return (
     <>
       {run.error !== null && <Problem error={run.error} />}
+      {run.stopping && <p role="status">{t("run.stopping")}</p>}
       {run.lost && <p role="alert" className="error">{t("run.lost")} <button onClick={run.loadHistory}>{t("run.history")}</button></p>}
       {run.view.blocks.map((b) => (
         <details key={b.key} open className="block">

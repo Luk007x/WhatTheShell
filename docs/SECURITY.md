@@ -145,6 +145,7 @@ Grenzen:
 - [x] **Browserstart ohne Token in der Prozessliste.** `cli.py:_write_redirect` schreibt eine Weiterleitungsseite (`O_EXCL`, Modus 0600, Ordner 0700 unter `cache_dir()/gui`); `webbrowser.open` bekommt nur die `file://`-URL. Die Datei wird beim Beenden gelöscht (`finally` in `_gui`).
 - [x] **Einheitliches Fehlerformat.** `api/errors.py:error_response` und die Handler in `app.py` (`_http_error`, `_validation_error`) liefern `{"error", "message"[, "errors"]}`; keine Stacktraces in Antworten (Stacktraces gehen nur ins Log).
 - [x] **Gleiche Logik wie das CLI.** Ausführung läuft über `Runner` (Klassifizierung, Bestätigung als `confirm_request`, Maskierung in `_emit`), Befehle über `build_argv`; die API umgeht `needs_confirmation` nicht.
+- [x] **Zustandsdatei der Instanz.** `instance.py` schreibt `gui.json` (PID, Port, Token-URL, Startzeit, starttime) atomar mit Modus 0600 in `$XDG_RUNTIME_DIR/whattheshell` (sonst `cache_dir()/run`, Ordner 0700, fremder Besitzer oder offener Modus ist ein Fehler). Gleiche Vertrauensstufe wie die Weiterleitungsdatei; sie wird beim Beenden gelöscht, ebenso die Weiterleitungsdatei (auch im Hintergrundserver). Ein `flock` auf `gui.lock` verhindert einen zweiten Server. `wts gui stop` sendet SIGTERM/SIGKILL nur, wenn PID, starttime (`/proc/<pid>/stat`, Feld 22) und Kommandozeile zur Datei passen: eine wiederverwendete PID trifft keinen fremden Prozess.
 
 Bekannte Grenzen:
 

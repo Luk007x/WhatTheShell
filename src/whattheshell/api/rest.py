@@ -10,7 +10,9 @@ from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
 from pydantic import Field, ValidationError
+from starlette.background import BackgroundTask
 
 from whattheshell import APP_NAME, __version__, paths
 from whattheshell.catalog import INTERACTIVE, Catalog, ToolNotFound
@@ -106,6 +108,17 @@ def status(request: Request) -> dict[str, Any]:
         "modules_watch": request.app.state.modules_watch,
         "workflows_watch": request.app.state.workflows_watch,
     }
+
+
+@router.post("/shutdown", status_code=202)
+def shutdown(request: Request) -> JSONResponse:
+    """Stop the server after this response; the CLI registers `app.state.request_shutdown`."""
+    stop = getattr(request.app.state, "request_shutdown", None)
+    if stop is None:
+        raise fail(
+            503, "no_server", "Kein Server registriert, der sich beenden lässt (kein `wts gui`)."
+        )
+    return JSONResponse({"status": "stopping"}, 202, background=BackgroundTask(stop))
 
 
 @router.post("/sandbox/selftest")

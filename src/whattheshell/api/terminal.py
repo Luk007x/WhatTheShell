@@ -137,6 +137,7 @@ class _Slot:
     connected: bool = False
     exit_code: int = EXIT_HANGUP
     transcript_name: str | None = None
+    stopping: bool = False  # server shutdown: end the session with close code 1001
 
 
 class TerminalHub:
@@ -225,6 +226,18 @@ class TerminalHub:
         with self._lock:
             slot.exit_code, slot.transcript_name = exit_code, transcript
             slot.done.set()
+
+    def shutdown(self, timeout: float = 5.0) -> None:
+        """End every open terminal (process terminated, socket closed with 1001); idempotent."""
+        with self._lock:
+            slots = list(self._slots.values())
+            for slot in slots:
+                slot.stopping = True
+                slot.request.abort.set()  # also ends slots nobody has connected yet
+        deadline = time.monotonic() + timeout
+        for slot in slots:
+            if not slot.done.wait(max(0.0, deadline - time.monotonic())):
+                logger.warning("Terminal %s beendet sich nicht rechtzeitig", slot.request.step_id)
 
 
 def terminal_hub(app: FastAPI) -> TerminalHub:
@@ -388,6 +401,8 @@ class _Session:
                 code = self.process.poll() or 0
                 code = 128 - code if code < 0 else code
                 return code, 1000, f"exit:{code}"
+            if self.slot.stopping:
+                return EXIT_ABORT, 1001, "Server wird beendet"
             if abort.is_set():
                 return EXIT_ABORT, 1000, "aborted"
             if now - self.last > IDLE_TIMEOUT:

@@ -6,7 +6,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { useEffect, useRef, useState } from "react";
-import { deleteTranscript, errMsg, wsUrl } from "../api";
+import { deleteTranscript, errMsg, isShutdownClose, wsUrl } from "../api";
 import { t } from "../i18n";
 import type { TerminalEnd as End, TerminalState } from "../model/run";
 
@@ -91,7 +91,8 @@ export function TerminalEnd({ end, closeCode }: { end: End | null; closeCode: nu
   const name = end?.transcript ?? null;
   return (
     <>
-      {closeCode !== null && <p role="alert" className="error">{KNOWN_CLOSE.has(closeCode) ? t(`term.close.${closeCode}`) : t("term.close.other", { code: closeCode })}</p>}
+      {closeCode !== null && isShutdownClose(closeCode) && <p role="status">{t("run.stopping")}</p>}
+      {closeCode !== null && !isShutdownClose(closeCode) && <p role="alert" className="error">{KNOWN_CLOSE.has(closeCode) ? t(`term.close.${closeCode}`) : t("term.close.other", { code: closeCode })}</p>}
       {end && (
         <div className="terminal-end" role="status">
           <p>{t("term.ended", { code: end.exitCode ?? "-" })}</p>

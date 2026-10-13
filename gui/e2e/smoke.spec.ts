@@ -214,4 +214,13 @@ test.describe.serial("smoke", () => {
     await expect(page.getByRole("button", { name: "Open", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Save", exact: true })).toBeVisible();
   });
+
+  test("quit button shows closing view (endpoint mocked)", async () => {
+    page.removeAllListeners("dialog"); // earlier tests left a dismissing handler
+    page.once("dialog", (d) => { void d.accept(); });
+    await page.route("**/api/shutdown", (r) => r.fulfill({ status: 202, contentType: "application/json", body: '{"status":"stopping"}' }));
+    await page.getByRole("button", { name: /Settings|Einstellungen/ }).click();
+    await page.getByRole("button", { name: /WhatTheShell beenden|Quit WhatTheShell/ }).click();
+    await expect(page.getByText(/Dieser Tab kann geschlossen werden|This tab can be closed/)).toBeVisible();
+  });
 });

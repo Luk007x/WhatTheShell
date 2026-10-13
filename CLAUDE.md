@@ -80,7 +80,7 @@ src/whattheshell/{catalog,helpparse,models,modules,subproc.py,paths.py,engine,sa
 src/whattheshell/bundled/{modules,workflows}/   mitgelieferte Module und Workflows (CC0), landen so im Wheel
 gui/            TypeScript-Frontend, Build nach src/whattheshell/api/static/
 schemas/        generierte JSON-Schemas
-docs/           ARCHITECTURE.md, DECISIONS.md, FORMATS.md, MODULE_AUTHORING.md, SECURITY.md, DEPENDENCIES.md
+docs/           ARCHITECTURE.md, DECISIONS.md, FORMATS.md, MODULE_AUTHORING.md, SECURITY.md, DEPENDENCIES.md, BACKLOG.md
 tests/          unit/, corpus/ (29 echte Hilfetexte + expected.json, Schwelle 90 % Recall), e2e/
 ```
 

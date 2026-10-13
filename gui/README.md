@@ -99,6 +99,10 @@ Block-Ansicht: verschachtelte Karten, Slots „dann / sonst / für jede Zeile / 
 
 Schritte mit `kind: terminal` öffnen im Laufpanel ein xterm.js-Terminal (`src/run/Terminal.tsx`), verbunden über den Binär-WebSocket `/ws/runs/{id}/terminal/{step}` (Ausgabe und Tastatur als Bytes, `open`/`resize` als JSON). Escape-Sequenzen für Zwischenablage (OSC 52), Fenstertitel und Hyperlinks (OSC 8) werden verworfen, es gibt keine Link-/Image-Addons; Tastatureingaben werden nirgends gespeichert. Tastaturflucht: Esc, dann Tab. Das Transkript (nur Ausgabe, Opt-in im Ausführen-Dialog, nur sichtbar bei Workflows mit Terminal-Schritt) meldet der Server als Dateiname; „Löschen“ ruft `DELETE /api/terminal/transcripts/{name}`. Nach dem Ende bleibt der Terminalinhalt schreibgeschützt sichtbar (Knopf „Schließen“, der nächste Terminal-Schritt ersetzt ihn). Trennen der Seite beendet den Prozess, es gibt kein Reattach. Test: `e2e/terminal.spec.ts` (überspringt sich ohne bwrap).
 
+## Beenden
+
+Einstellungen, Abschnitt „Programm“: „WhatTheShell beenden“ ruft `POST /api/shutdown` und zeigt danach eine Abschlussansicht; Tabs schließen beendet den Server nicht.
+
 ## Barrierefreiheit
 
 - Skip-Link „Zum Hauptbereich springen" ist das erste fokussierbare Element; Dialoge sind native `<dialog>` (Fokusfalle, Fokus-Rückgabe, Escape).

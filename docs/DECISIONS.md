@@ -142,3 +142,12 @@ Status: **freigegeben** am 2026-10-13 mit den Antworten kein Host-Terminal, Tran
 - **GUI:** Editor-Kopfzeile im Ausführen-Modus ausgeblendet; Terminalinhalt bleibt nach Ende lesbar bis „Schließen".
 - **Transkript:** Secret-Maskierung überbrückt jetzt auch den 64-KiB-Flush; Sandbox-Test liest `/etc/resolv.conf` nur mit `network=True`.
 
+## D-016 Verteilung bleibt pipx/Wheel; Starten und Beenden, 2026-10-13
+
+Frage des Auftraggebers: Wäre AppImage oder Flatpak sinnvoller als pip/pipx gewesen?
+
+- **Flatpak: nein.** Der Kern des Tools ist, installierte Host-Programme zu finden und auszuführen; in der Flatpak-Sandbox sind sie nicht sichtbar, jeder Aufruf müsste über `flatpak-spawn --host` ausbrechen. bwrap funktioniert in Flatpak nicht (verschachtelte User-Namespaces gesperrt), damit wäre Abschnitt 10 (Vorschau nur in bwrap, kein Ersatzmodus) nicht erfüllbar.
+- **pipx/Wheel bleibt** der primäre Weg: Zielgruppe sind Linux-Nutzer mit Terminal; ein Befehl zur Installation, `pipx upgrade`, Wheel ohne Node zur Laufzeit; `bwrap` bleibt Systempaket.
+- **AppImage** ist als zweiter Verteilweg möglich (läuft auf dem Host, sieht Tools und bwrap) und steht im Backlog (`docs/BACKLOG.md`).
+- **Starten/Beenden** nach dem Muster lokaler Web-Werkzeuge (Jupyter, Syncthing): Zustandsdatei `gui.json` mit PID, Port und Token-URL (0600) unter `$XDG_RUNTIME_DIR/whattheshell` (0700, Fallback `cache_dir()/run`); `wts gui` erkennt eine lebende Instanz (PID plus `/proc`-starttime gegen PID-Wiederverwendung) und öffnet nur den Browser; `wts gui start` startet den Server als eigenen Prozess mit Log unter `cache_dir()/gui.log`, `stop` schickt SIGTERM, dann SIGKILL, `status` zeigt Port/PID; `--install-desktop` schreibt einen `.desktop`-Eintrag. `POST /api/shutdown` (token-geschützt) und der Knopf „Beenden" in den Einstellungen fahren sauber herunter: Terminals beenden, Läufe abbrechen, Dateien aufräumen. Tabs schließen beendet den Server nicht. Keine systemd-Unit (Backlog). Das `start`-Kind überlebt Terminal-Schließen und Logout (gewollt); SIGHUP im Vordergrund beendet den Server ohne Aufräumen, `gui.json` ist dann veraltet und `is_alive` liefert false.
+

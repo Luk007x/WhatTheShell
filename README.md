@@ -36,6 +36,18 @@ wts gui
 
 Node wird nur zum Bauen benötigt, nicht zur Laufzeit: Das Wheel enthält das fertige Frontend.
 
+## Starten und Beenden
+
+```
+wts gui start               # im Hintergrund starten, Browser öffnen (läuft schon eine Instanz: nur Browser)
+wts gui status              # Port, PID, Laufzeit; Exit 3 = nicht gestartet
+wts gui stop                # beenden (SIGTERM, nach 5 s SIGKILL)
+wts gui                     # im Vordergrund, Strg+C beendet; ein zweites `wts gui` startet keinen zweiten Server
+wts gui --install-desktop   # Menüeintrag "WhatTheShell" (~/.local/share/applications), ruft `wts gui start`
+```
+
+Zustand: `$XDG_RUNTIME_DIR/whattheshell/gui.json`, Log des Hintergrundservers: `~/.cache/whattheshell/gui.log`.
+
 ## Release
 
 `git tag vX.Y.Z && git push --tags` baut das Wheel und hängt es an das GitHub-Release.

@@ -119,6 +119,7 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [fontSize, setFontSize] = useState<FontSize>(loadFontSize);
   const [autoPreview, setAutoPreview] = useState(loadAutoPreview);
+  const [stopped, setStopped] = useState(false); // server quit: the app is replaced by the closing view, nothing is polled
   const [aiEnabled, setAiEnabled] = useState(false);
   const [refresh, setRefresh] = useState(0); // bumped when ToolInfos must be reloaded (language, module saved)
   const [view, setViewState] = useState<View>(loadView);
@@ -227,6 +228,7 @@ export function App() {
   const selStep = hit?.step;
   const retest = useCallback(() => { postSelftest().then(setSandbox, (e: unknown) => setStatusError(msg(e))); }, []);
 
+  if (stopped) return <main className="fatal" role="status"><h1>{t("app.name")}</h1><p>{t("quit.done")}</p></main>;
   if (!token) return <main className="fatal" role="alert"><h1>{t("app.name")}</h1><p>{t("token.missing")}</p></main>;
 
   const sandboxText = sandbox ? (sandbox.available ? t("sandbox.ok") : t("sandbox.missing")) : t("sandbox.unknown");
@@ -381,7 +383,7 @@ export function App() {
         <p className="muted">{t("keys.drag")}</p>
         <div className="actions"><button data-autofocus onClick={() => setKeysOpen(false)}>{t("settings.close")}</button></div>
       </Modal>
-      <Settings open={settingsOpen} onClose={() => setSettingsOpen(false)} onAiChanged={setAiEnabled} lang={getLang()} onLang={changeLang}
+      <Settings open={settingsOpen} onClose={() => setSettingsOpen(false)} onStopped={() => { setSettingsOpen(false); setStopped(true); }} onAiChanged={setAiEnabled} lang={getLang()} onLang={changeLang}
         fontSize={fontSize} onFontSize={(s) => { saveFontSize(s); setFontSize(s); }}
         autoPreview={autoPreview} onAutoPreview={(on) => { saveAutoPreview(on); setAutoPreview(on); }} />
     </div>

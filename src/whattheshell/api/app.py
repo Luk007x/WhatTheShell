@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """FastAPI application: security middleware, REST routers, static frontend."""
 
+import asyncio
 import logging
 import threading
 from collections.abc import AsyncIterator
@@ -18,8 +19,10 @@ from whattheshell import APP_NAME, paths
 from whattheshell.api import ai_api, modules_api, rest, settings_api, workflows
 from whattheshell.api.errors import error_response
 from whattheshell.api.runs import router as runs_router
+from whattheshell.api.runs import run_manager
 from whattheshell.api.security import SecurityMiddleware, Session
 from whattheshell.api.terminal import router as terminal_router
+from whattheshell.api.terminal import terminal_hub
 from whattheshell.catalog import Catalog
 from whattheshell.modules.loader import MODULE_SUFFIXES, WORKFLOW_SUFFIXES, DocumentError
 from whattheshell.modules.registry import ModuleRegistry
@@ -86,6 +89,9 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        # blocking joins: off the loop, so open sockets can still wind down
+        await asyncio.to_thread(terminal_hub(app).shutdown)
+        await asyncio.to_thread(run_manager(app).shutdown)
         stop.set()
 
 

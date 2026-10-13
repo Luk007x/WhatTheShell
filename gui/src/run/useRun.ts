@@ -2,7 +2,7 @@
 // Run state shared by the editor's run panel and the run view: events over WebSocket, control, step confirmation,
 // and the 10.6 flow "dry run → confirm the plan → real run".
 import { useEffect, useReducer, useRef, useState } from "react";
-import { confirmRun, controlRun, getRun, startRun, wsUrl } from "../api";
+import { confirmRun, controlRun, getRun, isShutdownClose, startRun, wsUrl } from "../api";
 import { initialRun, reduceEvents, type RunView } from "../model/run";
 import type { RunAction, RunCreated, RunEvent } from "../types/api";
 
@@ -23,6 +23,7 @@ export function useRun() {
   const [runId, setRunId] = useState<string | null>(null);
   const [paused, setPaused] = useState(false);
   const [lost, setLost] = useState(false);
+  const [stopping, setStopping] = useState(false); // server shutdown (close 1001/1012): not an error
   const [readOnly, setReadOnly] = useState(false);
   const [answering, setAnswering] = useState(false);
   const [transcript, setTranscript] = useState(false); // option of the run being followed
@@ -50,7 +51,10 @@ export function useRun() {
         setError(e);
       }
     };
-    sock.onclose = () => { if (ws.current === sock && !isFinished(viewRef.current)) setLost(true); };
+    sock.onclose = (ev) => {
+      if (ws.current !== sock || isFinished(viewRef.current)) return;
+      if (isShutdownClose(ev.code)) setStopping(true); else setLost(true);
+    };
   };
 
   const select = (id: string, ro: boolean) => {
@@ -117,7 +121,7 @@ export function useRun() {
   };
 
   return {
-    view, runId, paused, lost, readOnly, answering, error, setError, transcript, termClose,
+    view, runId, paused, lost, stopping, readOnly, answering, error, setError, transcript, termClose,
     terminalClosed: setTermClose,
     running: view.status === "running" && !readOnly,
     finished: isFinished(view),

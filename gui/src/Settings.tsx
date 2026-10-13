@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { useEffect, useState } from "react";
-import { ApiError, errMsg, getSettings, putSettings } from "./api";
+import { ApiError, errMsg, getSettings, postShutdown, putSettings } from "./api";
 import { getLang, t, type Lang } from "./i18n";
 import { Modal } from "./Modal";
 import type { Settings as ServerSettings } from "./types/api";
@@ -110,8 +110,26 @@ function AiSettings({ onChanged }: { onChanged: (enabled: boolean) => void }) {
   );
 }
 
+/** "Programm": stops the server after confirmation; the caller replaces the app with the closing view. */
+function QuitSection({ onStopped }: { onStopped: () => void }) {
+  const [error, setError] = useState<unknown>(null);
+  const quit = () => {
+    if (!window.confirm(t("quit.confirm"))) return;
+    setError(null);
+    postShutdown().then(onStopped, setError);
+  };
+  return (
+    <section aria-labelledby="quit-h">
+      <h3 id="quit-h">{t("quit.title")}</h3>
+      <p className="muted">{t("quit.help")}</p>
+      {error !== null && <p role="alert" className="error">{errMsg(error)}</p>}
+      <button className="btn--danger" onClick={quit}>{t("quit.button")}</button>
+    </section>
+  );
+}
+
 export function Settings(props: {
-  open: boolean; onClose: () => void; onAiChanged: (enabled: boolean) => void;
+  open: boolean; onClose: () => void; onStopped: () => void; onAiChanged: (enabled: boolean) => void;
   lang: Lang; onLang: (l: Lang) => void;
   fontSize: FontSize; onFontSize: (s: FontSize) => void;
   autoPreview: boolean; onAutoPreview: (on: boolean) => void;
@@ -135,6 +153,7 @@ export function Settings(props: {
         <label><input type="checkbox" checked={props.autoPreview} onChange={(e) => props.onAutoPreview(e.target.checked)} /> {t("settings.autopreview")}</label>
       </div>
       {props.open && <AiSettings onChanged={props.onAiChanged} />}
+      {props.open && <QuitSection onStopped={props.onStopped} />}
       <div className="actions"><button onClick={props.onClose}>{t("settings.close")}</button></div>
     </Modal>
   );

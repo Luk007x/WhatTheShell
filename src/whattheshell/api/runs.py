@@ -7,6 +7,7 @@ import dataclasses
 import logging
 import secrets
 import threading
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -122,6 +123,7 @@ class RunInfo:
         default_factory=list
     )
     lock: threading.Lock = field(default_factory=threading.Lock)
+    thread: threading.Thread | None = None
 
     def publish(self, event: dict[str, Any]) -> None:
         """Append to the history (bounded) and hand over to every subscriber; thread-safe."""
@@ -232,7 +234,8 @@ class RunInfo:
                 self.cwd.mkdir(parents=True, exist_ok=True)
             self.status = "running"
             self.started = datetime.now().astimezone()
-        threading.Thread(target=self._run, daemon=True).start()
+        self.thread = threading.Thread(target=self._run, daemon=True)
+        self.thread.start()
         return True
 
 
@@ -328,11 +331,25 @@ class RunManager:
                 return "busy"
             return "started" if info.start() else "already"
 
+    def shutdown(self, timeout: float = 5.0) -> None:
+        """Abort every running run and join the runner threads for up to `timeout` seconds."""
+        with self._lock:
+            running = [r for r in self._runs.values() if r.status == "running"]
+        for info in running:
+            info.control("abort")
+        deadline = time.monotonic() + timeout
+        for info in running:
+            if info.thread is not None:
+                info.thread.join(max(0.0, deadline - time.monotonic()))
+            if info.thread is not None and info.thread.is_alive():
+                logger.warning("Lauf %s beendet sich nicht rechtzeitig", info.run_id)
+
 
 router = APIRouter()
 
 
-def _manager(app: FastAPI) -> RunManager:
+def run_manager(app: FastAPI) -> RunManager:
+    """The app's run manager, created on first use."""
     manager: RunManager | None = getattr(app.state, "runs", None)
     if manager is None:
         manager = app.state.runs = RunManager(terminal_hub(app))
@@ -361,13 +378,15 @@ def create_run_response(
             )
         cwd = cwd.resolve()
     try:
-        info, answer = _manager(app).create(document, variables, cwd, app.state.catalog, transcript)
+        info, answer = run_manager(app).create(
+            document, variables, cwd, app.state.catalog, transcript
+        )
     except ValidationError as err:
         return error_response(422, "validation", "Workflow ungültig", validation_errors(err))
     except RunError as err:
         return error_response(422, "run", str(err), [{"path": "", "message": str(err)}])
     if not dry_run:
-        _manager(app).add(info)
+        run_manager(app).add(info)
     return JSONResponse(answer)
 
 
@@ -391,14 +410,14 @@ def list_runs(request: Request) -> list[dict[str, Any]]:
             "finished": r.finished.isoformat() if r.finished else None,
             "exit_code": r.exit_code,
         }
-        for r in _manager(request.app).recent()[:MAX_FINISHED_RUNS]
+        for r in run_manager(request.app).recent()[:MAX_FINISHED_RUNS]
     ]
 
 
 @router.post("/api/runs/{run_id}/start", status_code=202)
 def start_run(run_id: str, request: Request) -> Response:
     """Start the run in the background; a second start is a conflict."""
-    manager = _manager(request.app)
+    manager = run_manager(request.app)
     info = manager.get(run_id)
     if info is None:
         return _unknown(run_id)
@@ -421,7 +440,7 @@ def start_run(run_id: str, request: Request) -> Response:
 @router.get("/api/runs/{run_id}")
 def get_run(run_id: str, request: Request) -> Response:
     """Status and event history."""
-    info = _manager(request.app).get(run_id)
+    info = run_manager(request.app).get(run_id)
     if info is None:
         return _unknown(run_id)
     with info.lock:
@@ -431,7 +450,7 @@ def get_run(run_id: str, request: Request) -> Response:
 @router.post("/api/runs/{run_id}/control", status_code=204)
 def control_run(run_id: str, body: ControlBody, request: Request) -> Response:
     """Abort, pause, resume or single-step the run."""
-    info = _manager(request.app).get(run_id)
+    info = run_manager(request.app).get(run_id)
     if info is None:
         return _unknown(run_id)
     info.control(body.action)
@@ -441,7 +460,7 @@ def control_run(run_id: str, body: ControlBody, request: Request) -> Response:
 @router.post("/api/runs/{run_id}/confirm", status_code=204)
 def confirm_run(run_id: str, body: ConfirmBody, request: Request) -> Response:
     """Answer a `confirm_request`."""
-    info = _manager(request.app).get(run_id)
+    info = run_manager(request.app).get(run_id)
     if info is None:
         return _unknown(run_id)
     if not info.answer(body.step_id, body.ok):
@@ -493,7 +512,7 @@ async def _receive(websocket: WebSocket, info: RunInfo) -> None:
 @router.websocket("/ws/runs/{run_id}")
 async def run_socket(websocket: WebSocket, run_id: str) -> None:
     """Stream events of a run (history first) and accept confirm/control messages."""
-    info = _manager(websocket.app).get(run_id)
+    info = run_manager(websocket.app).get(run_id)
     if info is None:
         await websocket.close(code=4404)
         return

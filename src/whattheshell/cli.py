@@ -8,16 +8,20 @@ import html
 import json
 import os
 import re
+import shutil
+import signal
 import socket
+import subprocess
 import sys
 import threading
+import time
 import webbrowser
 from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import ValidationError
 
-from whattheshell import APP_NAME, __version__, paths
+from whattheshell import APP_NAME, __version__, instance, paths
 from whattheshell.ai import AiDisabled, require_enabled
 from whattheshell.ai import tasks as ai_tasks
 from whattheshell.ai.approve import apply, propose, target_path
@@ -176,8 +180,17 @@ def main(argv: list[str] | None = None) -> int:
     modules = commands.add_parser("modules", help="Geladene Module auflisten")
     modules.add_argument("--watch", action="store_true", help="Änderungen live neu laden")
     gui = commands.add_parser("gui", help="Oberfläche starten (nur 127.0.0.1, mit Sitzungstoken)")
+    gui.add_argument(
+        "action",
+        nargs="?",
+        choices=["start", "stop", "status"],
+        help="start: im Hintergrund, stop: beenden, status: läuft sie? (Standard: Vordergrund)",
+    )
     gui.add_argument("--port", type=int, default=0, help="Port (Standard: freier Port)")
     gui.add_argument("--no-browser", action="store_true", help="Browser nicht öffnen")
+    gui.add_argument(
+        "--install-desktop", action="store_true", help="Menüeintrag (.desktop) für `wts gui start`"
+    )
     terminal = commands.add_parser("terminal", help="Gespeicherte Terminal-Ausgaben")
     transcripts = terminal.add_subparsers(dest="terminal_command", required=True).add_parser(
         "transcripts", help="Transkripte auflisten oder löschen"
@@ -593,8 +606,16 @@ def _serve(app: Any, sock: socket.socket) -> None:
 
     import uvicorn
 
-    config = uvicorn.Config(app, log_level="warning", access_log=False, ws_max_size=1_048_576)
-    asyncio.run(uvicorn.Server(config).serve(sockets=[sock]))
+    config = uvicorn.Config(
+        app,
+        log_level="warning",
+        access_log=False,
+        ws_max_size=1_048_576,
+        timeout_graceful_shutdown=3,
+    )
+    server = uvicorn.Server(config)
+    app.state.request_shutdown = lambda: setattr(server, "should_exit", True)
+    asyncio.run(server.serve(sockets=[sock]))
 
 
 def _write_redirect(port: int, url: str) -> Path:
@@ -615,7 +636,130 @@ def _write_redirect(port: int, url: str) -> Path:
     return target
 
 
+def _open_browser(url: str, port: int) -> None:
+    """Open `url` through a private redirect page so the token stays out of `ps`."""
+    webbrowser.open(_write_redirect(port, url).as_uri())
+
+
+def _running() -> instance.InstanceInfo | None:
+    found = instance.read()
+    return found if found is not None and instance.is_alive(found) else None
+
+
+def _desktop_quote(arg: str) -> str:
+    """Quote one Exec argument per the Desktop Entry spec (two escaping levels)."""
+    arg = arg.replace("%", "%%")
+    if re.search(r"[\s\"'\\><~|&;$*?#()`%]", arg):
+        for char in ("\\", '"', "`", "$"):
+            arg = arg.replace(char, "\\" + char)
+        arg = f'"{arg}"'
+    return arg.replace("\\", "\\\\")
+
+
+def _install_desktop() -> int:
+    base = os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share"
+    target = Path(base) / "applications" / "whattheshell.desktop"
+    entry = (
+        "[Desktop Entry]\nType=Application\nName=WhatTheShell\n"
+        "Comment=Grafischer Baukasten für Terminal-Workflows\n"
+        f"Exec={_desktop_quote(sys.executable)} -m whattheshell gui start\nTerminal=false\n"
+        "Categories=Utility;System;\nIcon=utilities-terminal\n"
+    )
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(entry, encoding="utf-8")
+    except OSError as err:
+        print(f"Menüeintrag nicht geschrieben: {err}", file=sys.stderr)
+        return 1
+    print(f"Menüeintrag geschrieben: {target}")
+    updater = shutil.which("update-desktop-database")
+    if updater:
+        subprocess.run([updater, str(target.parent)], check=False)  # noqa: S603
+    return 0
+
+
+def _gui_start(args: argparse.Namespace) -> int:
+    found = _running()
+    if found is None:
+        log = paths.cache_dir() / "gui.log"
+        try:
+            log.parent.mkdir(parents=True, exist_ok=True)
+            fd = os.open(log, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+        except OSError as err:
+            print(f"Log {log} nicht schreibbar: {err}", file=sys.stderr)
+            return 1
+        with os.fdopen(fd, "ab") as out:
+            subprocess.Popen(
+                [
+                    sys.executable,
+                    "-m",
+                    "whattheshell",
+                    "gui",
+                    "--no-browser",
+                    "--port",
+                    str(args.port),
+                ],
+                start_new_session=True,
+                stdin=subprocess.DEVNULL,
+                stdout=out,
+                stderr=out,
+                close_fds=True,
+            )
+        deadline = time.monotonic() + 10
+        while found is None and time.monotonic() < deadline:
+            time.sleep(0.1)
+            found = _running()
+        if found is None:
+            print(f"Server nicht gestartet. Ursache im Log: {log}", file=sys.stderr)
+            return 1
+        print(found.url, flush=True)
+    else:
+        print(f"Läuft bereits auf Port {found.port} (PID {found.pid})")
+    if not args.no_browser:
+        _open_browser(found.url, found.port)
+    return 0
+
+
+def _gui_stop() -> int:
+    found = instance.read()
+    if found is None or not instance.is_alive(found):
+        if found is not None:
+            instance.clear(found)
+        print("Nicht gestartet")
+        return 0
+    if not instance.stop(found):
+        print(
+            f"PID {found.pid} lässt sich nicht beenden. Manuell: kill -9 {found.pid}",
+            file=sys.stderr,
+        )
+        return 1
+    instance.clear(found)
+    print("Beendet")
+    return 0
+
+
+def _gui_status() -> int:
+    found = _running()
+    if found is None:
+        print("Nicht gestartet")
+        return 3
+    print(
+        f"Läuft auf Port {found.port} (PID {found.pid}), seit {int(time.time() - found.started)} s"
+    )
+    return 0
+
+
+def _on_sigterm(signum: int, frame: Any) -> None:
+    raise KeyboardInterrupt
+
+
 def _gui(args: argparse.Namespace) -> int:
+    if args.install_desktop:
+        return _install_desktop()
+    if args.action == "stop":
+        return _gui_stop()
+    if args.action == "status":
+        return _gui_status()
     if os.geteuid() == 0:
         print(
             "Start als root wird verweigert: die Oberfläche kann Befehle ausführen. "
@@ -623,13 +767,30 @@ def _gui(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 1
+    if args.action == "start":
+        return _gui_start(args)
+    try:
+        lock = instance.acquire_lock()
+    except OSError as err:
+        print(f"Instanzsperre nicht möglich: {err}", file=sys.stderr)
+        return 1
+    if lock is None:  # another server holds it for its whole lifetime
+        found = _running()
+        if found is None:
+            print("Läuft bereits (Zustand noch nicht lesbar), `wts gui status` prüft.")
+        else:
+            print(f"Läuft bereits auf Port {found.port} (PID {found.pid})")
+            if not args.no_browser:
+                _open_browser(found.url, found.port)
+        return 0
     from whattheshell.api.app import STATIC_DIR, create_app
     from whattheshell.api.security import Session
 
     # bind first and hand the socket to uvicorn: no window in which another process takes the port
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    redirect: Path | None = None
+    port = 0
+    mine: instance.InstanceInfo | None = None
     try:
         try:
             sock.bind(("127.0.0.1", args.port))
@@ -640,7 +801,7 @@ def _gui(args: argparse.Namespace) -> int:
             )
             return 1
         sock.listen()
-        port: int = sock.getsockname()[1]
+        port = sock.getsockname()[1]
         registry = _registry()
         for problem in registry.errors:
             print(f"WARNUNG {problem}", file=sys.stderr)
@@ -653,16 +814,32 @@ def _gui(args: argparse.Namespace) -> int:
                 file=sys.stderr,
             )
         url = f"http://127.0.0.1:{port}/#token={session.token}"
-        print(url, flush=True)
+        if sys.stdout.isatty():  # `gui start` reads the URL from gui.json, not from a log
+            print(url, flush=True)
+        mine = instance.InstanceInfo(
+            os.getpid(), port, url, time.time(), instance.own_start_ticks()
+        )
+        try:
+            instance.write(mine)
+        except OSError as err:
+            print(
+                f"Zustandsdatei nicht geschrieben: {err}. Ohne sie lässt sich die Instanz "
+                "nicht beenden oder erkennen; Server wird nicht gestartet.",
+                file=sys.stderr,
+            )
+            return 1
         if not args.no_browser:
-            redirect = _write_redirect(port, url)
-            webbrowser.open(redirect.as_uri())
+            webbrowser.open(_write_redirect(port, url).as_uri())
+        # uvicorn restores this handler after its own shutdown and re-raises SIGTERM into it
+        signal.signal(signal.SIGTERM, _on_sigterm)
         with contextlib.suppress(KeyboardInterrupt):
             _serve(app, sock)
     finally:
         sock.close()
-        if redirect is not None:
-            redirect.unlink(missing_ok=True)
+        if mine is not None:
+            instance.clear(mine)
+        (paths.cache_dir() / "gui" / f"open-{port}.html").unlink(missing_ok=True)
+        os.close(lock)
     return 0
 
 
