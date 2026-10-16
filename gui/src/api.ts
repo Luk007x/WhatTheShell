@@ -132,7 +132,7 @@ export const getTemplates = (tool: string) => api.get<TemplateEntry[]>(`/api/tem
 
 export const getSettings = () => api.get<Settings>("/api/settings");
 export const getAiAgents = () => api.get<AiAgents>("/api/ai/agents");
-export const putSettings = ({ key_status: _readOnly, ...doc }: Settings) => api.put<Settings>("/api/settings", doc);
+export const putSettings = ({ key_status: _ks, load_error: _le, ...doc }: Settings) => api.put<Settings>("/api/settings", doc);
 export function aiTask(task: AiTaskName, body: AiBody & { send: false }, signal?: AbortSignal): Promise<AiPreview>;
 export function aiTask(task: AiTaskName, body: AiBody & { send: true }, signal?: AbortSignal): Promise<AiResult>;
 export function aiTask(task: AiTaskName, body: AiBody & { send: boolean }, signal?: AbortSignal): Promise<AiPreview | AiResult> {

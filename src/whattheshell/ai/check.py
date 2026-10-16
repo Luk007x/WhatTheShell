@@ -4,9 +4,9 @@
 Provider, network and process code is imported only after the ``ai.enabled`` gate.
 """
 
+import shlex
 import shutil
 from dataclasses import dataclass, field, replace
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from whattheshell.settings import AgentSettings, ApiSettings, LocalSettings, Settings
@@ -165,23 +165,20 @@ def _check_api(api: ApiSettings, probe_network: bool) -> list[CheckItem]:
 def _check_agent(agent: AgentSettings) -> list[CheckItem]:
     from whattheshell.subproc import run_limited
 
-    from .providers.agent_cli import CREDENTIALS, isolated_env  # lazy: gate first
+    from .providers.agent_cli import CREDENTIALS, _default_command, isolated_env  # lazy: gate first
 
     install, login = _AGENT_HINTS[agent.kind]
-    program = agent.command[0] if agent.command else agent.kind
+    program = agent.kind
     path = shutil.which(program)
     if path is None:
         return [
             CheckItem("Programm", False, f"`{program}` nicht im PATH", f"Installieren: `{install}`")
         ]
-    items = [CheckItem("Programm", True, path)]
-    if Path(program).name != agent.kind:  # status commands of another program are unknown
-        unchecked = "nicht geprüft (eigene Aufrufzeile)"
-        return [
-            *items,
-            CheckItem("Version", True, unchecked),
-            CheckItem("Anmeldung", True, unchecked),
-        ]
+    line = _default_command(agent.kind, agent.model, agent.reasoning)
+    items = [
+        CheckItem("Programm", True, path),
+        CheckItem("Aufrufzeile", True, shlex.join(line)),  # no secrets: the prompt goes via stdin
+    ]
     try:
         with isolated_env(agent.kind) as (env, work):
             version = run_limited(

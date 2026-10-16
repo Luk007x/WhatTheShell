@@ -112,9 +112,11 @@ def create_app(
     app.state.raw_catalog = Catalog(catalog.cache_dir, sandbox=catalog.sandbox)
     try:
         app.state.settings = load_settings()
+        app.state.settings_error = None
     except DocumentError as err:  # a broken file must not stop the GUI; AI stays off
         logger.warning("Einstellungen nicht lesbar, KI bleibt aus: %s", err)
         app.state.settings = Settings()
+        app.state.settings_error = str(err)
     app.state.modules_watch = False
     app.state.registry = registry
     app.state.workflows_watch = False

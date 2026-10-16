@@ -102,7 +102,10 @@ def test_agents_listed_with_ai_off(client: TestClient, monkeypatch: pytest.Monke
     monkeypatch.setattr(shutil, "which", lambda name: "/bin/claude" if name == "claude" else None)
     reply = client.get("/api/ai/agents")
     assert reply.status_code == 200
-    assert reply.json() == {"claude": "/bin/claude", "codex": None}
+    body = reply.json()
+    assert body["claude"]["path"] == "/bin/claude" and body["codex"]["path"] is None
+    assert "sonnet" in body["claude"]["models"] and body["claude"]["reasoning"] is False
+    assert body["codex"]["reasoning"] is True and body["codex"]["default"] == ""
 
 
 def test_check_without_network(client: TestClient, fake: FakeProvider) -> None:

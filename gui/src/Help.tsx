@@ -11,7 +11,7 @@ const SECTIONS = {
   run: { p: 0, b: 6 },
   modules: { p: 0, b: 4 },
   terminal: { p: 0, b: 5 },
-  ai: { p: 0, b: 6 },
+  ai: { p: 0, b: 7 },
   keys: { p: 0, b: 0 },
 } as const;
 export type HelpSection = keyof typeof SECTIONS;

@@ -254,12 +254,34 @@ def check_ai(request: Request, network: bool = True) -> dict[str, Any]:
     return dataclasses.asdict(check(request.app.state.settings, probe_network=network))
 
 
+# Known aliases per program; empty list = the GUI offers free text (Codex: none documented).
+_AGENT_MODELS = {
+    "claude": [
+        "sonnet",
+        "opus",
+        "haiku",
+        "claude-sonnet-5-5",
+        "claude-opus-5-5",
+        "claude-haiku-5-5",
+    ],
+    "codex": [],
+}
+
+
 @router.get("/agents")
-def agent_programs() -> dict[str, str | None]:
-    """Which agent CLIs are on PATH."""
+def agent_programs() -> dict[str, dict[str, Any]]:
+    """Agent CLIs on PATH with the model choices and whether `reasoning` applies."""
     # Ungated on purpose: the user picks a provider before enabling AI. It only looks up PATH
     # (no foreign process, no network), so the AI code path stays unreachable while AI is off.
-    return agents_found()
+    return {
+        kind: {
+            "path": path,
+            "models": _AGENT_MODELS[kind],
+            "default": "",  # empty model = program default
+            "reasoning": kind == "codex",
+        }
+        for kind, path in agents_found().items()
+    }
 
 
 router.include_router(_gated)  # after all routes: include copies them

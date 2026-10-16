@@ -152,12 +152,12 @@ def test_keyring_error_is_an_item(monkeypatch: pytest.MonkeyPatch) -> None:
     assert not ok and "Schlüsselbund nicht lesbar" in detail
 
 
-def test_custom_command_skips_status(bin_dir: Path) -> None:
-    _script(bin_dir, "mytool", "exit 9\n")
-    result = check(_settings(provider="agent", agent={"command": ["mytool", "-p"]}))
-    items = _items(result)
-    assert result.ok and items["Anmeldung"][1] == "nicht geprüft (eigene Aufrufzeile)"
-    assert items["Version"][1] == "nicht geprüft (eigene Aufrufzeile)"
+def test_effective_command_line_shown(bin_dir: Path) -> None:
+    _script(bin_dir, "codex", "exit 0\n")
+    agent = {"kind": "codex", "model": "gpt-x", "reasoning": "high"}
+    detail = _items(check(_settings(provider="agent", agent=agent)))["Aufrufzeile"][1]
+    assert detail.startswith("codex exec --sandbox read-only") and "-m gpt-x" in detail
+    assert "model_reasoning_effort" in detail
 
 
 def test_unreadable_login_file(bin_dir: Path, tmp_path: Path) -> None:

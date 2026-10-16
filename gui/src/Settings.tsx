@@ -4,7 +4,7 @@ import { ApiError, errMsg, getAiAgents, getSettings, postShutdown, putSettings }
 import { HelpButton } from "./Help";
 import { getLang, t, type Lang } from "./i18n";
 import { Modal } from "./Modal";
-import type { Settings as ServerSettings } from "./types/api";
+import type { AiAgents, Settings as ServerSettings } from "./types/api";
 
 export type FontSize = "small" | "normal" | "large";
 const SCALE: Record<FontSize, number> = { small: 0.875, normal: 1, large: 1.25 };
@@ -25,6 +25,10 @@ export const saveAutoPreview = (on: boolean): void => write("wts.autopreview", o
 
 export const START_VIEWS = ["last", "build-graph", "build-blocks", "run", "modules"] as const;
 export type StartView = (typeof START_VIEWS)[number];
+export const loadHelpStart = (): boolean => read("wts.helpstart") !== "off";
+export const saveHelpStart = (on: boolean): void => write("wts.helpstart", on ? "on" : "off");
+/** Open the help on first start only when it was not seen yet and the setting is on. */
+export const shouldOpenHelp = (seen: boolean, enabled: boolean): boolean => !seen && enabled;
 export const loadStartView = (): StartView => START_VIEWS.find((v) => v === read("wts.startview")) ?? "last";
 export const saveStartView = (v: StartView): void => write("wts.startview", v);
 /** Mode and view at app start: a fixed start view wins over the last-used mode/view. */
@@ -40,12 +44,29 @@ export function initialModeView<M extends string, V extends string>(startView: S
 export const applyFontSize = (size: FontSize): void => { document.documentElement.style.setProperty("--font-scale", String(SCALE[size])); };
 export const saveFontSize = (size: FontSize): void => write("wts.fontsize", size);
 
+const REASONING = ["", "low", "medium", "high"] as const;
+export const MODEL_PATTERN = "[A-Za-z0-9][A-Za-z0-9._:\\-]{0,63}";
+
+/** Effective argv of the agent call, mirrors the server defaults (src/whattheshell/ai/providers/agent_cli.py). */
+export function agentCommand(kind: "claude" | "codex", model: string, reasoning: string): string[] {
+  if (kind === "claude") {
+    return ["claude", "-p", "--output-format", "text", "--tools", "", "--permission-mode", "dontAsk", "--no-session-persistence",
+      "--system-prompt", "{system}", "--strict-mcp-config", "--setting-sources", "", "--disable-slash-commands", ...(model ? ["--model", model] : [])];
+  }
+  return ["codex", "exec", "--sandbox", "read-only", "--skip-git-repo-check", "--ephemeral", "--ignore-user-config", "--ignore-rules", "--color", "never",
+    "-c", "mcp_servers={}", "-C", "{tmp}", "-o", "{tmp}/last.txt", ...(model ? ["-m", model] : []),
+    ...(reasoning ? ["-c", `model_reasoning_effort="${reasoning}"`] : []), "-"];
+}
+const quoteArg = (a: string): string => (/^[\w@%+=:,./{}-]+$/.test(a) ? a : `"${a}"`);
+
 /** "KI-Funktionen (optional)": edits only known fields, everything else of the server document is sent back unchanged. */
 function AiSettings({ onChanged }: { onChanged: (enabled: boolean) => void }) {
   const [doc, setDoc] = useState<ServerSettings | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [saved, setSaved] = useState(false);
-  const [agents, setAgents] = useState<Record<string, string | null> | null>(null);
+  const [overwrite, setOverwrite] = useState(false);
+  const [agents, setAgents] = useState<AiAgents | null>(null);
+  const [otherModel, setOtherModel] = useState(false);
   const [agentsError, setAgentsError] = useState<unknown>(null);
   const agentMode = doc?.ai.enabled === true && doc.ai.provider === "agent";
   useEffect(() => { getSettings().then(setDoc, setError); }, []);
@@ -77,12 +98,13 @@ function AiSettings({ onChanged }: { onChanged: (enabled: boolean) => void }) {
   );
   const save = () => {
     setError(null);
-    putSettings(doc).then((r) => { setDoc(r); setSaved(true); onChanged(r.ai.enabled); }, (e: unknown) => { setSaved(false); setError(e); });
+    putSettings(doc).then((r) => { setDoc(r); setSaved(true); setOverwrite(false); onChanged(r.ai.enabled); }, (e: unknown) => { setSaved(false); setError(e); });
   };
   const { local, api, agent } = ai;
   return (
     <section aria-labelledby="ai-set-h">
       <div className="hhead"><h3 id="ai-set-h">{t("ai.settings")}</h3><HelpButton section="ai" topic={t("ai.settings")} /></div>
+      {doc.load_error && <p role="alert" className="error">{doc.load_error} {t("ai.loaderror.hint")}</p>}
       <div className="field">
         <label><input type="checkbox" checked={ai.enabled} onChange={(e) => edit({ enabled: e.target.checked })} /> {t("ai.enable")}</label>
         <small className="muted">{t("ai.enable.hint")}</small>
@@ -109,16 +131,45 @@ function AiSettings({ onChanged }: { onChanged: (enabled: boolean) => void }) {
           {ai.provider === "agent" && (
             <>
               {choice("ai-g-kind", t("ai.g.kind"), agent.kind, ["claude", "codex"], (kind) => edit({ agent: { ...agent, kind } }),
-                (k) => (agents ? `${k} – ${t(agents[k] ? "ai.agent.found" : "ai.agent.missing")}` : k),
+                (k) => (agents ? `${k} – ${t(agents[k].path ? "ai.agent.found" : "ai.agent.missing")}` : k),
                 <>
-                  {agents && <small className="muted">{agents[agent.kind] ?? t("ai.agent.hint")}</small>}
+                  {agents && <small className="muted">{agents[agent.kind].path ?? t("ai.agent.hint")}</small>}
                   {agentsError !== null && <small role="alert" className="error">{errMsg(agentsError)}</small>}
                 </>)}
-              <div className="field">
-                <label htmlFor="ai-g-cmd">{t("ai.command")}</label>
-                <textarea id="ai-g-cmd" rows={3} value={agent.command.join("\n")} onChange={(e) => edit({ agent: { ...agent, command: e.target.value === "" ? [] : e.target.value.split("\n") } })} />
-                <small className="muted">{t("ai.command.help")}</small>
-              </div>
+              {(() => {
+                const info = agents?.[agent.kind];
+                const models = info?.models ?? [];
+                const showText = models.length === 0 || otherModel || (agent.model !== "" && !models.includes(agent.model));
+                const setAgent = (patch: Partial<typeof agent>) => edit({ agent: { ...agent, ...patch } });
+                return (
+                  <>
+                    {models.length > 0 && (
+                      <div className="field">
+                        <label htmlFor="ai-g-model">{t("ai.g.model")}</label>
+                        <select id="ai-g-model" value={showText ? "\u0000other" : agent.model}
+                          onChange={(e) => { const other = e.target.value === "\u0000other"; setOtherModel(other); if (!other) setAgent({ model: e.target.value }); }}>
+                          <option value="">{t("ai.g.model.default")}</option>
+                          {models.map((m) => <option key={m} value={m}>{m}</option>)}
+                          <option value="\u0000other">{t("ai.g.model.other")}</option>
+                        </select>
+                      </div>
+                    )}
+                    {showText && (
+                      <div className="field">
+                        <label htmlFor="ai-g-model-text">{models.length > 0 ? t("ai.g.model.other") : t("ai.g.model")}</label>
+                        <input id="ai-g-model-text" pattern={MODEL_PATTERN} maxLength={64} value={agent.model} aria-describedby="ai-g-model-text-h" onChange={(e) => setAgent({ model: e.target.value })} />
+                        <small className="muted" id="ai-g-model-text-h">{t("ai.g.model.help")}</small>
+                      </div>
+                    )}
+                    {info?.reasoning && choice("ai-g-reasoning", t("ai.g.reasoning"), agent.reasoning, REASONING, (reasoning) => setAgent({ reasoning }), (v) => (v === "" ? t("ai.g.model.default") : v))}
+                    <div className="field">
+                      <span id="ai-g-cmd-l">{t("ai.g.call")}</span>{" "}
+                      <code aria-labelledby="ai-g-cmd-l" aria-describedby="ai-g-cmd-h">{agentCommand(agent.kind, agent.model, agent.reasoning).map(quoteArg).join(" ")}</code>
+                      <small className="muted" id="ai-g-cmd-h">{t("ai.g.call.help")} {t(`ai.g.call.${agent.kind}`)}</small>
+                    </div>
+                  </>
+                );
+              })()}
               <div className="field">
                 <label htmlFor="ai-g-timeout">{t("ai.timeout")}</label>
                 <input id="ai-g-timeout" type="number" min={1} value={agent.timeout} onChange={(e) => edit({ agent: { ...agent, timeout: Number(e.target.value) } })} />
@@ -138,7 +189,8 @@ function AiSettings({ onChanged }: { onChanged: (enabled: boolean) => void }) {
         </div>
       )}
       {saved && <p role="status" className="hint">{t("mod.saved")}</p>}
-      <button className="btn--primary" onClick={save}>{t("file.save")}</button>
+      {doc.load_error && <div className="field"><label><input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} /> {t("ai.loaderror.overwrite")}</label></div>}
+      <button className="btn--primary" disabled={!!doc.load_error && !overwrite} onClick={save}>{t("file.save")}</button>
     </section>
   );
 }
@@ -168,6 +220,7 @@ export function Settings(props: {
   autoPreview: boolean; onAutoPreview: (on: boolean) => void;
 }) {
   const [startView, setStartView] = useState<StartView>(loadStartView);
+  const [helpStart, setHelpStart] = useState(loadHelpStart);
   return (
     <Modal open={props.open} title={t("settings.title")} onCancel={props.onClose}>
       <div className="field">
@@ -193,6 +246,10 @@ export function Settings(props: {
       <div className="field">
         <label><input type="checkbox" checked={props.autoPreview} onChange={(e) => props.onAutoPreview(e.target.checked)} /> {t("settings.autopreview")}</label>
         <small className="muted">{t("settings.autopreview.help")}</small>
+      </div>
+      <div className="field">
+        <label><input type="checkbox" checked={helpStart} onChange={(e) => { setHelpStart(e.target.checked); saveHelpStart(e.target.checked); }} /> {t("settings.helpstart")}</label>
+        <small className="muted">{t("settings.helpstart.help")}</small>
       </div>
       {props.open && <AiSettings onChanged={props.onAiChanged} />}
       {props.open && <QuitSection onStopped={props.onStopped} />}

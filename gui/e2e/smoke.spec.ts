@@ -218,14 +218,14 @@ test.describe.serial("smoke", () => {
   });
 
   test("i3) Handbuch: öffnen, Kapitel, Suche, Zurück", async () => {
-    const chapters = existsSync("../docs/manual") ? readdirSync("../docs/manual").filter((f) => /^\d+-.+\.md$/.test(f)) : [];
+    const chapters = existsSync("../docs/manual/de") ? readdirSync("../docs/manual/de").filter((f) => /^\d+-.+\.md$/.test(f)) : [];
     await page.getByRole("button", { name: "Handbuch", exact: true }).click();
     const toc = page.getByRole("navigation", { name: "Kapitel" });
     if (chapters.length === 0) {
       await expect(page.getByText("Noch keine Kapitel")).toBeVisible();
     } else {
       await expect(toc.getByRole("button").first()).toBeVisible();
-      const word = /[A-Za-zÄÖÜäöüß]{6,}/.exec(readFileSync(`../docs/manual/${chapters[0]}`, "utf8").replace(/^#.*$/m, ""))?.[0] ?? "";
+      const word = /[A-Za-zÄÖÜäöüß]{6,}/.exec(readFileSync(`../docs/manual/de/${chapters[0]}`, "utf8").replace(/^#.*$/m, ""))?.[0] ?? "";
       const before = await toc.getByRole("listitem").count();
       await page.getByRole("searchbox", { name: "Im Handbuch suchen" }).fill(word);
       await expect(toc.getByRole("listitem").first()).toBeVisible();

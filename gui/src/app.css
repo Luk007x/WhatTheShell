@@ -383,6 +383,7 @@ dialog.modal--help .modal__body { display: flex; flex-direction: column; }
 .manual { grid-row: 3; display: grid; grid-template-columns: minmax(13rem, 18rem) minmax(0, 1fr); min-height: 0; overflow: clip; }
 .manual--empty { display: block; padding: var(--space-4); }
 .manual__toc { overflow: auto; padding: var(--space-3); background: var(--surface-2); border-right: 1px solid var(--border); }
+.manual__toc .lvl3 { padding-left: var(--space-3); }
 .manual__toc input { width: 100%; margin-bottom: var(--space-2); }
 .manual__toc ul { list-style: none; margin: 0; padding: 0; }
 .manual__toc ul ul { padding-left: var(--space-3); }

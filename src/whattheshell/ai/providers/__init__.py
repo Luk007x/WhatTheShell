@@ -15,7 +15,7 @@ def build(settings: AiSettings) -> Provider:
         from .agent_cli import AgentCliProvider
 
         agent = settings.agent
-        return AgentCliProvider(agent.kind, agent.command, agent.timeout)
+        return AgentCliProvider(agent.kind, agent.timeout, agent.model, agent.reasoning)
     if settings.provider == "local":
         from .openai_compat import OpenAICompatProvider
 

@@ -355,7 +355,7 @@ def _ai_settings(args: argparse.Namespace, settings: Settings) -> int:
         print(f"KI: {'an' if ai.enabled else 'aus'}, Anbieter: {ai.provider}")
         print(f"local: {ai.local.base_url} Modell '{ai.local.model}'")
         print(f"api: {ai.api.kind} Modell '{ai.api.model}' Schlüsselquelle {source}")
-        print(f"agent: {ai.agent.kind} Aufruf {ai.agent.command or 'Standard'}")
+        print(f"agent: {ai.agent.kind} Modell '{ai.agent.model}' Reasoning '{ai.agent.reasoning}'")
         print(f"Befehlsausgaben mitsenden: {'ja' if ai.send_outputs else 'nein'}")
         print("Prüfung der Quelle: `wts ai check`")
         return 0

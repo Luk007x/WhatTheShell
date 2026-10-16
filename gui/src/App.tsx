@@ -13,7 +13,7 @@ import { CatalogPanel } from "./catalog/CatalogPanel";
 import { clearToolCache, StepPanel } from "./detail/StepPanel";
 import { ModulesView } from "./modules/ModulesView";
 import { Templates } from "./catalog/Templates";
-import { applyFontSize, initialModeView, loadAutoPreview, loadFontSize, loadStartView, saveAutoPreview, saveFontSize, Settings, type FontSize } from "./Settings";
+import { applyFontSize, initialModeView, loadAutoPreview, loadFontSize, loadHelpStart, loadStartView, saveAutoPreview, saveFontSize, Settings, shouldOpenHelp, type FontSize } from "./Settings";
 import { mergeTemplate } from "./model/templates";
 import { VariablesPanel } from "./detail/VariablesPanel";
 import { useDebounced } from "./hooks";
@@ -141,7 +141,7 @@ export function App() {
   const [validation, setValidation] = useState<{ ok: boolean; errors: { path: string; message: string }[] } | "checking" | string>("checking");
   const [state, dispatch] = useReducer(reducer, { doc: emptyWorkflow(), past: [], future: [], warnings: [], lastKey: null, epoch: 0 });
   const token = hasToken();
-  useEffect(() => { if (token && !helpSeen()) setHelpSection("start"); }, [token]); // first start
+  useEffect(() => { if (token && shouldOpenHelp(helpSeen(), loadHelpStart())) setHelpSection("start"); }, [token]); // first start
   const closeHelp = () => {
     setHelpSection(null);
     try { localStorage.setItem("wts.helpseen", "1"); } catch { /* storage unavailable: the help opens again next time */ }

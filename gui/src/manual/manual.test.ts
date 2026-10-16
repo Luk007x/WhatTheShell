@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { expect, test } from "vitest";
+import { shouldOpenHelp } from "../Settings";
 import { parseLink, searchChapters, slug, type ManualChapter } from "./manualData";
 
 const ch = (id: string, title: string, text: string, headings: string[] = []): ManualChapter => ({
@@ -26,4 +27,10 @@ test("links resolve to chapter and heading", () => {
   expect(parseLink("#module/x", chapters, "start")).toEqual({ chapter: "module", heading: "x" });
   expect(parseLink("#uebersicht", chapters, "start")).toEqual({ chapter: "start", heading: "uebersicht" });
   expect(parseLink("https://x", chapters, "start")).toBeNull();
+});
+
+test("help opens on first start only when enabled", () => {
+  expect(shouldOpenHelp(false, true)).toBe(true);
+  expect(shouldOpenHelp(false, false)).toBe(false);
+  expect(shouldOpenHelp(true, true)).toBe(false);
 });

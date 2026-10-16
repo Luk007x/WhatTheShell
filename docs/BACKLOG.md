@@ -18,3 +18,8 @@ Punkte, die bewusst zurückgestellt sind. Jeder Eintrag nennt Auslöser und Bedi
 - **Versionshinweis in den Einstellungen:** PyPI-JSON nur auf Klick lesen, neuere Version und den passenden Update-Befehl anzeigen; kein Installieren aus der App (D-017).
 - **Persistenter Lauf-Verlauf:** Workflow, Start, Dauer, Ergebnis, Exit-Code je Lauf in `cache_dir()`; ohne Ausgaben und Secrets; Ansicht im Ausführen-Modus.
 - **Oberflächeneinstellungen serverseitig:** Sprache, Schrift, Theme, Startansicht in `settings.yaml` statt `localStorage`, damit sie Browserwechsel überleben.
+
+## Nach D-020 (2026-10-16)
+
+- **Server- und CLI-Meldungen auf Englisch:** Meldungen aus `cli.py`, Runner und API sind deutsch; für die englische Oberfläche fehlt eine Übersetzungsschicht im Backend.
+- **Codex ohne Shell-Werkzeug:** sobald die Codex-CLI eine Option bietet, das Shell-Werkzeug abzuschalten, als Pflichtflag in die Allowlist aufnehmen.

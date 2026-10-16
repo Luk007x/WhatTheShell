@@ -101,10 +101,10 @@ def test_config_set(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["ai", "config", "set", "agent.kind", "codex"]) == 0
     assert main(["ai", "config", "set", "api.model", "claude-x"]) == 0
     assert main(["ai", "config", "set", "send_outputs", "true"]) == 0
-    assert main(["ai", "config", "set", "agent.command", '["codex", "exec"]']) == 0
+    assert main(["ai", "config", "set", "agent.model", "gpt-x"]) == 0
     ai = load_settings().ai
     assert (ai.provider, ai.agent.kind, ai.api.model) == ("agent", "codex", "claude-x")
-    assert ai.send_outputs is True and ai.agent.command == ["codex", "exec"]
+    assert ai.send_outputs is True and ai.agent.model == "gpt-x"
     capsys.readouterr()
     assert main(["ai", "config", "set", "provider", "cloud"]) == 1
     assert main(["ai", "config", "set", "api.api_key", "abc"]) == 1

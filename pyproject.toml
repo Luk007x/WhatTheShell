@@ -5,11 +5,21 @@ build-backend = "hatchling.build"
 [project]
 name = "whattheshell"
 version = "0.0.1"
-description = "Grafischer Baukasten für Terminal-Workflows"
+description = "Graphical builder for Linux terminal workflows: compose CLI tools into safe, sandboxed workflows"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+keywords = ["cli", "workflow", "terminal", "linux", "sandbox", "bubblewrap", "gui", "automation"]
 classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: System Administrators",
+    "Natural Language :: English",
+    "Natural Language :: German",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Utilities",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -26,6 +36,12 @@ dependencies = [
 
 [project.optional-dependencies]
 keyring = ["keyring>=25"]
+
+[project.urls]
+Homepage = "https://github.com/Luk007x/WhatTheShell"
+Repository = "https://github.com/Luk007x/WhatTheShell"
+Issues = "https://github.com/Luk007x/WhatTheShell/issues"
+Changelog = "https://github.com/Luk007x/WhatTheShell/releases"
 
 [project.scripts]
 whattheshell = "whattheshell.cli:main"
@@ -46,7 +62,10 @@ artifacts = ["src/whattheshell/api/static/**"]
 
 [tool.hatch.build.targets.sdist]
 artifacts = ["src/whattheshell/api/static/**"]
-exclude = ["gui/tsconfig.tsbuildinfo", "gui/node_modules", "gui/e2e-results", "gui/playwright-report"]
+exclude = [
+  "gui/tsconfig.tsbuildinfo", "gui/node_modules", "gui/e2e-results", "gui/playwright-report",
+  ".claude", ".github", ".graphifyignore", "CLAUDE.md", "PROJEKTAUFTRAG.md", "graphify-out", "uv.lock",
+]
 
 [tool.ruff]
 line-length = 100

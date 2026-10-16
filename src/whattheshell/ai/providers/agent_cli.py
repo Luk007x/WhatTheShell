@@ -9,8 +9,10 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Literal
 
+from whattheshell import paths
 from whattheshell.ai.protocol import Prompt
 from whattheshell.ai.providers.http import printable
+from whattheshell.settings import validate_command
 from whattheshell.subproc import run_limited, sanitized_env
 
 _MAX_BYTES = 2 * 1024 * 1024
@@ -20,18 +22,23 @@ _KEY_VARS = {"claude": "ANTHROPIC_API_KEY", "codex": "CODEX_API_KEY"}
 CREDENTIALS = {"claude": ".claude/.credentials.json", "codex": ".codex/auth.json"}
 
 
-def _default_command(kind: str) -> list[str]:
+def _default_command(kind: str, model: str = "", reasoning: str = "") -> list[str]:
+    """Built-in invocation: the only line that disables tools and user config."""
     if kind == "claude":
         return [
             "claude", "-p", "--output-format", "text", "--tools", "",
             "--permission-mode", "dontAsk", "--no-session-persistence",
             "--system-prompt", "{system}",
             "--strict-mcp-config", "--setting-sources", "", "--disable-slash-commands",
+            *(["--model", model] if model else []),
         ]  # fmt: skip
     return [
         "codex", "exec", "--sandbox", "read-only", "--skip-git-repo-check", "--ephemeral",
         "--ignore-user-config", "--ignore-rules",
-        "--color", "never", "-c", "mcp_servers={}", "-C", "{tmp}", "-o", "{tmp}/last.txt", "-",
+        "--color", "never", "-c", "mcp_servers={}", "-C", "{tmp}", "-o", "{tmp}/last.txt",
+        *(["-m", model] if model else []),
+        *(["-c", f'model_reasoning_effort="{reasoning}"'] if reasoning else []),
+        "-",
     ]  # fmt: skip
 
 
@@ -46,7 +53,11 @@ def isolated_env(kind: Literal["claude", "codex"]) -> Iterator[tuple[dict[str, s
     Raises:
         OSError: The login file exists but cannot be copied.
     """
-    with tempfile.TemporaryDirectory(prefix="wts-agent-") as tmp:  # 0700, deleted in finally
+    # Under the app's cache, not TMPDIR: no /tmp/CLAUDE.md or AGENTS.md of another user above it.
+    parent = paths.cache_dir() / "agent"
+    parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    parent.chmod(0o700)
+    with tempfile.TemporaryDirectory(prefix="wts-agent-", dir=parent) as tmp:  # deleted in finally
         home, work = Path(tmp, "home"), Path(tmp, "work")
         work.mkdir()
         source = Path.home() / CREDENTIALS[kind]  # resolved from the real HOME
@@ -73,12 +84,14 @@ class AgentCliProvider:
     def __init__(
         self,
         kind: Literal["claude", "codex"],
-        command: list[str],
         timeout: float,
+        model: str = "",
+        reasoning: str = "",
     ) -> None:
         self.name: str = kind
         self._kind = kind
-        self._command = command or _default_command(kind)
+        self._command = _default_command(kind, model, reasoning)
+        validate_command(kind, self._command)  # defense in depth
         self._timeout = timeout
 
     def complete(self, prompt: Prompt) -> str:

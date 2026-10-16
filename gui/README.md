@@ -123,7 +123,7 @@ Einstellungen, Abschnitt „Programm“: „WhatTheShell beenden“ ruft `POST /
 
 ## Handbuch
 
-- Kapitel liegen als Markdown unter `../docs/manual/NN-slug.md` (Dateiname sortiert die Reihenfolge, `slug` wird die Kapitel-ID, die erste `# `-Überschrift der Titel).
-- Neues Kapitel: Datei anlegen, fertig. Der Vite-Build (`vite.config.ts`, virtuelles Modul `virtual:manual`) wandelt alle Kapitel mit `marked` in HTML um und bettet sie ins Bundle ein; `vite dev` lädt bei Änderungen neu. Ohne Kapitel zeigt die Ansicht „Noch keine Kapitel“.
+- Kapitel liegen als Markdown je Sprache unter `../docs/manual/de/NN-slug.md` und `../docs/manual/en/NN-slug.md` (gleiche Dateinamen; Dateiname sortiert die Reihenfolge, `slug` wird die Kapitel-ID, die erste `# `-Überschrift der Titel). Die Ansicht nutzt die UI-Sprache und fällt auf die andere zurück, wenn deren Ordner leer ist (mit Hinweis).
+- Neues Kapitel: Datei in beiden Ordnern anlegen, fertig. Der Vite-Build (`vite.config.ts`, virtuelles Modul `virtual:manual`, exportiert `manual: { de, en }`) wandelt alle Kapitel mit `marked` in HTML um und bettet sie ins Bundle ein; `vite dev` lädt bei Änderungen neu. Ohne Kapitel zeigt die Ansicht „Noch keine Kapitel“.
 - Interne Links: `[Text](#kapitel-id)` oder `[Text](#kapitel-id/ueberschrift-id)`; Überschrift-IDs sind der Slug des Textes (`ä`→`ae`, Leerzeichen→`-`).
 - Einstieg: Buch-Symbol in der Kopfzeile und „Ausführlich im Handbuch“ im Hilfedialog (springt zum Kapitel mit der ID des Hilfeabschnitts, z. B. `build`, sonst zum ersten).

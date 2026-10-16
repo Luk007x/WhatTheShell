@@ -84,3 +84,37 @@ Der Job ist noch nicht eingebaut; auf Zuruf baut ihn die Claude-Sitzung ein, der
 
 `XDG_CONFIG_HOME`, `XDG_CACHE_HOME`, `XDG_RUNTIME_DIR` werden respektiert. Ein `pipx uninstall` lässt alle
 diese Daten liegen; zum vollständigen Entfernen `rm -r ~/.config/whattheshell ~/.cache/whattheshell`.
+
+## 6. PyPI-Seite
+
+Die Projektseite auf pypi.org wird vollständig aus den Paket-Metadaten erzeugt; es gibt nichts, was man dort von Hand pflegt.
+
+| PyPI zeigt | Quelle in `pyproject.toml` |
+|---|---|
+| Name, Version | `name`, `version` |
+| Kurzbeschreibung (Titelzeile, Suche) | `description` |
+| Hauptinhalt der Seite (long description) | `readme = "README.md"` (Markdown wird gerendert) |
+| Filter und Badges links | `classifiers` (Status, Zielgruppe, Sprache, Python-Versionen, Linux) |
+| Schlagwörter | `keywords` |
+| Links in der Seitenleiste | `[project.urls]` (Homepage, Repository, Issues, Changelog) |
+| Lizenz | `license` (SPDX `AGPL-3.0-or-later`), Datei über `license-files` |
+| Python-Anforderung | `requires-python` |
+| Autor | `authors` (derzeit nicht gesetzt) |
+
+Die Seite ändert sich nur mit einem neuen Upload: Metadaten nachträglich ändern geht nicht, dafür braucht es eine neue Version.
+
+README-Darstellung vorab lokal prüfen (Fehler melden, bevor PyPI den Upload ablehnt):
+
+```
+env -u VIRTUAL_ENV uv run --with readme-renderer python -m readme_renderer README.md -o /tmp/readme.html
+```
+
+Logo oder Screenshot sind optional. PyPI zeigt nur Bilder mit absoluter `https://`-URL, relative Pfade bleiben leer.
+Also Bild ins Repo legen (z. B. `docs/images/screenshot.png`) und im README mit
+`![Screenshot](https://raw.githubusercontent.com/Luk007x/WhatTheShell/main/docs/images/screenshot.png)` einbinden.
+
+Noch vom Auftraggeber zu liefern:
+
+- [ ] Optional: Screenshot oder Logo (siehe oben).
+- [ ] Entscheidung über die Projekt-URLs (derzeit `https://github.com/Luk007x/WhatTheShell`, Changelog = Releases-Seite).
+- [ ] Autor mit E-Mail in `authors` (z. B. `authors = [{ name = "…", email = "…" }]`); die Adresse wird öffentlich angezeigt.

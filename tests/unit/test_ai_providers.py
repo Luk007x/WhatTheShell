@@ -163,7 +163,7 @@ def test_claude_default_call(bin_dir: Path) -> None:
         '[ "$src" = "[]" ] && [ "$tools" = "[]" ] || { echo "leer fehlt" >&2; exit 4; }\n'
         'echo "system=$sys proxy=$HTTPS_PROXY"; cat; pwd\n',
     )  # fmt: skip
-    out = AgentCliProvider("claude", [], 5).complete(PROMPT)
+    out = AgentCliProvider("claude", 5).complete(PROMPT)
     assert "system=SYS" in out
     assert "USER" in out
     assert not Path(out.splitlines()[-1]).exists()  # temp dir removed
@@ -173,18 +173,18 @@ def test_agent_gets_proxy_but_no_other_env(bin_dir: Path, monkeypatch: pytest.Mo
     monkeypatch.setenv("HTTPS_PROXY", "http://proxy:3128")
     monkeypatch.setenv("WTS_OTHER", "x")
     _script(bin_dir, "claude", 'echo "$HTTPS_PROXY|$WTS_OTHER"\n')
-    assert AgentCliProvider("claude", [], 5).complete(PROMPT).strip() == "http://proxy:3128|"
+    assert AgentCliProvider("claude", 5).complete(PROMPT).strip() == "http://proxy:3128|"
 
 
 def test_codex_disables_mcp(bin_dir: Path) -> None:
     _script(bin_dir, "codex", 'case "$*" in *"-c mcp_servers={}"*) echo ok;; *) exit 3;; esac\n')
-    assert AgentCliProvider("codex", [], 5).complete(PROMPT).strip() == "ok"
+    assert AgentCliProvider("codex", 5).complete(PROMPT).strip() == "ok"
 
 
 def test_agent_output_limits_and_control_chars(bin_dir: Path) -> None:
     _script(bin_dir, "claude", "head -c 3000000 /dev/zero\n")
     with pytest.raises(RuntimeError, match="Limit abgeschnitten"):
-        AgentCliProvider("claude", [], 5).complete(PROMPT)
+        AgentCliProvider("claude", 5).complete(PROMPT)
     _script(
         bin_dir,
         "codex",
@@ -192,10 +192,10 @@ def test_agent_output_limits_and_control_chars(bin_dir: Path) -> None:
         'head -c 3000000 /dev/zero > "$tmp/last.txt"\n',
     )
     with pytest.raises(RuntimeError, match="Limit abgeschnitten"):
-        AgentCliProvider("codex", [], 5).complete(PROMPT)
+        AgentCliProvider("codex", 5).complete(PROMPT)
     _script(bin_dir, "claude", "printf '\\033[31mboese' >&2; exit 1\n")
     with pytest.raises(RuntimeError) as info:
-        AgentCliProvider("claude", [], 5).complete(PROMPT)
+        AgentCliProvider("claude", 5).complete(PROMPT)
     assert "\x1b" not in str(info.value)
 
 
@@ -217,26 +217,28 @@ def test_codex_default_call_reads_last_txt(bin_dir: Path) -> None:
         'tmp=""; while [ $# -gt 0 ]; do [ "$1" = -C ] && tmp=$2; shift; done\n'
         'cat > "$tmp/in.txt"; cp "$tmp/in.txt" "$tmp/last.txt"; echo stdout-ignored\n',
     )  # fmt: skip
-    out = AgentCliProvider("codex", [], 5).complete(PROMPT)
+    out = AgentCliProvider("codex", 5).complete(PROMPT)
     assert out == "SYS\n\nUSER"
 
 
-def test_custom_command_placeholders(bin_dir: Path) -> None:
-    _script(bin_dir, "mytool", 'echo "$1|$2"; cat\n')
-    out = AgentCliProvider("claude", ["mytool", "{system}", "{tmp}"], 5).complete(PROMPT)
-    first, rest = out.split("\n", 1)
-    assert first.startswith("SYS|/") and rest == "USER"
+def test_work_dir_under_cache_dir(real_home: Path) -> None:
+    from whattheshell import paths
+    from whattheshell.ai.providers.agent_cli import isolated_env
+
+    with isolated_env("claude") as (_, work):
+        assert work.is_relative_to(paths.cache_dir())
+        assert (paths.cache_dir() / "agent").stat().st_mode & 0o777 == 0o700
 
 
 def test_agent_failures(bin_dir: Path) -> None:
     with pytest.raises(RuntimeError, match="`claude` nicht gefunden"):
-        AgentCliProvider("claude", [], 5).complete(PROMPT)
+        AgentCliProvider("claude", 5).complete(PROMPT)
     _script(bin_dir, "claude", "echo kaputt >&2; exit 2\n")
     with pytest.raises(RuntimeError, match="Code 2: kaputt"):
-        AgentCliProvider("claude", [], 5).complete(PROMPT)
+        AgentCliProvider("claude", 5).complete(PROMPT)
     _script(bin_dir, "claude", "sleep 5\n")
     with pytest.raises(RuntimeError, match="Zeitlimit"):
-        AgentCliProvider("claude", [], 0.3).complete(PROMPT)
+        AgentCliProvider("claude", 0.3).complete(PROMPT)
 
 
 def test_build_per_provider(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -285,7 +287,7 @@ def test_claude_runs_in_throwaway_home(bin_dir: Path, real_home: Path) -> None:
         'echo "$HOME|$XDG_CONFIG_HOME|$XDG_CACHE_HOME|$(pwd)"; ls -A "$HOME/.claude"\n'
         'stat -c %a "$HOME/.claude/.credentials.json"; cat "$HOME/.claude/.credentials.json"\n',
     )  # fmt: skip
-    head, listing, mode, cred = AgentCliProvider("claude", [], 5).complete(PROMPT).splitlines()
+    head, listing, mode, cred = AgentCliProvider("claude", 5).complete(PROMPT).splitlines()
     home, config, cache, cwd = head.split("|")
     assert home != str(real_home) and Path(home).name == "home" and Path(cwd).name == "work"
     assert (config, cache) == (f"{home}/.config", f"{home}/.cache")
@@ -301,7 +303,7 @@ def test_codex_runs_in_throwaway_home_without_user_config(bin_dir: Path, real_ho
         'tmp=""; while [ $# -gt 0 ]; do [ "$1" = -C ] && tmp=$2; shift; done\n'
         'ls -A "$HOME/.codex" > "$tmp/last.txt"; echo "$HOME" >> "$tmp/last.txt"\n',
     )  # fmt: skip
-    listing, home = AgentCliProvider("codex", [], 5).complete(PROMPT).splitlines()
+    listing, home = AgentCliProvider("codex", 5).complete(PROMPT).splitlines()
     assert listing == "auth.json" and not Path(home).exists()
 
 
@@ -311,14 +313,14 @@ def test_throwaway_home_removed_after_timeout(
     seen = tmp_path / "seen"
     _script(bin_dir, "claude", f'echo "$HOME" > "{seen}"; sleep 5\n')
     with pytest.raises(RuntimeError, match="Zeitlimit"):
-        AgentCliProvider("claude", [], 0.5).complete(PROMPT)
+        AgentCliProvider("claude", 0.5).complete(PROMPT)
     assert not Path(seen.read_text().strip()).parent.exists()
 
 
 def test_missing_login_file_is_not_an_error(bin_dir: Path, real_home: Path) -> None:
     (real_home / ".claude/.credentials.json").unlink()
     _script(bin_dir, "claude", 'ls -A "$HOME/.claude"; echo end\n')
-    assert AgentCliProvider("claude", [], 5).complete(PROMPT).strip() == "end"
+    assert AgentCliProvider("claude", 5).complete(PROMPT).strip() == "end"
 
 
 def test_answer_over_two_mib_refused(server: _Server) -> None:

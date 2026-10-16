@@ -47,10 +47,10 @@ Verbindlicher Vertrag zwischen `src/whattheshell/api/` und `gui/`. Nur `127.0.0.
 | `POST /api/runs/{id}/answer` | `{step_id, values: {name: wert}, button}` oder `{step_id, cancel: true}` | 202 `{status: "answered"}` (Antwort auf `ask_request`); `404 {error: "no_question"}`, wenn für den Schritt nichts offen ist. Die API prüft nur die Form; Werte prüft der Runner und fragt bei Fehler mit `error` erneut |
 | `GET /api/terminal/transcripts` | – | `[{name, size, mtime}]` (neueste zuerst; `mtime` Unix-Sekunden) aus `cache_dir()/terminal/` |
 | `DELETE /api/terminal/transcripts/{name}` | – | 204; `name` muss `^[A-Za-z0-9._-]+\.txt$` sein, ohne führenden Punkt und Pfadanteil (sonst 422 `name`), unbekannt 404. CLI: `wts terminal transcripts [--delete NAME]` |
-| `GET /api/settings` | – | Settings-Dokument (siehe unten) plus schreibgeschütztes `key_status: "set"|"missing"` (ist die Umgebungsvariable `ai.api.key_env` gesetzt; der Wert wird nie ausgegeben) |
-| `PUT /api/settings` | Settings-Dokument (ohne `key_status`) | Validierung wie `Settings` (unbekannte oder Schlüsselfelder → 422 `validation`, ohne Eingabewerte), schreibt atomar (0600), lädt die Einstellungen neu; Antwort wie `GET`. `ai.enabled` wird nur hier oder mit `wts ai enable` true |
+| `GET /api/settings` | – | Settings-Dokument (siehe unten) plus schreibgeschützte Felder `load_error: string|null` (Ladefehler der Datei; dann liefert die API Standardwerte) und `key_status: "set"|"missing"` (ist die Umgebungsvariable `ai.api.key_env` gesetzt; der Wert wird nie ausgegeben) |
+| `PUT /api/settings` | Settings-Dokument (ohne `key_status`, `load_error`) | Validierung wie `Settings` (unbekannte oder Schlüsselfelder → 422 `validation`, ohne Eingabewerte), schreibt atomar (0600), lädt die Einstellungen neu; Antwort wie `GET`. `ai.enabled` wird nur hier oder mit `wts ai enable` true |
 | `GET /api/ai/check?network=1\|0` | – | `{ok, provider, items: [{name, ok, detail, hint}]}`: Preflight der konfigurierten Quelle (D-012). Ohne Gate: bei ausgeschalteter KI trotzdem 200 mit dem einzigen Item „KI aus“ (`ok: false`), damit die GUI es anzeigen kann; Anbieter-, Netz- und Prozesscode wird dann nicht geladen. `network=0` kontaktiert keinen Endpunkt; Agenten-CLIs werden immer gestartet (`--version`, Anmeldestatus im Temp-HOME). Fehler und Zeitlimits sind Items, nie 5xx |
-| `GET /api/ai/agents` | – | `{"claude": Pfad\|null, "codex": Pfad\|null}`: absoluter Pfad des Agenten-Programms auf PATH, sonst `null`. Ohne Gate (auch bei ausgeschalteter KI 200), damit die GUI vor dem Einschalten den Anbieter wählen lässt. Prüft nur PATH: kein Prozess, kein Netz, keine Versions- oder Anmeldeprüfung |
+| `GET /api/ai/agents` | – | `{"claude": {"path": Pfad\|null, "models": [Name], "default": "", "reasoning": false}, "codex": {…, "reasoning": true}}`: `path` ist der absolute Pfad des Agenten-Programms auf PATH, sonst `null`; `models` eine statische Liste bekannter Modellnamen (leer = Freitext, z. B. Codex); `default` `""` = Standardmodell des Programms; `reasoning` zeigt, ob die Einstellung `ai.agent.reasoning` wirkt (nur Codex). Ohne Gate (auch bei ausgeschalteter KI 200), damit die GUI vor dem Einschalten den Anbieter wählen lässt. Prüft nur PATH: kein Prozess, kein Netz, keine Versions- oder Anmeldeprüfung |
 | `POST /api/ai/improve-module` | `{tool, send: bool=false}` | siehe Abschnitt „KI-Endpunkte“ |
 | `POST /api/ai/examples` | `{tool, send}` | dito |
 | `POST /api/ai/draft-workflow` | `{description, name?, send}` | dito (`name` = Dateiname ohne Endung, Muster `^[A-Za-z0-9][A-Za-z0-9_-]*$`) |
@@ -119,7 +119,7 @@ Datei `~/.config/whattheshell/settings.yaml` (Modus 0600, `schema_version: 1`), 
 | `ai.provider` | `local` (`local`, `api`, `agent`) |
 | `ai.local` | `base_url: http://127.0.0.1:11434/v1`, `model: ""`, `timeout: 120` |
 | `ai.api` | `kind: anthropic` (`anthropic`, `openai`), `base_url: null`, `model: ""`, `key_env: ANTHROPIC_API_KEY`, `key_source: env` (`env`, `keyring`), `timeout: 120` |
-| `ai.agent` | `kind: claude` (`claude`, `codex`), `command: []` (leer = Standardaufruf), `timeout: 300` |
+| `ai.agent` | `kind: claude` (`claude`, `codex`), `model: ""` (leer = Standardmodell), `reasoning: ""` (`low`/`medium`/`high`, nur Codex), `timeout: 300`; kein Feld `command` (ein altes `command` in der Datei erzeugt einen Ladefehler) |
 | `ai.send_outputs` | `false` (Befehlsausgaben nur auf Wunsch mitsenden, F-30) |
 
 Jeder KI-Einstieg ruft zuerst `ai.require_enabled(settings)` (wirft `AiDisabled`).

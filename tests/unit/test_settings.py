@@ -13,14 +13,14 @@ def test_missing_file_gives_defaults(tmp_path: Path) -> None:
     assert settings == Settings()
     assert settings.ai.enabled is False and settings.ai.send_outputs is False
     assert settings.ai.local.base_url == "http://127.0.0.1:11434/v1"
-    assert settings.ai.api.key_env == "ANTHROPIC_API_KEY" and settings.ai.agent.command == []
+    assert settings.ai.api.key_env == "ANTHROPIC_API_KEY" and settings.ai.agent.model == ""
 
 
 def test_roundtrip_is_private(tmp_path: Path) -> None:
     path = tmp_path / "sub" / "settings.yaml"
     settings = Settings()
     settings.ai.enabled = True
-    settings.ai.agent.command = ["claude", "-p"]
+    settings.ai.agent.model = "sonnet"
     save_settings(settings, path)
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
     assert load_settings(path) == settings

@@ -47,7 +47,7 @@ const de = {
   "keys.help.key": "?", "keys.help.do": "Hilfe öffnen (Tastenkürzel)",
   "keys.drag": "Werkzeuge und Kontrollbausteine lassen sich auf die Fläche ziehen.",
   "help.title": "Hilfe", "help.sections": "Hilfethemen", "help.about": "Hilfe zu {topic}",
-  "manual.title": "Handbuch", "manual.back": "Zurück", "manual.toc": "Kapitel", "manual.search": "Im Handbuch suchen", "manual.nohits": "Nichts gefunden.", "manual.empty": "Noch keine Kapitel", "manual.german": "Das Handbuch liegt bisher nur auf Deutsch vor", "manual.more": "Ausführlich im Handbuch",
+  "manual.title": "Handbuch", "manual.back": "Zurück", "manual.toc": "Kapitel", "manual.search": "Im Handbuch suchen", "manual.nohits": "Nichts gefunden.", "manual.empty": "Noch keine Kapitel", "manual.german": "Das Handbuch liegt in dieser Sprache noch nicht vor, hier die englische Fassung", "manual.more": "Ausführlich im Handbuch",
   "canvas.empty": "Werkzeug aus dem Katalog hierher ziehen oder dort mit Strg+Eingabe einfügen.",
   "help.start.title": "Erste Schritte",
   "help.start.b1": "Erstellen baut den Workflow, Ausführen startet gespeicherte Workflows (mit Bestätigungen und Ausgabe), Module bearbeitet die Beschreibung der Werkzeuge.",
@@ -88,6 +88,7 @@ const de = {
   "help.ai.b4": "Quellen: lokal, Cloud-API oder Claude Code bzw. Codex.",
   "help.ai.b5": "Claude Code und Codex laufen ohne Schreibzugriff, in einem Wegwerf-HOME ohne Nutzerkonfiguration; Claude zusätzlich ohne Werkzeuge.",
   "help.ai.b6": "Eingestellt wird das im Zahnrad (Einstellungen).",
+  "help.ai.b7": "Modell und Reasoning wählbar, Aufruf auf eine feste Liste erlaubter Optionen beschränkt.",
   "help.keys.title": "Tastenkürzel",
   "mode.label": "Modus", "mode.build": "Erstellen", "mode.modules": "Module", "mode.run": "Ausführen", "mode.run.aria": "Modus Ausführen",
   "layout.catalog": "Breite des Katalogs", "layout.details": "Breite der Details",
@@ -181,17 +182,17 @@ const de = {
   "tpl.title": "Vorlagen", "tpl.insert": "Einfügen", "tpl.insert.for": "Vorlage einfügen: {title}",
   "settings.title": "Einstellungen", "settings.view": "Startansicht beim Öffnen", "settings.view.last": "Zuletzt verwendet", "settings.view.build-graph": "Bauen: Graph", "settings.view.build-blocks": "Bauen: Blöcke", "settings.view.run": "Ausführen", "settings.view.modules": "Module", "ai.agent.found": "gefunden", "ai.agent.missing": "nicht installiert", "ai.agent.hint": "Programm nicht im PATH. Installation siehe `wts ai check`.", "settings.font": "Schriftgröße", "settings.font.small": "klein", "settings.font.normal": "normal", "settings.font.large": "groß",
   "theme.label": "Darstellung: {cur} (klicken für {next})", "theme.system": "System", "theme.light": "Hell", "theme.dark": "Dunkel",
-  "settings.autopreview": "Vorschau automatisch ausführen", "settings.close": "Schließen",
+  "settings.autopreview": "Vorschau automatisch ausführen", "settings.helpstart": "Hilfe beim Start anzeigen", "settings.helpstart.help": "Beim ersten Start öffnet sich die Hilfe automatisch.", "settings.close": "Schließen",
   "quit.title": "Programm", "quit.button": "WhatTheShell beenden", "quit.help": "Beendet den Server; laufende Workflows werden abgebrochen. Tabs schließen beendet das Programm nicht.",
   "quit.confirm": "WhatTheShell beenden? Laufende Workflows werden abgebrochen.", "quit.done": "WhatTheShell wurde beendet. Dieser Tab kann geschlossen werden. Neu starten mit `wts gui`.",
   "ai.settings": "KI-Funktionen (optional)", "ai.enable": "KI-Funktionen aktivieren", "ai.enable.hint": "Solange aus, keine Netzwerkverbindungen und keine Fremdprozesse.",
   "ai.provider": "Anbieter", "ai.optional": "optional", "ai.keyenv.help": "Name der Variable, nie der Schlüssel selbst. Der Server muss sie in seiner Umgebung haben: vor `wts gui start` exportieren.", "ai.keystatus": "Schlüsselstatus",
-  "ai.key.set": "gesetzt", "ai.key.missing": "fehlt", "ai.command.help": "Leer = eingebauter Aufruf ohne Schreibzugriff, in einem Wegwerf-HOME ohne Nutzerkonfiguration; Claude zusätzlich ohne Werkzeuge. Eine Zeile je Argument. Platzhalter {system} = Systemanweisung, {tmp} = leerer Arbeitsordner. Beispiel für ein anderes Modell: claude / -p / --model / sonnet / …", "ai.sendoutputs": "Befehlsausgaben an die KI senden",
+  "ai.key.set": "gesetzt", "ai.key.missing": "fehlt", "ai.sendoutputs": "Befehlsausgaben an die KI senden",
  "ai.provider.help": "Es wird nichts gesendet, bevor Sie im Vorschaudialog „Senden“ wählen.", "ai.provider.local": "Lokales Modell (Ollama, llama.cpp, LM Studio, OpenAI-kompatibel)", "ai.provider.api": "Cloud-API (Anthropic oder OpenAI-kompatibel)", "ai.provider.agent": "Installiertes Agentenprogramm (Claude Code oder Codex)",
   "ai.l.url": "Endpunkt", "ai.l.url.help": "Adresse des Modellservers. Standard http://127.0.0.1:11434/v1 ist Ollama.", "ai.model": "Modell", "ai.model.local.help": "Name, wie ihn der Endpunkt listet, z. B. llama3. `wts ai check` prüft, ob es vorhanden ist.", "ai.model.api.help": "Pflichtfeld, z. B. claude-sonnet-5-5 oder gpt-…. Die Prüfung meldet einen leeren Wert.",
   "ai.a.kind": "Protokoll", "ai.a.kind.help": "openai gilt auch für kompatible Anbieter.", "ai.a.url": "Endpunkt (optional)", "ai.a.url.help": "Leer = Standard des Anbieters.", "ai.keyenv": "Umgebungsvariable des Schlüssels",
   "ai.keysrc": "Schlüsselquelle", "ai.keysrc.env": "Umgebungsvariable", "ai.keysrc.keyring": "Systemschlüsselbund", "ai.keysrc.help": "Der Systemschlüsselbund braucht das Extra whattheshell[keyring].",
-  "ai.g.kind": "Programm", "ai.command": "Aufrufzeile (optional)", "ai.timeout": "Zeitlimit (Sekunden)", "ai.sendoutputs.help": "Aus = nur Hilfetexte und Modul-/Workflow-Dateien werden gesendet. An = auch stdout/stderr aus Läufen, die Dateinamen oder Daten enthalten können.",
+  "ai.g.kind": "Programm", "ai.g.model": "Modell", "ai.g.model.default": "Standard des Programms", "ai.g.model.other": "Anderes …", "ai.g.model.help": "Modellname oder Alias, wie ihn das Programm akzeptiert", "ai.g.reasoning": "Reasoning", "ai.g.call.claude": "Claude läuft ohne Werkzeuge.", "ai.g.call.codex": "Codex behält in seiner Sandbox Lesezugriff auf das Dateisystem (nur lesen).", "ai.loaderror.hint": "settings.yaml korrigieren; Speichern überschreibt die Datei mit den angezeigten Werten.", "ai.loaderror.overwrite": "Datei mit diesen Werten überschreiben", "ai.g.call": "Aufruf:", "ai.g.call.help": "Nur diese Optionen sind erlaubt; Werkzeuge, Dateizugriff und eigene Konfiguration des Programms bleiben aus. Eine eigene Aufrufzeile ist nur in settings.yaml möglich und wird gegen dieselbe Liste geprüft.","ai.timeout": "Zeitlimit (Sekunden)", "ai.sendoutputs.help": "Aus = nur Hilfetexte und Modul-/Workflow-Dateien werden gesendet. An = auch stdout/stderr aus Läufen, die Dateinamen oder Daten enthalten können.",
   "settings.autopreview.help": "Nur für Befehle der Klasse safe und nur mit gewähltem Beispiel; läuft immer in der Sandbox.", "settings.view.help": "Wirkt beim nächsten Öffnen der App.",
   "ai.err.disabled": "KI-Funktionen sind ausgeschaltet.", "ai.err.settings": "Einstellungen öffnen", "ai.err.busy": "KI beschäftigt. Später erneut versuchen.", "ai.err.provider": "Anbieterfehler",
   "ai.preview.intro": "Diese Daten werden an die KI gesendet. Es wird nichts gesendet, bevor Sie „Senden“ wählen.", "ai.include": "Befehlsausgaben mitsenden", "ai.chars": "{n} Zeichen",
@@ -255,7 +256,7 @@ const en: Record<keyof typeof de, string> = {
   "keys.help.key": "?", "keys.help.do": "Open help (shortcuts)",
   "keys.drag": "Tools and control blocks can be dragged onto the canvas.",
   "help.title": "Help", "help.sections": "Help topics", "help.about": "Help on {topic}",
-  "manual.title": "Manual", "manual.back": "Back", "manual.toc": "Chapters", "manual.search": "Search the manual", "manual.nohits": "Nothing found.", "manual.empty": "Noch keine Kapitel", "manual.german": "Das Handbuch liegt bisher nur auf Deutsch vor", "manual.more": "Read more in the manual",
+  "manual.title": "Manual", "manual.back": "Back", "manual.toc": "Chapters", "manual.search": "Search the manual", "manual.nohits": "Nothing found.", "manual.empty": "No chapters yet", "manual.german": "The manual is not available in this language yet, showing the German version", "manual.more": "Read more in the manual",
   "canvas.empty": "Drag a tool from the catalog here, or insert it there with Ctrl+Enter.",
   "help.start.title": "Getting started",
   "help.start.b1": "Build creates the workflow, Run starts saved workflows (with confirmations and output), Modules edits the tool descriptions.",
@@ -296,6 +297,7 @@ const en: Record<keyof typeof de, string> = {
   "help.ai.b4": "Sources: local, cloud API, or Claude Code / Codex.",
   "help.ai.b5": "Claude Code and Codex run without write access, in a throwaway HOME without user configuration; Claude additionally without tools.",
   "help.ai.b6": "Set it up in the gear (Settings).",
+  "help.ai.b7": "Model and reasoning are selectable; the call is limited to a fixed list of allowed options.",
   "help.keys.title": "Keyboard shortcuts",
   "mode.label": "Mode", "mode.build": "Build", "mode.modules": "Modules", "mode.run": "Run", "mode.run.aria": "Run mode",
   "layout.catalog": "Catalog width", "layout.details": "Details width",
@@ -389,17 +391,17 @@ const en: Record<keyof typeof de, string> = {
   "tpl.title": "Templates", "tpl.insert": "Insert", "tpl.insert.for": "Insert template: {title}",
   "settings.title": "Settings", "settings.view": "View on start", "settings.view.last": "Last used", "settings.view.build-graph": "Build: graph", "settings.view.build-blocks": "Build: blocks", "settings.view.run": "Run", "settings.view.modules": "Modules", "ai.agent.found": "found", "ai.agent.missing": "not installed", "ai.agent.hint": "Program not on PATH. See `wts ai check` for installation.", "settings.font": "Font size", "settings.font.small": "small", "settings.font.normal": "normal", "settings.font.large": "large",
   "theme.label": "Appearance: {cur} (click for {next})", "theme.system": "system", "theme.light": "light", "theme.dark": "dark",
-  "settings.autopreview": "Run preview automatically", "settings.close": "Close",
+  "settings.autopreview": "Run preview automatically", "settings.helpstart": "Show help on start", "settings.helpstart.help": "On first start the help opens automatically.", "settings.close": "Close",
   "quit.title": "Program", "quit.button": "Quit WhatTheShell", "quit.help": "Stops the server; running workflows are cancelled. Closing tabs does not quit the program.",
   "quit.confirm": "Quit WhatTheShell? Running workflows will be cancelled.", "quit.done": "WhatTheShell has stopped. This tab can be closed. Restart with `wts gui`.",
   "ai.settings": "AI features (optional)", "ai.enable": "Enable AI features", "ai.enable.hint": "While off, no network connections and no foreign processes.",
   "ai.provider": "Provider", "ai.optional": "optional", "ai.keyenv.help": "Name of the variable, never the key itself. The server must have it in its environment: export it before `wts gui start`.", "ai.keystatus": "Key status",
-  "ai.key.set": "set", "ai.key.missing": "missing", "ai.command.help": "Empty = built-in call without write access, in a throwaway HOME without user configuration; Claude additionally without tools. One line per argument. Placeholders {system} = system instruction, {tmp} = empty working folder. Example for another model: claude / -p / --model / sonnet / …", "ai.sendoutputs": "Send command outputs to the AI",
+  "ai.key.set": "set", "ai.key.missing": "missing", "ai.sendoutputs": "Send command outputs to the AI",
  "ai.provider.help": "Nothing is sent before you choose “Send” in the preview dialog.", "ai.provider.local": "Local model (Ollama, llama.cpp, LM Studio, OpenAI-compatible)", "ai.provider.api": "Cloud API (Anthropic or OpenAI-compatible)", "ai.provider.agent": "Installed agent program (Claude Code or Codex)",
   "ai.l.url": "Endpoint", "ai.l.url.help": "Address of the model server. The default http://127.0.0.1:11434/v1 is Ollama.", "ai.model": "Model", "ai.model.local.help": "Name as the endpoint lists it, e.g. llama3. `wts ai check` verifies that it exists.", "ai.model.api.help": "Required, e.g. claude-sonnet-5-5 or gpt-…. The check reports an empty value.",
   "ai.a.kind": "Protocol", "ai.a.kind.help": "openai also applies to compatible providers.", "ai.a.url": "Endpoint (optional)", "ai.a.url.help": "Empty = the provider's default.", "ai.keyenv": "Environment variable of the key",
   "ai.keysrc": "Key source", "ai.keysrc.env": "Environment variable", "ai.keysrc.keyring": "System keyring", "ai.keysrc.help": "The system keyring needs the extra whattheshell[keyring].",
-  "ai.g.kind": "Program", "ai.command": "Call line (optional)", "ai.timeout": "Time limit (seconds)", "ai.sendoutputs.help": "Off = only help texts and module/workflow files are sent. On = also stdout/stderr of runs, which may contain file names or data.",
+  "ai.g.kind": "Program", "ai.g.model": "Model", "ai.g.model.default": "Program default", "ai.g.model.other": "Other …", "ai.g.model.help": "Model name or alias as the program accepts it", "ai.g.reasoning": "Reasoning", "ai.g.call.claude": "Claude runs without tools.", "ai.g.call.codex": "Codex keeps read access to the file system in its sandbox (read only).", "ai.loaderror.hint": "Fix settings.yaml; saving overwrites the file with the values shown.", "ai.loaderror.overwrite": "Overwrite the file with these values", "ai.g.call": "Call:", "ai.g.call.help": "Only these options are allowed; tools, file access and the program's own configuration stay off. A custom call line is only possible in settings.yaml and is checked against the same list.","ai.timeout": "Time limit (seconds)", "ai.sendoutputs.help": "Off = only help texts and module/workflow files are sent. On = also stdout/stderr of runs, which may contain file names or data.",
   "settings.autopreview.help": "Only for commands of class safe and only with a chosen example; always runs in the sandbox.", "settings.view.help": "Takes effect the next time the app is opened.",
   "ai.err.disabled": "AI features are switched off.", "ai.err.settings": "Open settings", "ai.err.busy": "AI busy. Try again later.", "ai.err.provider": "Provider error",
   "ai.preview.intro": "This data will be sent to the AI. Nothing is sent before you choose “Send”.", "ai.include": "Include command outputs", "ai.chars": "{n} characters",
@@ -422,8 +424,8 @@ export const dicts: Record<Lang, Record<string, string>> = { de, en };
 function detect(): Lang {
   const stored = typeof localStorage === "undefined" ? null : localStorage.getItem("wts.lang");
   if (stored === "de" || stored === "en") return stored;
-  const nav = typeof navigator === "undefined" ? "de" : navigator.language;
-  return nav.toLowerCase().startsWith("en") ? "en" : "de";
+  const nav = typeof navigator === "undefined" ? "en" : navigator.language;
+  return nav.toLowerCase().startsWith("de") ? "de" : "en";
 }
 
 let lang: Lang = detect();

@@ -165,14 +165,17 @@ export interface Settings {
     provider: "local" | "api" | "agent";
     local: { base_url: string; model: string; timeout: number };
     api: { kind: "anthropic" | "openai"; base_url: string | null; model: string; key_env: string; key_source: "env" | "keyring"; timeout: number };
-    agent: { kind: "claude" | "codex"; command: string[]; timeout: number };
+    agent: { kind: "claude" | "codex"; model: string; reasoning: "" | "low" | "medium" | "high"; timeout: number };
     send_outputs: boolean;
   };
   key_status?: "set" | "missing";
+  /** Read-only, sent by GET only: settings.yaml could not be read. */
+  load_error?: string | null;
 }
 
-/** Absolute path of each agent program, null = not on PATH (GET /api/ai/agents). */
-export type AiAgents = Record<string, string | null>;
+/** Per agent program: absolute path (null = not on PATH), known models, program default, reasoning support (GET /api/ai/agents). */
+export interface AiAgentInfo { path: string | null; models: string[]; default: string; reasoning: boolean }
+export type AiAgents = Record<"claude" | "codex", AiAgentInfo>;
 
 export type AiTaskName = "improve-module" | "examples" | "draft-workflow" | "diagnose";
 export type AiBody =
