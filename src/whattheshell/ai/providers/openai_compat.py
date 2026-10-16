@@ -2,6 +2,7 @@
 """OpenAI-compatible chat completions over urllib (local servers and OpenAI)."""
 
 from whattheshell.ai.protocol import Prompt
+from whattheshell.i18n import _
 
 from .http import get_json, post_json
 
@@ -34,7 +35,7 @@ class OpenAICompatProvider:
         try:
             return str(answer["choices"][0]["message"]["content"])
         except (KeyError, IndexError, TypeError):
-            raise RuntimeError("Unerwartete Antwortform des Servers") from None
+            raise RuntimeError(_("Unerwartete Antwortform des Servers")) from None
 
     def list_models(self) -> list[str]:
         """GET ``{base_url}/models``, return ``data[].id``.
@@ -46,4 +47,4 @@ class OpenAICompatProvider:
         try:
             return [str(model["id"]) for model in answer["data"]]
         except (KeyError, TypeError):
-            raise RuntimeError("Unerwartete Antwortform von /models") from None
+            raise RuntimeError(_("Unerwartete Antwortform von /models")) from None

@@ -4,7 +4,7 @@
 
 Im Modus „Ausführen“ lassen sich fertige Workflows starten, ohne den Editor.
 
-- **Bibliothek** (links): Alle Workflows, gruppiert nach „mitgeliefert“, „eigene“ und „Projekt“, mit Suche („Workflows suchen“), Schrittzahl und Hinweis „überdeckt: …“, wenn eine Datei höherer Priorität dieselbe id hat. „Aktualisieren“ lädt die Liste neu; sie wird auch beim Moduswechsel und bei Fensterfokus neu geladen. Kaputte Dateien sind ausgegraut und zeigen `Pfad:Zeile: Meldung`.
+- **Bibliothek** (links): Alle Workflows, gruppiert nach „mitgeliefert“, „eigene“ und „Projekt“, mit dem Filter „Quelle“ (Alle, Eigene, Mitgeliefert, Projekt), Marken für Quelle und Integrität („Außerhalb geändert“, „Nicht geprüft“, „Ungültig“), einem Knopf „Prüfen und übernehmen“ für Dateien, die vor einem Lauf übernommen werden müssen, einem Knopf „Importieren“ (oder Drag-and-drop), mit Suche („Workflows suchen“), Schrittzahl und Hinweis „überdeckt: …“, wenn eine Datei höherer Priorität dieselbe id hat. „Aktualisieren“ lädt die Liste neu; sie wird auch beim Moduswechsel und bei Fensterfokus neu geladen. Kaputte Dateien sind ausgegraut und zeigen `Pfad:Zeile: Meldung`.
 - **Eingaben** (rechts): Ein Feld je Variable, Pflichtfelder mit `*`, Standardwerte vorbelegt, dazu der Arbeitsordner.
 - **Letzte Läufe:** Status, Startzeit und Exitcode; ein Klick lädt den Verlauf schreibgeschützt in die Ausgabe.
 

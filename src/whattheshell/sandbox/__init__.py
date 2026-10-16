@@ -9,13 +9,13 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from whattheshell.i18n import _
 from whattheshell.subproc import Result, run_limited, sanitized_env
 
 # bwrap cannot create /work on the read-only root, so the workdir lives on the /tmp tmpfs.
 WORKDIR_IN_SANDBOX = "/tmp/work"  # noqa: S108
 SANDBOX_PATH = "/usr/local/bin:/usr/bin:/bin"
 logger = logging.getLogger(__name__)
-_GENERIC_HINT = "Installiere das Paket „bubblewrap“ über die Paketverwaltung deiner Distribution."
 _HINTS = (
     (("fedora", "rhel", "centos"), "sudo dnf install bubblewrap"),
     (("debian", "ubuntu"), "sudo apt install bubblewrap"),
@@ -23,7 +23,6 @@ _HINTS = (
     (("opensuse", "suse"), "sudo zypper install bubblewrap"),
     (("alpine",), "sudo apk add bubblewrap"),
 )
-_USERNS_NOTE = "Prüfe `sysctl kernel.unprivileged_userns_clone` bzw. AppArmor-Einschränkungen."
 
 
 @dataclass(frozen=True)
@@ -56,7 +55,7 @@ def install_hint_for_distro(os_release: Mapping[str, str]) -> str:
     for names, hint in _HINTS:
         if ids.intersection(names):
             return hint
-    return _GENERIC_HINT
+    return _("Installiere das Paket „bubblewrap“ über die Paketverwaltung deiner Distribution.")
 
 
 def _resolv_conf_target() -> str | None:
@@ -146,8 +145,13 @@ def run_sandboxed(
 
 def _failure(step: str, result: Result | None, path: str) -> SandboxStatus:
     lines = result.stderr.decode(errors="replace").strip().splitlines() if result else []
-    detail = lines[-1] if lines else "keine Fehlermeldung"
-    reason = f"Sandbox-Selbsttest fehlgeschlagen ({step}): {detail} {_USERNS_NOTE}"
+    detail = lines[-1] if lines else _("keine Fehlermeldung")
+    reason = _(
+        "Sandbox-Selbsttest fehlgeschlagen ({step}): {detail} "
+        "Prüfe `sysctl kernel.unprivileged_userns_clone` bzw. AppArmor-Einschränkungen.",
+        step=step,
+        detail=detail,
+    )
     return SandboxStatus(False, reason, "", path)
 
 
@@ -155,7 +159,7 @@ def self_test(bwrap_path: str | None = None) -> SandboxStatus:
     """Check that bwrap works here: runs, isolates writes, network and the root filesystem."""
     path = bwrap_path or shutil.which("bwrap")
     if path is None or not Path(path).exists():
-        reason = "bubblewrap (bwrap) ist nicht installiert."
+        reason = _("bubblewrap (bwrap) ist nicht installiert.")
         return SandboxStatus(False, reason, install_hint_for_distro(read_os_release()), None)
     with tempfile.TemporaryDirectory(prefix="wts-selftest-") as tmp:
         workdir = Path(tmp)
@@ -165,28 +169,30 @@ def self_test(bwrap_path: str | None = None) -> SandboxStatus:
 
         result = run(["/usr/bin/true"])
         if result is None or result.exit_code != 0:
-            return _failure("User-Namespaces sind gesperrt oder bwrap startet nicht", result, path)
+            return _failure(
+                _("User-Namespaces sind gesperrt oder bwrap startet nicht"), result, path
+            )
         result = run(["/usr/bin/touch", "probe"])
         if result is None or result.exit_code != 0 or not (workdir / "probe").exists():
-            return _failure("Schreiben im Arbeitsverzeichnis", result, path)
+            return _failure(_("Schreiben im Arbeitsverzeichnis"), result, path)
         if Path("/usr/sbin/ip").exists():
             result = run(["/usr/sbin/ip", "link"])
             if result is None or result.exit_code != 0:
-                return _failure("Netzwerktest", result, path)
+                return _failure(_("Netzwerktest"), result, path)
             names = [
                 ln.split(":")[1].strip()
                 for ln in result.stdout.decode().splitlines()
                 if ln[:1].isdigit()
             ]
             if any(name.split("@")[0] != "lo" for name in names):
-                return _failure("Netzwerk ist nicht isoliert", None, path)
+                return _failure(_("Netzwerk ist nicht isoliert"), None, path)
         result = run(["/usr/bin/touch", "/etc/wts_probe"])
         if result is None or result.exit_code == 0 or Path("/etc/wts_probe").exists():
-            return _failure("Schreibschutz des Dateisystems", result, path)
+            return _failure(_("Schreibschutz des Dateisystems"), result, path)
     reason = (
         ""
         if shutil.which("prlimit")
-        else "prlimit (util-linux) fehlt: keine Speicher-/Prozesslimits."
+        else _("prlimit (util-linux) fehlt: keine Speicher-/Prozesslimits.")
     )
     return SandboxStatus(True, reason, "", path)
 

@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from whattheshell.i18n import _
 from whattheshell.models.module import Module
 from whattheshell.modules.loader import MODULE_SUFFIXES, DocumentError, load_module_file
 
@@ -39,7 +40,9 @@ class ModuleRegistry:
                 try:
                     files = sorted(directory.iterdir())
                 except OSError as err:
-                    errors.append(DocumentError(directory, None, f"Ordner nicht lesbar: {err}"))
+                    errors.append(
+                        DocumentError(directory, None, _("Ordner nicht lesbar: {err}", err=err))
+                    )
                     continue
                 for path in files:
                     if path.name.endswith(MODULE_SUFFIXES):

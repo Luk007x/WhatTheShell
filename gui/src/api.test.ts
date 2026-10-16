@@ -2,6 +2,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { ApiError, getTool, initToken, parseToken, putWorkflow } from "./api";
 import type { Workflow } from "./types/api";
+import { getLang } from "./i18n";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -37,4 +38,15 @@ test("ok response without body is an error", async () => {
   vi.stubGlobal("location", { hash: "", pathname: "/", search: "" });
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status: 200 })));
   await expect(getTool("ls")).rejects.toMatchObject({ error: "body" });
+});
+
+test("wsUrl appends token and lang, header X-WTS-Lang is sent", async () => {
+  vi.stubGlobal("location", { hash: "", pathname: "/", search: "", protocol: "http:", host: "h:1" });
+  const { wsUrl, getStatus } = await import("./api");
+  expect(wsUrl("/ws/runs/r1")).toBe(`ws://h:1/ws/runs/r1?token=T0K&lang=${getLang()}`);
+  expect(wsUrl("/ws/x?a=1")).toBe(`ws://h:1/ws/x?a=1&token=T0K&lang=${getLang()}`);
+  const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+  vi.stubGlobal("fetch", fetchMock);
+  await getStatus();
+  expect((fetchMock.mock.calls[0] as [string, RequestInit])[1].headers).toMatchObject({ "X-WTS-Lang": getLang() });
 });

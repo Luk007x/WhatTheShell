@@ -27,6 +27,7 @@ from whattheshell import paths
 from whattheshell.api.errors import error_response
 from whattheshell.engine import TerminalRequest, mask_text
 from whattheshell.engine.runner import _MAX_TIMEOUT
+from whattheshell.i18n import _
 from whattheshell.models.common import StrictModel
 from whattheshell.sandbox import self_test
 from whattheshell.terminal import PtyProcess, TerminalUnavailable, spawn
@@ -41,11 +42,17 @@ _TICK = 0.1
 _TRANSCRIPT_NAME = re.compile(r"^[A-Za-z0-9._-]+\.txt$")
 _LINE_CAP = 65536  # a line without newline (progress bars) is flushed at this size
 
-_REFUSED = {
-    4404: "Kein offenes Terminal für diesen Lauf und Schritt.",
-    4409: "Terminal ist schon verbunden (nur eine Verbindung).",
-    4429: f"Schon {MAX_TERMINALS} Terminals offen. Eines schließen.",
-}
+
+def _refusal(code: int) -> str:
+    """Close reason for a refused connection (4404, 4409, 4429)."""
+    match code:
+        case 4404:
+            return _("Kein offenes Terminal für diesen Lauf und Schritt.")
+        case 4409:
+            return _("Terminal ist schon verbunden (nur eine Verbindung).")
+        case _:
+            return _("Schon {limit} Terminals offen. Eines schließen.", limit=MAX_TERMINALS)
+
 
 EXIT_UNAVAILABLE = 126
 EXIT_TIMEOUT = 124
@@ -102,7 +109,13 @@ class _Transcript:
             except FileExistsError:
                 continue
         else:
-            raise FileExistsError(f"Kein freier Transkriptname für {run_id}-{step_id}.")
+            raise FileExistsError(
+                _(
+                    "Kein freier Transkriptname für {run_id}-{step_id}.",
+                    run_id=run_id,
+                    step_id=step_id,
+                )
+            )
         self._file: IO[str] = os.fdopen(fd, "w", encoding="utf-8")
         self._secrets = secrets
         self._decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
@@ -160,7 +173,11 @@ class TerminalHub:
         step_id = request.step_id
         status = self_test()
         if not status.available:
-            text = f"Terminal nicht verfügbar: {status.reason} {status.install_hint}".strip()
+            text = _(
+                "Terminal nicht verfügbar: {reason} {hint}",
+                reason=status.reason,
+                hint=status.install_hint,
+            ).strip()
             publish({"type": "message", "step_id": step_id, "text": text})
             return EXIT_UNAVAILABLE
         if request.abort.is_set():
@@ -189,7 +206,7 @@ class TerminalHub:
                     continue
                 slot.done.set()  # under the lock: no late `claim` can start a process now
         if slot.exit_code == EXIT_TIMEOUT and not slot.connected:
-            text = "Kein Terminal verbunden. Schritt im Browser öffnen und erneut starten."
+            text = _("Kein Terminal verbunden. Schritt im Browser öffnen und erneut starten.")
             publish({"type": "message", "step_id": step_id, "text": text})
         with self._lock:
             self._slots.pop((run_id, step_id), None)
@@ -318,14 +335,15 @@ class _Session:
             except OSError as err:
                 self.loop.remove_reader(self.process.fd)
                 logger.warning("Terminal-Transkript nicht schreibbar: %s", err)
-                text = (
-                    f"Transkript nicht schreibbar: {err}. "
-                    f"Platz und Rechte von {transcript_dir()} prüfen."
+                text = _(
+                    "Transkript nicht schreibbar: {err}. Platz und Rechte von {folder} prüfen.",
+                    err=err,
+                    folder=transcript_dir(),
                 )
                 self.slot.publish(
                     {"type": "message", "step_id": self.slot.request.step_id, "text": text}
                 )
-                self.end = (EXIT_HANGUP, 1011, "Transkript nicht schreibbar")
+                self.end = (EXIT_HANGUP, 1011, _("Transkript nicht schreibbar"))
                 return
         self.backlog += len(data)
         self.out.put_nowait(data)
@@ -353,7 +371,7 @@ class _Session:
         if len(self.pending) > MAX_BACKLOG:
             self.loop.remove_writer(self.process.fd)
             self.pending.clear()
-            self.end = (EXIT_HANGUP, 4413, "Eingabe-Rückstau über 1 MiB")
+            self.end = (EXIT_HANGUP, 4413, _("Eingabe-Rückstau über 1 MiB"))
 
     def on_writable(self) -> None:
         try:
@@ -376,12 +394,12 @@ class _Session:
                 try:
                     self.write(data)
                 except OSError:
-                    await self._error("Terminal nimmt keine Eingaben an.")
+                    await self._error(_("Terminal nimmt keine Eingaben an."))
                 continue
             try:
                 size = _RESIZE.validate_json(message.get("text") or "")
             except ValidationError:
-                await self._error("Erwartet Binärdaten oder {type: resize, cols, rows}.")
+                await self._error(_("Erwartet Binärdaten oder {type: resize, cols, rows}."))
                 continue
             with contextlib.suppress(OSError):
                 self.process.resize(size.cols, size.rows)
@@ -402,13 +420,13 @@ class _Session:
                 code = 128 - code if code < 0 else code
                 return code, 1000, f"exit:{code}"
             if self.slot.stopping:
-                return EXIT_ABORT, 1001, "Server wird beendet"
+                return EXIT_ABORT, 1001, _("Server wird beendet")
             if abort.is_set():
                 return EXIT_ABORT, 1000, "aborted"
             if now - self.last > IDLE_TIMEOUT:
-                return EXIT_TIMEOUT, 4408, "15 Minuten ohne Ein- oder Ausgabe"
+                return EXIT_TIMEOUT, 4408, _("15 Minuten ohne Ein- oder Ausgabe")
             if now > hard_deadline:
-                return EXIT_TIMEOUT, 4408, "Zeitlimit des Schritts erreicht"
+                return EXIT_TIMEOUT, 4408, _("Zeitlimit des Schritts erreicht")
 
 
 async def _run_session(
@@ -468,14 +486,14 @@ async def terminal_socket(websocket: WebSocket, run_id: str, step_id: str) -> No
     slot = hub.claim(run_id, step_id)
     if isinstance(slot, int):
         await websocket.accept()  # close codes before accept reach the browser only as 1006
-        await websocket.close(code=slot, reason=_REFUSED[slot])
+        await websocket.close(code=slot, reason=_refusal(slot))
         return
     try:
         await websocket.accept()
         opened = await _first_open(websocket, slot.request)
         if opened is None:
             with contextlib.suppress(WebSocketDisconnect, RuntimeError):
-                reason = "Erste Nachricht: {type: open, cols, rows}"
+                reason = _("Erste Nachricht: {type: open, cols, rows}")
                 await websocket.close(code=1008, reason=reason)
             return
         await _start(websocket, hub, slot, opened)
@@ -506,11 +524,13 @@ async def _start(websocket: WebSocket, hub: TerminalHub, slot: _Slot, opened: Ws
     except (TerminalUnavailable, ValueError, OSError) as err:
         if transcript is not None:
             transcript.close()
-        text = f"Terminal startet nicht: {err}"  # TerminalUnavailable includes install_hint
+        text = _(
+            "Terminal startet nicht: {err}", err=err
+        )  # TerminalUnavailable includes install_hint
         slot.publish({"type": "message", "step_id": request.step_id, "text": text})
         hub.finish(slot, EXIT_UNAVAILABLE, slot.transcript_name)
         with contextlib.suppress(WebSocketDisconnect, RuntimeError):
-            await websocket.close(code=1011, reason="Terminal startet nicht")
+            await websocket.close(code=1011, reason=_("Terminal startet nicht"))
         return
     exit_code = EXIT_HANGUP
     try:
@@ -540,11 +560,13 @@ def delete_transcript(name: str) -> None:
     folder = transcript_dir()
     path = folder / name
     if not _TRANSCRIPT_NAME.match(name) or name.startswith(".") or not paths.inside(path, folder):
-        raise ValueError(f"Ungültiger Transkriptname '{name}'. Erlaubt: Name aus der Liste.")
+        raise ValueError(
+            _("Ungültiger Transkriptname '{name}'. Erlaubt: Name aus der Liste.", name=name)
+        )
     try:
         path.unlink()
     except FileNotFoundError:
-        raise FileNotFoundError(f"Transkript '{name}' nicht gefunden.") from None
+        raise FileNotFoundError(_("Transkript '{name}' nicht gefunden.", name=name)) from None
 
 
 @router.delete("/api/terminal/transcripts/{name}", status_code=204)

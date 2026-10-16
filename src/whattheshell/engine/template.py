@@ -5,6 +5,8 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
+from whattheshell.i18n import _
+
 _REF = re.compile(r"(\\\{\{)|\{\{\s*([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?)\s*\}\}|(\{\{)")
 
 
@@ -42,23 +44,30 @@ def resolve(ref: str, ctx: Context) -> str:
     Raises:
         TemplateError: If the reference is unknown.
     """
-    head, _, tail = ref.partition(".")
+    head, _sep, tail = ref.partition(".")
     if not tail:
         if ref in ctx.items:
             return ctx.items[ref]
-        raise TemplateError(f"Unbekannte Referenz '{ref}': hier ist kein foreach-Element sichtbar")
+        raise TemplateError(
+            _("Unbekannte Referenz '{ref}': hier ist kein foreach-Element sichtbar", ref=ref)
+        )
     if head == "var":
         if tail not in ctx.variables:
             if tail in ctx.declared:
                 raise TemplateError(
-                    f"Variable '{tail}' hat noch keinen Wert "
-                    "(wird erst durch einen Abfrage-Schritt gesetzt)."
+                    _(
+                        "Variable '{name}' hat noch keinen Wert "
+                        "(wird erst durch einen Abfrage-Schritt gesetzt).",
+                        name=tail,
+                    )
                 )
-            raise TemplateError(f"Unbekannte Variable '{tail}' in '{ref}'")
+            raise TemplateError(_("Unbekannte Variable '{name}' in '{ref}'", name=tail, ref=ref))
         return ctx.variables[tail]
     result = ctx.results.get(head)
     if result is None:
-        raise TemplateError(f"Unbekannter Schritt '{head}' in '{ref}': noch nicht gelaufen?")
+        raise TemplateError(
+            _("Unbekannter Schritt '{step}' in '{ref}': noch nicht gelaufen?", step=head, ref=ref)
+        )
     match tail:
         case "stdout" | "stderr":
             return getattr(result, tail)  # type: ignore[no-any-return]
@@ -67,7 +76,11 @@ def resolve(ref: str, ctx: Context) -> str:
         case "lines":
             return "\n".join(result.lines)
     raise TemplateError(
-        f"Unbekanntes Feld '{tail}' in '{ref}', erlaubt: stdout|stderr|exit_code|lines"
+        _(
+            "Unbekanntes Feld '{field}' in '{ref}', erlaubt: stdout|stderr|exit_code|lines",
+            field=tail,
+            ref=ref,
+        )
     )
 
 
@@ -90,7 +103,9 @@ def render(text: str, ctx: Context, *, keep_unknown: bool = False) -> str:
         if match.group(3):
             if keep_unknown:
                 return match.group(0)
-            raise TemplateError(f"Ungültiges Template in {text!r}: '{{{{' ohne gültige Referenz")
+            raise TemplateError(
+                _("Ungültiges Template in {text}: '{{{{' ohne gültige Referenz", text=repr(text))
+            )
         try:
             return resolve(match.group(2), ctx)
         except TemplateError:

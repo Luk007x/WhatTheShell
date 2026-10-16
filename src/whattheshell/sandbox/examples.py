@@ -12,6 +12,7 @@ from pathlib import Path
 
 from whattheshell.catalog.catalog import Catalog, ToolNotFound
 from whattheshell.engine.argv import ArgvError, build_argv
+from whattheshell.i18n import _
 from whattheshell.models.catalog import ToolInfo
 from whattheshell.models.module import Example
 from whattheshell.modules.registry import ModuleRegistry
@@ -48,7 +49,10 @@ def write_fixtures(example: Example, workdir: Path) -> list[str]:
         target = root / fixture.path
         if not inside(target, root):
             failures.append(
-                f"Fixture-Pfad {fixture.path!r} liegt außerhalb des Arbeitsverzeichnisses"
+                _(
+                    "Fixture-Pfad {path!r} liegt außerhalb des Arbeitsverzeichnisses",
+                    path=fixture.path,
+                )
             )
             continue
         target = target.resolve()
@@ -56,7 +60,9 @@ def write_fixtures(example: Example, workdir: Path) -> list[str]:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(fixture.content, encoding="utf-8")
         except OSError as err:
-            failures.append(f"Fixture {fixture.path!r} nicht schreibbar: {err}")
+            failures.append(
+                _("Fixture {path!r} nicht schreibbar: {err}", path=fixture.path, err=err)
+            )
     return failures
 
 
@@ -66,13 +72,37 @@ def _check(example: Example, exit_code: int, stdout: str, stderr: str) -> list[s
         return []
     failures: list[str] = []
     if expect.exit_code is not None and expect.exit_code != exit_code:
-        failures.append(f"Exit-Code: erwartet {expect.exit_code}, ist {exit_code}")
+        failures.append(
+            _(
+                "Exit-Code: erwartet {expected}, ist {actual}",
+                expected=expect.exit_code,
+                actual=exit_code,
+            )
+        )
     if expect.stdout_contains is not None and expect.stdout_contains not in stdout:
-        failures.append(f"stdout enthält nicht {expect.stdout_contains!r}; ist: {_cut(stdout)!r}")
+        failures.append(
+            _(
+                "stdout enthält nicht {expected!r}; ist: {actual!r}",
+                expected=expect.stdout_contains,
+                actual=_cut(stdout),
+            )
+        )
     if expect.stderr_contains is not None and expect.stderr_contains not in stderr:
-        failures.append(f"stderr enthält nicht {expect.stderr_contains!r}; ist: {_cut(stderr)!r}")
+        failures.append(
+            _(
+                "stderr enthält nicht {expected!r}; ist: {actual!r}",
+                expected=expect.stderr_contains,
+                actual=_cut(stderr),
+            )
+        )
     if expect.stdout_regex is not None and not re.search(expect.stdout_regex, stdout):
-        failures.append(f"stdout passt nicht auf /{expect.stdout_regex}/; ist: {_cut(stdout)!r}")
+        failures.append(
+            _(
+                "stdout passt nicht auf /{pattern}/; ist: {actual!r}",
+                pattern=expect.stdout_regex,
+                actual=_cut(stdout),
+            )
+        )
     return failures
 
 
@@ -105,20 +135,20 @@ def run_example(
         try:
             argv = build_argv(info.command, example.args, tool_path=info.path)
         except ArgvError as err:
-            return result(failures=[f"Argumente: {err}"])
+            return result(failures=[_("Argumente: {err}", err=err)])
         command = shlex.join(argv)
         start = time.monotonic()
         done = run_sandboxed(argv, workdir, timeout=timeout)
         duration = time.monotonic() - start
     if done is None:
-        return result(command, duration=duration, failures=["Sandbox konnte nicht starten"])
+        return result(command, duration=duration, failures=[_("Sandbox konnte nicht starten")])
     stdout = done.stdout.decode(errors="replace")
     stderr = done.stderr.decode(errors="replace")
     failures = _check(example, done.exit_code, stdout, stderr)
     if done.truncated:
-        failures.append("Ausgabe über dem Limit abgeschnitten")
+        failures.append(_("Ausgabe über dem Limit abgeschnitten"))
     if done.timed_out:
-        failures.append(f"Zeitüberschreitung nach {timeout:g} s")
+        failures.append(_("Zeitüberschreitung nach {timeout:g} s", timeout=timeout))
     return result(command, done.exit_code, stdout, stderr, duration, failures)
 
 

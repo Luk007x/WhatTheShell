@@ -2,6 +2,7 @@
 """Anthropic Messages API over urllib."""
 
 from whattheshell.ai.protocol import Prompt
+from whattheshell.i18n import _
 
 from .http import post_json
 
@@ -29,4 +30,4 @@ class AnthropicProvider:
         try:
             return str(answer["content"][0]["text"])
         except (KeyError, IndexError, TypeError):
-            raise RuntimeError("Unerwartete Antwortform des Servers") from None
+            raise RuntimeError(_("Unerwartete Antwortform des Servers")) from None

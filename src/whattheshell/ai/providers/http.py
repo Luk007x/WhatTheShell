@@ -7,6 +7,7 @@ import urllib.request
 from typing import Any
 from urllib.parse import urlsplit
 
+from whattheshell.i18n import _
 from whattheshell.subproc import printable as printable  # re-export, moved to subproc
 
 
@@ -52,14 +53,16 @@ def _send(request: urllib.request.Request, timeout: float) -> Any:
         with _OPENER.open(request, timeout=timeout) as response:
             data = response.read(MAX_ANSWER + 1)
         if len(data) > MAX_ANSWER:
-            raise RuntimeError(f"Antwort von {host} über 2 MiB")
+            raise RuntimeError(_("Antwort von {host} über 2 MiB", host=host))
         return json.loads(data)
     except urllib.error.HTTPError as error:
         text = printable(error.read(200).decode(errors="replace"))
-        raise RuntimeError(f"HTTP {error.code} von {host}: {text}") from None
+        raise RuntimeError(
+            _("HTTP {code} von {host}: {text}", code=error.code, host=host, text=text)
+        ) from None
     except ValueError:
-        raise RuntimeError("Antwort ist kein gültiges JSON") from None
+        raise RuntimeError(_("Antwort ist kein gültiges JSON")) from None
     except OSError:  # URLError, timeout, connection reset while reading
         raise RuntimeError(
-            f"Verbindung zu {host} fehlgeschlagen: läuft der lokale Server?"
+            _("Verbindung zu {host} fehlgeschlagen: läuft der lokale Server?", host=host)
         ) from None

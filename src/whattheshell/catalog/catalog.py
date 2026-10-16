@@ -19,6 +19,7 @@ from pydantic import ValidationError
 from whattheshell import paths
 from whattheshell.catalog.fetch import NEVER_PROBE, fetch_help
 from whattheshell.helpparse import parse_help
+from whattheshell.i18n import _
 from whattheshell.models.catalog import CommandSpec, ToolInfo
 from whattheshell.models.common import Confidence
 from whattheshell.models.module import CommandOverride
@@ -141,8 +142,11 @@ class Catalog:
             found = shutil.which(name)
         if found is None:
             raise ToolNotFound(
-                f"Tool '{name}' nicht auf PATH gefunden. Prüfe die Schreibweise "
-                "oder installiere es."
+                _(
+                    "Tool '{name}' nicht auf PATH gefunden. Prüfe die Schreibweise "
+                    "oder installiere es.",
+                    name=name,
+                )
             )
         return found
 

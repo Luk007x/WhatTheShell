@@ -69,4 +69,4 @@ A similar workflow ships with WhatTheShell: "Fehler in Logs zählen" (Count erro
 | Files and locations | Storage locations and file formats |
 | Troubleshooting | Typical messages and solutions |
 
-The bundled example workflows carry German display names (shown in parentheses with an English translation in this manual). Messages from the server and the `wts` command line are German at the moment; the interface itself is fully available in English.
+The bundled example workflows carry German display names (shown in parentheses with an English translation in this manual).

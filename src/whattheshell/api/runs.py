@@ -36,6 +36,7 @@ from whattheshell.engine import (
     plan,
     plan_text,
 )
+from whattheshell.i18n import Lang, _, current_lang, use_lang
 from whattheshell.models.common import StrictModel
 from whattheshell.models.workflow import Workflow
 from whattheshell.safety import needs_confirmation, summarize
@@ -271,13 +272,17 @@ class RunInfo:
             data[key] = getattr(value, "value", value)
         self.publish({"type": _EVENT_TYPES[type(event).__name__], **data})
 
-    def _run(self) -> None:
+    def _run(self, lang: Lang) -> None:
+        with use_lang(lang):  # texts of this run come in the language of the starting request
+            self._run_in_lang()
+
+    def _run_in_lang(self) -> None:
         try:
             result = self.runner.run(self.prepared)
             status, message, exit_code = result.status, result.message, result.exit_code
         except Exception as err:  # noqa: BLE001 - reported to the client, never swallowed
             logger.exception("Lauf %s abgestürzt", self.run_id)
-            status, message, exit_code = "failed", f"Interner Fehler: {err}", 1
+            status, message, exit_code = "failed", _("Interner Fehler: {err}", err=err), 1
         self.status = status
         self.finished = datetime.now().astimezone()
         self.exit_code = exit_code
@@ -297,7 +302,7 @@ class RunInfo:
                 self.cwd.mkdir(parents=True, exist_ok=True)
             self.status = "running"
             self.started = datetime.now().astimezone()
-        self.thread = threading.Thread(target=self._run, daemon=True)
+        self.thread = threading.Thread(target=self._run, args=(current_lang(),), daemon=True)
         self.thread.start()
         return True
 
@@ -421,7 +426,7 @@ def run_manager(app: FastAPI) -> RunManager:
 
 
 def _unknown(run_id: str) -> Response:
-    return error_response(404, "not_found", f"Lauf '{run_id}' unbekannt")
+    return error_response(404, "not_found", _("Lauf '{run_id}' unbekannt", run_id=run_id))
 
 
 def create_run_response(
@@ -436,7 +441,7 @@ def create_run_response(
     cwd = Path(cwd_text) if cwd_text else None
     if cwd is not None:
         if not cwd.is_absolute() or not cwd.is_dir():
-            message = f"cwd '{cwd_text}' muss ein existierender absoluter Ordner sein"
+            message = _("cwd '{cwd}' muss ein existierender absoluter Ordner sein", cwd=cwd_text)
             return error_response(
                 422, "invalid_cwd", message, [{"path": "cwd", "message": message}]
             )
@@ -446,7 +451,7 @@ def create_run_response(
             document, variables, cwd, app.state.catalog, transcript
         )
     except ValidationError as err:
-        return error_response(422, "validation", "Workflow ungültig", validation_errors(err))
+        return error_response(422, "validation", _("Workflow ungültig"), validation_errors(err))
     except RunError as err:
         return error_response(422, "run", str(err), [{"path": "", "message": str(err)}])
     if not dry_run:
@@ -488,16 +493,21 @@ def start_run(run_id: str, request: Request) -> Response:
     try:
         outcome = manager.start(info)
     except OSError as err:
-        return error_response(500, "cwd", f"Laufordner nicht anlegbar: {err}")
+        return error_response(500, "cwd", _("Laufordner nicht anlegbar: {err}", err=err))
     if outcome == "busy":
         return error_response(
             429,
             "too_many_runs",
-            f"Es laufen bereits {MAX_RUNNING_RUNS} Läufe. "
-            "Einen abbrechen oder abwarten, dann erneut starten.",
+            _(
+                "Es laufen bereits {limit} Läufe. "
+                "Einen abbrechen oder abwarten, dann erneut starten.",
+                limit=MAX_RUNNING_RUNS,
+            ),
         )
     if outcome == "already":
-        return error_response(409, "already_started", f"Lauf '{run_id}' wurde bereits gestartet")
+        return error_response(
+            409, "already_started", _("Lauf '{run_id}' wurde bereits gestartet", run_id=run_id)
+        )
     return Response(status_code=202)
 
 
@@ -529,7 +539,9 @@ def confirm_run(run_id: str, body: ConfirmBody, request: Request) -> Response:
         return _unknown(run_id)
     if not info.answer(body.step_id, body.ok):
         return error_response(
-            404, "no_confirmation", f"Keine offene Bestätigung für Schritt '{body.step_id}'"
+            404,
+            "no_confirmation",
+            _("Keine offene Bestätigung für Schritt '{step_id}'", step_id=body.step_id),
         )
     return Response(status_code=204)
 
@@ -542,7 +554,9 @@ def answer_run(run_id: str, body: AnswerBody, request: Request) -> Response:
         return _unknown(run_id)
     if not info.reply(body):
         return error_response(
-            404, "no_question", f"Keine offene Abfrage für Schritt '{body.step_id}'"
+            404,
+            "no_question",
+            _("Keine offene Abfrage für Schritt '{step_id}'", step_id=body.step_id),
         )
     return JSONResponse({"status": "answered"}, status_code=202)
 
@@ -572,7 +586,7 @@ async def _receive(websocket: WebSocket, info: RunInfo) -> None:
             reason = err.errors()[0]["msg"]
             logger.warning("WS: ungültige Nachricht (%s)", reason)  # no body: may hold a secret
             await websocket.send_json(
-                {"type": "error", "message": f"Ungültige Nachricht: {reason}"}
+                {"type": "error", "message": _("Ungültige Nachricht: {reason}", reason=reason)}
             )
             continue
         if isinstance(message, WsControl):
@@ -582,14 +596,18 @@ async def _receive(websocket: WebSocket, info: RunInfo) -> None:
                 await websocket.send_json(
                     {
                         "type": "error",
-                        "message": f"Keine offene Abfrage für Schritt '{message.step_id}'",
+                        "message": _(
+                            "Keine offene Abfrage für Schritt '{step_id}'", step_id=message.step_id
+                        ),
                     }
                 )
         elif not info.answer(message.step_id, message.ok):
             await websocket.send_json(
                 {
                     "type": "error",
-                    "message": f"Keine offene Bestätigung für Schritt '{message.step_id}'",
+                    "message": _(
+                        "Keine offene Bestätigung für Schritt '{step_id}'", step_id=message.step_id
+                    ),
                 }
             )
 

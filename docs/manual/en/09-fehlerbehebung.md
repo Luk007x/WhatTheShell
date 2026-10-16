@@ -8,7 +8,7 @@
 | Server in the foreground (`wts gui`) | Output in the terminal |
 | Accesses | There is no access log (so that the token does not end up in a log) |
 
-Note: messages from the server and the `wts` command line are currently shown in German; this chapter quotes them in English translation. Error messages in the interface give the cause and a hint for the solution. Stack traces are not in the responses, only in the log.
+Error messages in the interface give the cause and a hint for the solution. Stack traces are not in the responses, only in the log.
 
 ## Sandbox and installation
 
@@ -67,6 +67,10 @@ The page lost the connection to the server; the server may no longer be running.
 The folder for the state (`$XDG_RUNTIME_DIR/whattheshell` or `~/.cache/whattheshell/run`) is not writable or has wrong permissions. Check the permissions; the folder must belong to the user.
 
 ## Workflows
+
+### "The file was changed outside the app" / the workflow does not start
+
+The workflow is "Changed outside" or "Not reviewed" (see "Library: filter, import and integrity" in the chapter "Building a workflow"). Read the file, then click "Review and accept" in the library, or run `wts workflows accept ID` or `wts run --accept`. A dry run works without accepting. After an update, existing own files show "Not reviewed" once. Files outside the workflow folders always need `--accept`.
 
 ### Workflow invalid
 

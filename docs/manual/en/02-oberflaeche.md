@@ -88,7 +88,7 @@ The gear opens the settings.
 
 | Field | Values | Effect |
 |---|---|---|
-| Language | Deutsch, English | Language of the interface |
+| Language | Deutsch, English | Language of the interface. The same choice applies to messages from the server and the `wts` command line (it is stored as `language` in `settings.yaml`; `wts --lang` and `WTS_LANG` take precedence) |
 | Font size | small, normal, large | Scales all text |
 | View on start | Last used, Build: graph, Build: blocks, Run, Modules | Takes effect the next time the app is opened |
 | Run preview automatically | on/off | Only for commands of class "safe" and only with a chosen example; always runs in the sandbox |

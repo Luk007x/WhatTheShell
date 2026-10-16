@@ -13,6 +13,7 @@ from whattheshell.engine.runner import (
     secret_values,
 )
 from whattheshell.engine.template import Context, render, render_value
+from whattheshell.i18n import _
 from whattheshell.models.common import Safety
 from whattheshell.models.workflow import (
     AbortStep,
@@ -65,7 +66,9 @@ def plan(prepared: Prepared) -> list[PlannedLine]:
             argv = build_argv(info.command, args, extra)
             verdict = merge_verdicts(verdict, classify_command(info.command, args, extra))
         except ArgvError as err:
-            return f"{step.tool} (Argumente noch nicht prüfbar: {err})", verdict
+            return _(
+                "{tool} (Argumente noch nicht prüfbar: {err})", tool=step.tool, err=err
+            ), verdict
         stdin = None
         if isinstance(step, CommandStep) and step.stdin is not None:
             if step.stdin.pipe is not None:
@@ -91,7 +94,7 @@ def plan(prepared: Prepared) -> list[PlannedLine]:
                     text, verdict = command(step)
                     kind = "terminal" if isinstance(step, TerminalStep) else "command"
                     if kind == "terminal":
-                        text = f"interaktiv, wird im Trockenlauf übersprungen: {text}"
+                        text = _("interaktiv, wird im Trockenlauf übersprungen: {text}", text=text)
                     lines.append(
                         PlannedLine(indent, kind, step.id, text, verdict.safety, verdict.reasons)
                     )
@@ -104,7 +107,12 @@ def plan(prepared: Prepared) -> list[PlannedLine]:
                         block("else", step.else_, indent + 1)
                 case ForeachStep():
                     lines.append(
-                        PlannedLine(indent, "foreach", step.id, f"{step.source} als {step.as_}")
+                        PlannedLine(
+                            indent,
+                            "foreach",
+                            step.id,
+                            _("{source} als {name}", source=step.source, name=step.as_),
+                        )
                     )
                     block("body", step.body, indent + 1)
                 case SetStep():
@@ -116,12 +124,13 @@ def plan(prepared: Prepared) -> list[PlannedLine]:
                 case MessageStep():
                     lines.append(PlannedLine(indent, "message", step.id, soft(step.text)))
                 case AskStep():
-                    text = f"Abfrage „{step.title}“: {', '.join(step.fields)}, "
-                    lines.append(
-                        PlannedLine(
-                            indent, "ask", step.id, text + f"Knöpfe: {', '.join(step.buttons)}"
-                        )
+                    text = _(
+                        "Abfrage „{title}“: {fields}, Knöpfe: {buttons}",
+                        title=step.title,
+                        fields=", ".join(step.fields),
+                        buttons=", ".join(step.buttons),
                     )
+                    lines.append(PlannedLine(indent, "ask", step.id, text))
                 case AbortStep():
                     text = f"{soft(step.text or '')} (exit {step.exit_code})"
                     lines.append(PlannedLine(indent, "abort", step.id, text))

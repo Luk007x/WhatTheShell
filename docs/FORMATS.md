@@ -255,3 +255,9 @@ Je Workflow-Ordner (Nutzer, Projekt) liegt `.wts-integrity.json` (0600, atomar g
 `modified` und `unstamped` laufen nicht (API 409, CLI Exit 3), bis der Nutzer sie übernimmt: GUI-Knopf bzw. `POST /api/workflows/{id}/accept`, `wts workflows accept ID`, `wts run --accept`. Ein Plan (`dry_run`, `--dry-run`) läuft ohne Übernahme. Dateien außerhalb der Workflow-Ordner (`wts run PFAD`) gelten als `unstamped` und brauchen `--accept`; sie bekommen dabei keinen Stempel. Bestehende Nutzerdateien sind nach dem Update einmalig `unstamped`.
 
 Das ist Änderungserkennung, kein Manipulationsschutz: Wer die Datei ändern darf, kann auch den Stempel ändern.
+
+## Einstellungen (`settings.yaml`)
+
+| Feld | Werte | Bedeutung |
+|---|---|---|
+| `language` | `auto` (Standard), `de`, `en` | Sprache der Meldungen (CLI, API, Ereignisse). `auto` folgt `WTS_LANG`, dann `LANGUAGE`/`LC_ALL`/`LC_MESSAGES`/`LANG`, sonst Englisch. `wts --lang` und `WTS_LANG` haben Vorrang. |

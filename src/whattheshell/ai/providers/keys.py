@@ -4,6 +4,7 @@
 import logging
 import os
 
+from whattheshell.i18n import _
 from whattheshell.settings import ApiSettings
 
 logger = logging.getLogger(__name__)
@@ -20,25 +21,33 @@ def resolve_key(api: ApiSettings) -> str:
             return os.environ[api.key_env]
         except KeyError:
             raise RuntimeError(
-                f"Umgebungsvariable {api.key_env} nicht gesetzt: "
-                f"`export {api.key_env}=…` oder key_source auf keyring stellen"
+                _(
+                    "Umgebungsvariable {name} nicht gesetzt: "
+                    "`export {name}=…` oder key_source auf keyring stellen",
+                    name=api.key_env,
+                )
             ) from None
     try:
         import keyring  # type: ignore[import-not-found,unused-ignore]  # optional extra
     except ImportError:
         raise RuntimeError(
-            "Schlüsselbund-Unterstützung nicht installiert: `pipx inject whattheshell keyring`"
+            _("Schlüsselbund-Unterstützung nicht installiert: `pipx inject whattheshell keyring`")
         ) from None
     try:
         key: str | None = keyring.get_password("whattheshell", api.key_env)
     except Exception as err:  # any backend error (locked, no D-Bus, …); message may be unsafe
         logger.warning("Schlüsselbund-Fehler: %s", type(err).__name__)
         raise RuntimeError(
-            f"Schlüsselbund nicht lesbar ({type(err).__name__}): entsperren oder "
-            "key_source auf env stellen"
+            _(
+                "Schlüsselbund nicht lesbar ({error}): entsperren oder key_source auf env stellen",
+                error=type(err).__name__,
+            )
         ) from None
     if key is None:
         raise RuntimeError(
-            f"Kein Schlüssel '{api.key_env}' im Schlüsselbund (Dienst 'whattheshell') gefunden"
+            _(
+                "Kein Schlüssel '{name}' im Schlüsselbund (Dienst 'whattheshell') gefunden",
+                name=api.key_env,
+            )
         )
     return key

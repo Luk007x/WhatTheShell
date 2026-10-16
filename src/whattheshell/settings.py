@@ -11,6 +11,7 @@ from pydantic import StringConstraints, field_validator, model_validator
 from ruamel.yaml import YAML
 
 from whattheshell import paths
+from whattheshell.i18n import _
 from whattheshell.models.common import StrictModel
 from whattheshell.modules.loader import load_document
 from whattheshell.modules.store import atomic_write
@@ -41,8 +42,12 @@ class ApiSettings(StrictModel):
             for name in data:
                 if "key" in str(name).lower() and name not in ("key_env", "key_source"):
                     raise ValueError(
-                        f"Feld '{name}' nicht erlaubt: Schlüssel gehören nie in diese Datei. "
-                        "Nur der Name der Umgebungsvariable (key_env) oder key_source: keyring."
+                        _(
+                            "Feld '{name}' nicht erlaubt: Schlüssel gehören nie in diese Datei. "
+                            "Nur der Name der Umgebungsvariable (key_env) oder "
+                            "key_source: keyring.",
+                            name=name,
+                        )
                     )
         return data
 
@@ -51,8 +56,10 @@ class ApiSettings(StrictModel):
     def _looks_like_name(cls, value: str) -> str:
         if len(value) > 64 or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", value):
             raise ValueError(
-                "key_env erwartet den NAMEN einer Umgebungsvariable (z. B. ANTHROPIC_API_KEY), "
-                "nicht den Schlüssel selbst"
+                _(
+                    "key_env erwartet den NAMEN einer Umgebungsvariable "
+                    "(z. B. ANTHROPIC_API_KEY), nicht den Schlüssel selbst"
+                )
             )
         return value
 
@@ -98,15 +105,24 @@ def _value_error(flag: str, value: str) -> str | None:
     """Reason why `value` is not allowed for `flag`, else None."""
     if flag in _FIXED_VALUES and value not in _FIXED_VALUES[flag]:
         allowed = ", ".join(repr(v) for v in sorted(_FIXED_VALUES[flag]))
-        return f"Wert {value!r} für {flag} nicht erlaubt (erlaubt: {allowed})"
+        return _(
+            "Wert {value} für {flag} nicht erlaubt (erlaubt: {allowed})",
+            value=repr(value),
+            flag=flag,
+            allowed=allowed,
+        )
     if flag in ("-m", "--model") and not re.fullmatch(_MODEL, value):
-        return f"Modellname {value!r} ungültig"
+        return _("Modellname {value} ungültig", value=repr(value))
     if flag == "--max-turns" and not value.isdecimal():
-        return f"{flag} erwartet eine ganze Zahl"
+        return _("{flag} erwartet eine ganze Zahl", flag=flag)
     if flag == "-c":
-        key, _, setting = value.partition("=")
+        key, _sep, setting = value.partition("=")
         if key not in _CODEX_CONFIG or not re.fullmatch(_CODEX_CONFIG[key], setting):
-            return f"-c {value!r} nicht erlaubt (Schlüssel: {', '.join(_CODEX_CONFIG)})"
+            return _(
+                "-c {value} nicht erlaubt (Schlüssel: {keys})",
+                value=repr(value),
+                keys=", ".join(_CODEX_CONFIG),
+            )
     return None
 
 
@@ -117,28 +133,28 @@ def validate_command(kind: str, argv: list[str]) -> None:
         ValueError: German reason naming the offending element and the allowed flags.
     """
     allowed = AGENT_ALLOWED[kind]
-    hint = f"Erlaubte Flags: {' '.join(allowed)}"
+    hint = _("Erlaubte Flags: {flags}", flags=" ".join(allowed))
     if not argv or argv[0] != kind:
-        raise ValueError(f"Erstes Element muss genau `{kind}` sein. {hint}")
+        raise ValueError(_("Erstes Element muss genau `{kind}` sein. {hint}", kind=kind, hint=hint))
     if kind == "codex" and argv[1:2] != ["exec"]:
-        raise ValueError(f"`exec` muss direkt auf `codex` folgen. {hint}")
+        raise ValueError(_("`exec` muss direkt auf `codex` folgen. {hint}", hint=hint))
     found: dict[str, str | None] = {}
     config: list[str] = []
     index = 1
     while index < len(argv):
         flag = argv[index]
         if flag not in allowed:
-            raise ValueError(f"Element {flag!r} nicht erlaubt. {hint}")
+            raise ValueError(_("Element {flag} nicht erlaubt. {hint}", flag=repr(flag), hint=hint))
         if flag in found and flag != "-c":
-            raise ValueError(f"Flag {flag} doppelt. {hint}")
+            raise ValueError(_("Flag {flag} doppelt. {hint}", flag=flag, hint=hint))
         value: str | None = None
         if allowed[flag]:
             if index + 1 >= len(argv):
-                raise ValueError(f"{flag} braucht einen Wert. {hint}")
+                raise ValueError(_("{flag} braucht einen Wert. {hint}", flag=flag, hint=hint))
             value = argv[index + 1]
             problem = _value_error(flag, value)
             if problem:
-                raise ValueError(f"{problem}. {hint}")
+                raise ValueError(_("{problem}. {hint}", problem=problem, hint=hint))
             index += 1
         if flag == "-c" and value is not None:
             config.append(value)
@@ -147,9 +163,14 @@ def validate_command(kind: str, argv: list[str]) -> None:
     for flag, expected in _REQUIRED[kind].items():
         if flag not in found or (expected is not None and found[flag] != expected):
             shown = shlex.join([flag] if expected is None else [flag, expected])
-            raise ValueError(f"Pflichtteil `{shown}` fehlt (hält Werkzeuge und Konfiguration aus)")
+            raise ValueError(
+                _(
+                    "Pflichtteil `{part}` fehlt (hält Werkzeuge und Konfiguration aus)",
+                    part=shown,
+                )
+            )
     if kind == "codex" and "mcp_servers={}" not in config:
-        raise ValueError("Pflichtteil `-c mcp_servers={}` fehlt (hält MCP-Server aus)")
+        raise ValueError(_("Pflichtteil `-c mcp_servers={}` fehlt (hält MCP-Server aus)"))
 
 
 class AgentSettings(StrictModel):
@@ -165,8 +186,10 @@ class AgentSettings(StrictModel):
     def _no_command(cls, data: Any) -> Any:
         if isinstance(data, dict) and "command" in data:
             raise ValueError(
-                "Feld `ai.agent.command` wird nicht mehr unterstützt. "
-                "Modell und Reasoning in den Einstellungen wählen."
+                _(
+                    "Feld `ai.agent.command` wird nicht mehr unterstützt. "
+                    "Modell und Reasoning in den Einstellungen wählen."
+                )
             )
         return data
 
@@ -186,6 +209,7 @@ class Settings(StrictModel):
     """Content of ``settings.yaml``."""
 
     schema_version: Literal[1] = 1
+    language: Literal["auto", "de", "en"] = "auto"  # messages and GUI; auto = system locale
     ai: AiSettings = AiSettings()
 
 

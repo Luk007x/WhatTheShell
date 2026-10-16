@@ -51,6 +51,10 @@ wts sandbox
 
 Der Server öffnet den Browser über eine kurze private Weiterleitungsseite. Dadurch steht das Sitzungstoken nicht in der Prozessliste.
 
+### Sprache der Meldungen
+
+Meldungen von Server und Kommandozeile `wts` folgen der gewählten Sprache. Auf der Kommandozeile stellt `wts --lang de` oder `wts --lang en` sie für einen Aufruf ein, die Umgebungsvariable `WTS_LANG` für die Sitzung; ohne beides gilt die Systemsprache, bei anderen Sprachen als Deutsch und Englisch Englisch. Die Sprache der Oberfläche steht in den Einstellungen („Sprache“).
+
 ### Menüeintrag
 
 ```

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from whattheshell.engine.template import Context, TemplateError, resolve
+from whattheshell.i18n import _
 from whattheshell.models.workflow import Condition
 from whattheshell.paths import inside
 
@@ -21,7 +22,7 @@ class EvalError(ValueError):
 def _inside(path: str, cwd: Path) -> Path:
     target = cwd / path
     if not inside(target, cwd):
-        raise EvalError(f"Pfad '{path}' liegt außerhalb des Arbeitsverzeichnisses")
+        raise EvalError(_("Pfad '{path}' liegt außerhalb des Arbeitsverzeichnisses", path=path))
     return target.resolve()
 
 
@@ -33,9 +34,11 @@ def _source_text(source: str, ctx: Context, cwd: Path, *, missing_ok: bool) -> s
         except FileNotFoundError:
             if missing_ok:
                 return ""
-            raise EvalError(f"Datei '{target}' aus '{source}' existiert nicht") from None
+            raise EvalError(
+                _("Datei '{file}' aus '{source}' existiert nicht", file=target, source=source)
+            ) from None
         except OSError as err:
-            raise EvalError(f"Datei '{target}' nicht lesbar: {err}") from err
+            raise EvalError(_("Datei '{file}' nicht lesbar: {err}", file=target, err=err)) from err
     try:
         return resolve(source, ctx)
     except TemplateError as err:
@@ -45,7 +48,7 @@ def _source_text(source: str, ctx: Context, cwd: Path, *, missing_ok: bool) -> s
 def _number(text: str, source: str) -> float:
     match = _NUMBER.search(text)
     if match is None:
-        raise EvalError(f"Keine Zahl in '{source}' gefunden")
+        raise EvalError(_("Keine Zahl in '{source}' gefunden", source=source))
     return float(match.group())
 
 
@@ -53,7 +56,9 @@ def _json_present(text: str, path: str, source: str) -> bool:
     try:
         node = json.loads(text)
     except json.JSONDecodeError as err:
-        raise EvalError(f"'{source}' ist kein gültiges JSON: {err}") from err
+        raise EvalError(
+            _("'{source}' ist kein gültiges JSON: {err}", source=source, err=err)
+        ) from err
     for match in _JSON_SEGMENT.finditer(path):
         key, index = match.groups()
         if index is not None:

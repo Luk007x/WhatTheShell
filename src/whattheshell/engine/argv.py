@@ -4,6 +4,7 @@
 import shlex
 from collections.abc import Mapping, Sequence
 
+from whattheshell.i18n import _
 from whattheshell.models.catalog import CommandSpec
 from whattheshell.models.common import InputSpec, OptionSpec, ValueType
 
@@ -13,7 +14,9 @@ class ArgvError(ValueError):
 
 
 def _fail(field: str, problem: str, hint: str) -> ArgvError:
-    return ArgvError(f"Feld '{field}': {problem}. {hint}")
+    return ArgvError(
+        _("Feld '{field}': {problem}. {hint}", field=field, problem=problem, hint=hint)
+    )
 
 
 def _convert(spec: OptionSpec | InputSpec, value: object) -> str:
@@ -22,8 +25,8 @@ def _convert(spec: OptionSpec | InputSpec, value: object) -> str:
             if spec.choices and str(value) not in spec.choices:
                 raise _fail(
                     spec.id,
-                    f"Wert ist nicht erlaubt (Typ {spec.type.value})",
-                    f"Erlaubt: {', '.join(spec.choices)}",
+                    _("Wert ist nicht erlaubt (Typ {type})", type=spec.type.value),
+                    _("Erlaubt: {choices}", choices=", ".join(spec.choices)),
                 )
         case ValueType.int | ValueType.float:
             number = int if spec.type is ValueType.int else float
@@ -31,7 +34,9 @@ def _convert(spec: OptionSpec | InputSpec, value: object) -> str:
                 number(str(value))
             except ValueError:
                 raise _fail(
-                    spec.id, "Wert ist keine Zahl", f"Erwartet: {spec.type.value}"
+                    spec.id,
+                    _("Wert ist keine Zahl"),
+                    _("Erwartet: {type}", type=spec.type.value),
                 ) from None
     return str(value)
 
@@ -41,24 +46,31 @@ def _as_bool(spec: OptionSpec, value: object) -> bool:
         return value
     if value in ("true", "false"):
         return value == "true"
-    raise _fail(spec.id, "Wert ist kein Wahrheitswert (Typ bool)", "Erwartet: true oder false")
+    raise _fail(
+        spec.id,
+        _("Wert ist kein Wahrheitswert (Typ bool)"),
+        _("Erwartet: true oder false"),
+    )
 
 
 def _as_list(spec: OptionSpec | InputSpec, value: object) -> list[object]:
     if not isinstance(value, list):
-        raise _fail(spec.id, "erwartet eine Liste", "Mehrfachfeld als Liste angeben")
+        raise _fail(spec.id, _("erwartet eine Liste"), _("Mehrfachfeld als Liste angeben"))
     return value
 
 
 def _option_argv(option: OptionSpec, value: object) -> list[str]:
     if not option.flags:
-        raise _fail(option.id, "Option hat kein Flag", "Modul oder Katalog prüfen")
+        raise _fail(option.id, _("Option hat kein Flag"), _("Modul oder Katalog prüfen"))
     flag = next((f for f in option.flags if f.startswith("--")), option.flags[0])
     if option.type is ValueType.bool:
         return [flag] if _as_bool(option, value) else []
     if not option.multiple and option.nargs == 1 and isinstance(value, list):
         raise ArgvError(
-            f"Option '{option.id}' erwartet einen einzelnen Wert, bekam Liste. Einzelwert angeben"
+            _(
+                "Option '{id}' erwartet einen einzelnen Wert, bekam Liste. Einzelwert angeben",
+                id=option.id,
+            )
         )
     argv: list[str] = []
     for occurrence in _as_list(option, value) if option.multiple else [value]:
@@ -67,8 +79,12 @@ def _option_argv(option: OptionSpec, value: object) -> list[str]:
             if len(parts) != option.nargs:
                 raise _fail(
                     option.id,
-                    f"erwartet {option.nargs} Werte je Vorkommen, erhalten {len(parts)}",
-                    "Liste mit passender Länge angeben",
+                    _(
+                        "erwartet {expected} Werte je Vorkommen, erhalten {got}",
+                        expected=option.nargs,
+                        got=len(parts),
+                    ),
+                    _("Liste mit passender Länge angeben"),
                 )
             argv += [flag, *(_convert(option, part) for part in parts)]
         elif option.attached and flag.startswith("--"):
@@ -81,7 +97,7 @@ def _option_argv(option: OptionSpec, value: object) -> list[str]:
 def _input_argv(spec: InputSpec, value: object) -> list[str]:
     if value is None:
         if spec.required:
-            raise _fail(spec.id, "Pflichteingabe fehlt", "Wert angeben")
+            raise _fail(spec.id, _("Pflichteingabe fehlt"), _("Wert angeben"))
         return []
     values = _as_list(spec, value) if spec.multiple else [value]
     return [_convert(spec, item) for item in values]
@@ -109,21 +125,25 @@ def build_argv(
     for key in args:
         if key not in known:
             raise ArgvError(
-                f"Unbekanntes Feld '{key}' für {spec.name[0]}, "
-                f"bekannte Felder: {', '.join(sorted(known))}"
+                _(
+                    "Unbekanntes Feld '{key}' für {tool}, bekannte Felder: {known}",
+                    key=key,
+                    tool=spec.name[0],
+                    known=", ".join(sorted(known)),
+                )
             )
     argv = [tool_path or spec.name[0], *spec.name[1:]]
     ordered = sorted(
         enumerate(spec.inputs),
         key=lambda pair: pair[0] if pair[1].position is None else pair[1].position,
     )
-    for _, positional in ordered:
+    for _index, positional in ordered:
         if positional.before_options:
             argv += _input_argv(positional, args.get(positional.id))
     for option in spec.options:
         if args.get(option.id) is not None:
             argv += _option_argv(option, args[option.id])
-    for _, positional in ordered:
+    for _index, positional in ordered:
         if not positional.before_options:
             argv += _input_argv(positional, args.get(positional.id))
     return [*argv, *extra_args]

@@ -14,6 +14,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from types import TracebackType
 
+from whattheshell.i18n import _
 from whattheshell.sandbox import (
     SANDBOX_PATH,
     build_bwrap_argv,
@@ -38,7 +39,13 @@ class TerminalUnavailable(Exception):  # noqa: N818 - name fixed by the contract
 
 def _winsize(cols: int, rows: int) -> bytes:
     if not (0 < cols < 65536 and 0 < rows < 65536):
-        raise ValueError(f"Ungültige Terminalgröße {cols}x{rows}: erlaubt sind 1 bis 65535.")
+        raise ValueError(
+            _(
+                "Ungültige Terminalgröße {cols}x{rows}: erlaubt sind 1 bis 65535.",
+                cols=cols,
+                rows=rows,
+            )
+        )
     return struct.pack("HHHH", rows, cols, 0, 0)
 
 
@@ -70,7 +77,7 @@ class PtyProcess:
                 view = view[os.write(self.fd, view) :]
             except BlockingIOError:
                 if not select.select([], [self.fd], [], _WRITE_TIMEOUT)[1]:
-                    raise TimeoutError("Terminal nimmt keine Eingaben an.") from None
+                    raise TimeoutError(_("Terminal nimmt keine Eingaben an.")) from None
 
     def resize(self, cols: int, rows: int) -> None:
         """Set the window size; the kernel sends SIGWINCH to the foreground program."""
@@ -127,15 +134,23 @@ def spawn(
 
     size = _winsize(cols, rows)
     if not argv:
-        raise ValueError("Kein Programm angegeben.")
+        raise ValueError(_("Kein Programm angegeben."))
     if not workdir.is_dir():
-        raise ValueError(f"Arbeitsverzeichnis {workdir} fehlt. Ordner anlegen oder cwd ändern.")
+        raise ValueError(
+            _(
+                "Arbeitsverzeichnis {workdir} fehlt. Ordner anlegen oder cwd ändern.",
+                workdir=workdir,
+            )
+        )
     blocked = sorted(key for key in env or {} if env_blocked(key))
     if blocked:
-        raise ValueError(f"Umgebungsvariablen nicht erlaubt: {', '.join(blocked)}.")
+        raise ValueError(_("Umgebungsvariablen nicht erlaubt: {names}.", names=", ".join(blocked)))
     if workdir.resolve() != workdir:
         raise ValueError(
-            f"Arbeitsverzeichnis {workdir} ist nicht aufgelöst; den bestätigten Pfad übergeben."
+            _(
+                "Arbeitsverzeichnis {workdir} ist nicht aufgelöst; den bestätigten Pfad übergeben.",
+                workdir=workdir,
+            )
         )
     if bwrap_path is None:  # a caller-given path was already checked by that caller
         status = self_test()
@@ -144,7 +159,7 @@ def spawn(
         bwrap_path = status.bwrap_path
     setsid = shutil.which("setsid", path=SANDBOX_PATH)
     if setsid is None:
-        raise TerminalUnavailable("setsid fehlt.", "Installiere das Paket „util-linux“.")
+        raise TerminalUnavailable(_("setsid fehlt."), _("Installiere das Paket „util-linux“."))
     inner_env = sandbox_env(
         {"TERM": "xterm-256color", "COLUMNS": str(cols), "LINES": str(rows), **(env or {})}
     )
@@ -163,7 +178,7 @@ def spawn(
         )
     except (OSError, ValueError) as exc:  # ValueError: NUL byte in argv or env
         os.close(master)
-        raise TerminalUnavailable(f"bwrap startet nicht: {exc}.", "") from exc
+        raise TerminalUnavailable(_("bwrap startet nicht: {err}.", err=exc), "") from exc
     finally:
         os.close(slave)
     os.set_blocking(master, False)

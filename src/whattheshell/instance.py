@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 
 from whattheshell import paths
+from whattheshell.i18n import _
 
 STATE_NAME = "gui.json"
 
@@ -68,8 +69,11 @@ def state_dir() -> Path:
     info = directory.stat()
     if info.st_uid != os.geteuid() or info.st_mode & 0o077:
         raise OSError(
-            f"{directory} gehört nicht dir oder ist für andere zugänglich. "
-            f"Ordner prüfen (chmod 700) oder XDG_RUNTIME_DIR setzen."
+            _(
+                "{directory} gehört nicht dir oder ist für andere zugänglich. "
+                "Ordner prüfen (chmod 700) oder XDG_RUNTIME_DIR setzen.",
+                directory=directory,
+            )
         )
     return directory
 

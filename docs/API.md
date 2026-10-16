@@ -15,6 +15,10 @@ Verbindlicher Vertrag zwischen `src/whattheshell/api/` und `gui/`. Nur `127.0.0.
 - Jeder Client mit gültigem Token (z. B. ein zweiter Tab) darf Bestätigungen beantworten; es ist derselbe Nutzer.
 - Fehlerantworten: `{"error": "<kurz>", "message": "<deutsch, mit Hinweis>"}`.
 
+## Sprache der Meldungen
+
+Fehlertexte und Ereignisse folgen der Sprache der Anfrage. HTTP: Header `X-WTS-Lang: de|en` (sendet die GUI), sonst erster Wert von `Accept-Language`, sonst Umgebungsvariable `WTS_LANG` (überstimmt die gespeicherte Einstellung), Einstellung `language`, Systemsprache, `en`. WebSocket (Browser können dort keine Header setzen): Query `?lang=de|en`, sonst `Accept-Language`, sonst Standard. `lang` bei `/api/tools` und `/api/tools/{name}` (Modultexte) wählt ausdrücklich und hat Vorrang.
+
 ## REST (JSON, UTF-8)
 
 | Methode, Pfad | Anfrage | Antwort |

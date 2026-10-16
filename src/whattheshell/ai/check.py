@@ -9,6 +9,7 @@ import shutil
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING
 
+from whattheshell.i18n import _
 from whattheshell.settings import AgentSettings, ApiSettings, LocalSettings, Settings
 
 if TYPE_CHECKING:  # subproc imports subprocess: not before the gate
@@ -16,7 +17,6 @@ if TYPE_CHECKING:  # subproc imports subprocess: not before the gate
 
 _PROBE_TIMEOUT = 3.0
 _AGENT_TIMEOUT = 10.0
-_UNCHECKED = "Verbindung wird beim ersten Aufruf geprüft"
 _AGENT_HINTS = {
     "claude": ("npm install -g @anthropic-ai/claude-code", "claude login"),
     "codex": ("npm install -g @openai/codex", "codex login"),
@@ -24,6 +24,10 @@ _AGENT_HINTS = {
 # Documented status commands: exit code 0 means logged in (Claude Code CLI reference,
 # developers.openai.com/codex/cli/reference).
 _AUTH_STATUS = {"claude": ["auth", "status"], "codex": ["login", "status"]}
+
+
+def _unchecked() -> str:
+    return _("Verbindung wird beim ersten Aufruf geprüft")
 
 
 @dataclass(frozen=True)
@@ -63,10 +67,10 @@ def check(settings: Settings, *, probe_network: bool = True) -> CheckResult:
     ai = settings.ai
     if not ai.enabled:
         item = CheckItem(
-            "KI aus",
+            _("KI aus"),
             False,
-            "KI-Funktionen sind ausgeschaltet.",
-            "Einschalten mit `wts ai enable` oder in den Einstellungen.",
+            _("KI-Funktionen sind ausgeschaltet."),
+            _("Einschalten mit `wts ai enable` oder in den Einstellungen."),
         )
         return CheckResult(False, ai.provider, [item])
     match ai.provider:
@@ -97,15 +101,22 @@ def _probe_models(
     try:
         ids = provider.list_models()
     except RuntimeError as err:
-        return [CheckItem("Endpunkt", False, f"{base_url}: {err}", endpoint_hint)]
-    items = [CheckItem("Endpunkt", True, f"{base_url} antwortet, {len(ids)} Modelle")]
+        return [CheckItem(_("Endpunkt"), False, f"{base_url}: {err}", endpoint_hint)]
+    items = [
+        CheckItem(
+            _("Endpunkt"), True, _("{url} antwortet, {count} Modelle", url=base_url, count=len(ids))
+        )
+    ]
     if model and _model_listed(model, ids):
-        items.append(CheckItem("Modell verfügbar", True, model))
+        items.append(CheckItem(_("Modell verfügbar"), True, model))
     elif model:
         shown = ", ".join(ids[:5]) + (" …" if len(ids) > 5 else "")
         items.append(
             CheckItem(
-                "Modell verfügbar", False, f"'{model}' fehlt (vorhanden: {shown})", model_hint
+                _("Modell verfügbar"),
+                False,
+                _("'{model}' fehlt (vorhanden: {shown})", model=model, shown=shown),
+                model_hint,
             )
         )
     return items
@@ -113,53 +124,75 @@ def _probe_models(
 
 def _check_local(local: LocalSettings, probe_network: bool) -> list[CheckItem]:
     items = [
-        CheckItem("Modell eingetragen", True, local.model)
+        CheckItem(_("Modell eingetragen"), True, local.model)
         if local.model
         else CheckItem(
-            "Modell eingetragen",
+            _("Modell eingetragen"),
             False,
-            "kein Modell gesetzt",
-            "Modell in den Einstellungen eintragen: `wts ai config set local.model <name>`",
+            _("kein Modell gesetzt"),
+            _("Modell in den Einstellungen eintragen: `wts ai config set local.model <name>`"),
         )
     ]
     if not probe_network:
-        return [*items, CheckItem("Endpunkt", True, f"{local.base_url} nicht geprüft", _UNCHECKED)]
+        return [
+            *items,
+            CheckItem(
+                _("Endpunkt"), True, _("{url} nicht geprüft", url=local.base_url), _unchecked()
+            ),
+        ]
     return items + _probe_models(
         local.base_url,
         local.model,
         None,
-        "Ollama starten: `ollama serve`",
-        f"Modell laden: `ollama pull {local.model}`",
+        _("Ollama starten: `ollama serve`"),
+        _("Modell laden: `ollama pull {model}`", model=local.model),
     )
 
 
 def _check_api(api: ApiSettings, probe_network: bool) -> list[CheckItem]:
     from .providers.keys import resolve_key  # lazy: gate first
 
-    source = f"Umgebungsvariable {api.key_env}" if api.key_source == "env" else "Schlüsselbund"
+    source = (
+        _("Umgebungsvariable {name}", name=api.key_env)
+        if api.key_source == "env"
+        else _("Schlüsselbund")
+    )
     key: str | None = None
     try:
         key = resolve_key(api)
-        items = [CheckItem("Schlüssel", True, f"vorhanden ({source})")]  # never the value
+        items = [
+            CheckItem(_("Schlüssel"), True, _("vorhanden ({source})", source=source))
+        ]  # never the value
     except RuntimeError as err:
-        items = [CheckItem("Schlüssel", False, str(err), f"Schlüssel hinterlegen ({source})")]
+        items = [
+            CheckItem(
+                _("Schlüssel"),
+                False,
+                str(err),
+                _("Schlüssel hinterlegen ({source})", source=source),
+            )
+        ]
     items.append(
-        CheckItem("Modell eingetragen", True, api.model)
+        CheckItem(_("Modell eingetragen"), True, api.model)
         if api.model
         else CheckItem(
-            "Modell eingetragen",
+            _("Modell eingetragen"),
             False,
-            "kein Modell gesetzt",
-            "Modell in den Einstellungen eintragen: `wts ai config set api.model <name>`",
+            _("kein Modell gesetzt"),
+            _("Modell in den Einstellungen eintragen: `wts ai config set api.model <name>`"),
         )
     )
     if api.kind == "openai" and probe_network and key is not None:
         url = api.base_url or "https://api.openai.com/v1"
         return items + _probe_models(
-            url, api.model, key, "Netz, Proxy und api.base_url prüfen", "Modellnamen prüfen"
+            url,
+            api.model,
+            key,
+            _("Netz, Proxy und api.base_url prüfen"),
+            _("Modellnamen prüfen"),
         )
-    detail = "kein Listen-Endpunkt" if api.kind == "anthropic" else "nicht geprüft"
-    return [*items, CheckItem("Verbindung", True, detail, _UNCHECKED)]
+    detail = _("kein Listen-Endpunkt") if api.kind == "anthropic" else _("nicht geprüft")
+    return [*items, CheckItem(_("Verbindung"), True, detail, _unchecked())]
 
 
 def _check_agent(agent: AgentSettings) -> list[CheckItem]:
@@ -172,12 +205,19 @@ def _check_agent(agent: AgentSettings) -> list[CheckItem]:
     path = shutil.which(program)
     if path is None:
         return [
-            CheckItem("Programm", False, f"`{program}` nicht im PATH", f"Installieren: `{install}`")
+            CheckItem(
+                _("Programm"),
+                False,
+                _("`{program}` nicht im PATH", program=program),
+                _("Installieren: `{install}`", install=install),
+            )
         ]
     line = _default_command(agent.kind, agent.model, agent.reasoning)
     items = [
-        CheckItem("Programm", True, path),
-        CheckItem("Aufrufzeile", True, shlex.join(line)),  # no secrets: the prompt goes via stdin
+        CheckItem(_("Programm"), True, path),
+        CheckItem(
+            _("Aufrufzeile"), True, shlex.join(line)
+        ),  # no secrets: the prompt goes via stdin
     ]
     try:
         with isolated_env(agent.kind) as (env, work):
@@ -191,28 +231,39 @@ def _check_agent(agent: AgentSettings) -> list[CheckItem]:
                 env=env, cwd=str(work),
             )  # fmt: skip
     except OSError as err:
-        detail = f"Anmeldedatei nicht kopierbar: {err}"
-        hint = f"Rechte von ~/{CREDENTIALS[agent.kind]} prüfen"
-        return [*items, CheckItem("Anmeldung", False, detail, hint)]
+        detail = _("Anmeldedatei nicht kopierbar: {err}", err=err)
+        hint = _("Rechte von ~/{file} prüfen", file=CREDENTIALS[agent.kind])
+        return [*items, CheckItem(_("Anmeldung"), False, detail, hint)]
     if version is None or version.timed_out or version.exit_code != 0:
         items.append(
-            CheckItem("Version", False, _failure(version), f"Neu installieren: `{install}`")
+            CheckItem(
+                _("Version"),
+                False,
+                _failure(version),
+                _("Neu installieren: `{install}`", install=install),
+            )
         )
     else:
         first = version.stdout.decode(errors="replace").strip().splitlines()[:1]
-        items.append(CheckItem("Version", True, first[0][:80] if first else "?"))
+        items.append(CheckItem(_("Version"), True, first[0][:80] if first else "?"))
     if auth is None or auth.timed_out or auth.exit_code != 0:
-        detail = f"nicht angemeldet ({_failure(auth)}; geprüft mit ~/{CREDENTIALS[agent.kind]})"
-        items.append(CheckItem("Anmeldung", False, detail, f"Anmelden: `{login}`"))
+        detail = _(
+            "nicht angemeldet ({failure}; geprüft mit ~/{file})",
+            failure=_failure(auth),
+            file=CREDENTIALS[agent.kind],
+        )
+        items.append(
+            CheckItem(_("Anmeldung"), False, detail, _("Anmelden: `{login}`", login=login))
+        )
     else:
-        items.append(CheckItem("Anmeldung", True, "angemeldet"))  # output may hold the e-mail
+        items.append(CheckItem(_("Anmeldung"), True, _("angemeldet")))  # output may hold the e-mail
     return items
 
 
 def _failure(result: "Result | None") -> str:
     """Short reason of a failed `run_limited` call (None = not startable)."""
     if result is None:
-        return "Programm nicht startbar"
+        return _("Programm nicht startbar")
     if result.timed_out:
-        return f"Zeitlimit {_AGENT_TIMEOUT:g} s überschritten"
-    return f"Exit-Code {result.exit_code}"
+        return _("Zeitlimit {timeout:g} s überschritten", timeout=_AGENT_TIMEOUT)
+    return _("Exit-Code {code}", code=result.exit_code)

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 const de = {
   "app.name": "WhatTheShell",
-  "lang.label": "Sprache",
+  "lang.label": "Sprache", "lang.help": "Gilt für Oberfläche, Meldungen des Servers und die Kommandozeile.", "lang.auto": "Automatisch (Systemsprache)", "lang.unsaved": "Die Einstellung konnte auf dem Server nicht gespeichert werden; sie gilt nur für die Oberfläche: {cause}",
   "sandbox.ok": "Sandbox bereit",
   "sandbox.missing": "Sandbox nicht verfügbar",
   "sandbox.unknown": "Sandbox-Status unbekannt",
@@ -216,7 +216,7 @@ const de = {
 };
 const en: Record<keyof typeof de, string> = {
   "app.name": "WhatTheShell",
-  "lang.label": "Language",
+  "lang.label": "Language", "lang.help": "Applies to the interface, server messages and the command line.", "lang.auto": "Automatic (system language)", "lang.unsaved": "The setting could not be saved on the server; it only applies to the interface: {cause}",
   "sandbox.ok": "Sandbox ready",
   "sandbox.missing": "Sandbox unavailable",
   "sandbox.unknown": "Sandbox status unknown",
@@ -433,14 +433,27 @@ const en: Record<keyof typeof de, string> = {
 export type Lang = "de" | "en";
 export const dicts: Record<Lang, Record<string, string>> = { de, en };
 
-function detect(): Lang {
-  const stored = typeof localStorage === "undefined" ? null : localStorage.getItem("wts.lang");
-  if (stored === "de" || stored === "en") return stored;
+/** The language chosen explicitly in the GUI, null = automatic. */
+export function storedLang(): Lang | null {
+  try {
+    const stored = typeof localStorage === "undefined" ? null : localStorage.getItem("wts.lang");
+    return stored === "de" || stored === "en" ? stored : null;
+  } catch { return null; }
+}
+
+/** Forget the explicit choice; the next `detectLang()` follows the browser language. */
+export function clearStoredLang(): void {
+  try { if (typeof localStorage !== "undefined") localStorage.removeItem("wts.lang"); } catch { /* storage unavailable */ }
+}
+
+export function detectLang(): Lang {
+  const stored = storedLang();
+  if (stored) return stored;
   const nav = typeof navigator === "undefined" ? "en" : navigator.language;
   return nav.toLowerCase().startsWith("de") ? "de" : "en";
 }
 
-let lang: Lang = detect();
+let lang: Lang = detectLang();
 
 export const getLang = (): Lang => lang;
 

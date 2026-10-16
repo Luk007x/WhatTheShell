@@ -11,6 +11,7 @@ from pydantic import Field
 from whattheshell import bundled, paths
 from whattheshell.api.rest import SUB_WORD, _get_info, _sandbox, fail
 from whattheshell.catalog import Catalog
+from whattheshell.i18n import _
 from whattheshell.models.common import StrictModel, ToolName
 from whattheshell.modules.loader import DocumentError, load_module_file, load_workflow_file
 from whattheshell.modules.registry import ModuleRegistry
@@ -59,12 +60,20 @@ def get_module(tool: ToolName) -> dict[str, Any]:
         raise fail(
             404,
             "module_not_found",
-            f"Für '{tool}' gibt es kein Modul. Mit POST /api/modules/scaffold entsteht ein Gerüst.",
+            _(
+                "Für '{tool}' gibt es kein Modul. "
+                "Mit POST /api/modules/scaffold entsteht ein Gerüst.",
+                tool=tool,
+            ),
         )
     try:
         raw = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as err:
-        raise fail(500, "read", f"Modul nicht lesbar: {err}. Prüfe Rechte auf {path}.") from err
+        raise fail(
+            500,
+            "read",
+            _("Modul nicht lesbar: {err}. Prüfe Rechte auf {path}.", err=err, path=path),
+        ) from err
     try:  # a broken user file is still returned raw, so it can be fixed
         document = load_module_file(path).model_dump(mode="json", exclude_defaults=True)
         errors: list[dict[str, Any]] = []
@@ -87,12 +96,16 @@ def put_module(request: Request, tool: ToolName, body: RawBody) -> dict[str, str
     try:
         module = load_module_text(body.raw)
     except DocumentError as err:
-        raise fail(422, "validation", "Modul ist ungültig.", errors=_error_list(err)) from err
+        raise fail(422, "validation", _("Modul ist ungültig."), errors=_error_list(err)) from err
     if module.tool != tool:
         raise fail(
             422,
             "tool_mismatch",
-            f"Das Modul beschreibt '{module.tool}', nicht '{tool}'. Passe 'tool:' an.",
+            _(
+                "Das Modul beschreibt '{actual}', nicht '{tool}'. Passe 'tool:' an.",
+                actual=module.tool,
+                tool=tool,
+            ),
         )
     try:
         target = write_user_file("module", f"{tool}{SUFFIX}", body.raw)
@@ -100,7 +113,11 @@ def put_module(request: Request, tool: ToolName, body: RawBody) -> dict[str, str
         raise fail(
             500,
             "write",
-            f"Modul nicht schreibbar: {err}. Prüfe Rechte auf {_user_path(tool).parent}.",
+            _(
+                "Modul nicht schreibbar: {err}. Prüfe Rechte auf {folder}.",
+                err=err,
+                folder=_user_path(tool).parent,
+            ),
         ) from err
     registry: ModuleRegistry = request.app.state.registry
     registry.reload(target)
@@ -113,12 +130,14 @@ def delete_module(request: Request, tool: ToolName) -> Response:
     target = _user_path(tool)
     if not (target.is_symlink() or target.is_file()):
         if _bundled_path(tool).is_file():
-            raise fail(403, "bundled", f"'{tool}' ist mitgeliefert und nicht löschbar.")
-        raise fail(404, "module_not_found", f"Für '{tool}' gibt es kein Nutzermodul.")
+            raise fail(
+                403, "bundled", _("'{tool}' ist mitgeliefert und nicht löschbar.", tool=tool)
+            )
+        raise fail(404, "module_not_found", _("Für '{tool}' gibt es kein Nutzermodul.", tool=tool))
     try:
         target.unlink()
     except OSError as err:
-        raise fail(500, "write", f"Modul nicht löschbar: {err}.") from err
+        raise fail(500, "write", _("Modul nicht löschbar: {err}.", err=err)) from err
     registry: ModuleRegistry = request.app.state.registry
     registry.reload(target)
     return Response(status_code=204)

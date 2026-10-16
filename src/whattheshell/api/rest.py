@@ -17,6 +17,7 @@ from starlette.background import BackgroundTask
 from whattheshell import APP_NAME, __version__, paths
 from whattheshell.catalog import INTERACTIVE, Catalog, ToolNotFound
 from whattheshell.engine.argv import ArgvError, build_argv, display
+from whattheshell.i18n import _, current_lang
 from whattheshell.models.catalog import ToolInfo
 from whattheshell.models.common import StrictModel, ToolName
 from whattheshell.modules.i18n import TEXT_FIELDS, translate_command
@@ -86,7 +87,12 @@ def _get_info(
         raise fail(
             500,
             "tool_unreadable",
-            f"Tool '{tool}' konnte nicht gelesen werden: {err}. Prüfe Rechte oder nutze refresh=1.",
+            _(
+                "Tool '{tool}' konnte nicht gelesen werden: {err}. "
+                "Prüfe Rechte oder nutze refresh=1.",
+                tool=tool,
+                err=err,
+            ),
         ) from err
 
 
@@ -116,7 +122,9 @@ def shutdown(request: Request) -> JSONResponse:
     stop = getattr(request.app.state, "request_shutdown", None)
     if stop is None:
         raise fail(
-            503, "no_server", "Kein Server registriert, der sich beenden lässt (kein `wts gui`)."
+            503,
+            "no_server",
+            _("Kein Server registriert, der sich beenden lässt (kein `wts gui`)."),
         )
     return JSONResponse({"status": "stopping"}, 202, background=BackgroundTask(stop))
 
@@ -128,8 +136,11 @@ def sandbox_selftest(request: Request) -> dict[str, Any]:
 
 
 @router.get("/tools")
-def list_tools(request: Request, search: str = "", lang: Lang = "de") -> list[dict[str, Any]]:
+def list_tools(
+    request: Request, search: str = "", lang: Lang | None = None
+) -> list[dict[str, Any]]:
     """Executables on PATH, enriched from loaded modules only (no help is fetched)."""
+    lang = lang or current_lang()
     catalog: Catalog = request.app.state.catalog
     registry: ModuleRegistry = request.app.state.registry
     needle = search.lower()
@@ -171,17 +182,21 @@ def tool_detail(
     sub: str = "",
     deep: Annotated[int, Query(ge=0, le=1)] = 0,
     refresh: Annotated[int, Query(ge=0, le=1)] = 0,
-    lang: Lang = "de",
+    lang: Lang | None = None,
 ) -> ToolInfo:
     """Catalog entry of a tool or subcommand; unknown subcommands are never probed."""
+    lang = lang or current_lang()
     _sandbox(request)  # both catalogs must know the sandbox before any help is fetched
     words = sub.split("/") if sub else []
     if bad := next((w for w in words if not re.fullmatch(SUB_WORD, w)), None):
         raise fail(
             422,
             "sub",
-            f"Ungültiger Subbefehl {bad!r}. Erlaubt: Buchstaben, Ziffern, _ und -, "
-            "beginnend mit einem Buchstaben.",
+            _(
+                "Ungültiger Subbefehl {bad!r}. Erlaubt: Buchstaben, Ziffern, _ und -, "
+                "beginnend mit einem Buchstaben.",
+                bad=bad,
+            ),
         )
     info = _get_info(request, name, words, deep=deep, refresh=bool(refresh))
     if lang == "de":
@@ -242,7 +257,7 @@ def preview(request: Request, body: PreviewBody) -> dict[str, Any]:
         raise fail(
             409,
             "sandbox",
-            f"Sandbox nicht verfügbar: {status.reason}",
+            _("Sandbox nicht verfügbar: {reason}", reason=status.reason),
             reason=status.reason,
             install_hint=status.install_hint,
         )
@@ -255,13 +270,19 @@ def preview(request: Request, body: PreviewBody) -> dict[str, Any]:
                 raise fail(
                     422,
                     "example",
-                    f"Beispiel {body.example} gibt es nicht ({len(examples)} vorhanden).",
+                    _(
+                        "Beispiel {index} gibt es nicht ({count} vorhanden).",
+                        index=body.example,
+                        count=len(examples),
+                    ),
                 )
             if problems := write_fixtures(examples[body.example], workdir):
                 raise fail(422, "example", "; ".join(problems))
         if not PREVIEW_SLOTS.acquire(timeout=PREVIEW_WAIT):
             raise fail(
-                429, "busy", "Zu viele Vorschauen gleichzeitig. Warte kurz und versuche es erneut."
+                429,
+                "busy",
+                _("Zu viele Vorschauen gleichzeitig. Warte kurz und versuche es erneut."),
             )
         try:
             start = time.monotonic()
@@ -275,7 +296,7 @@ def preview(request: Request, body: PreviewBody) -> dict[str, Any]:
         finally:
             PREVIEW_SLOTS.release()
     if done is None:
-        raise fail(500, "sandbox", "Sandbox konnte nicht starten. Prüfe /api/sandbox/selftest.")
+        raise fail(500, "sandbox", _("Sandbox konnte nicht starten. Prüfe /api/sandbox/selftest."))
     return {
         "command": display(argv),
         "exit_code": done.exit_code,

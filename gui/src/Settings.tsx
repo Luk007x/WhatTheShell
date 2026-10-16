@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ApiError, errMsg, getAiAgents, getSettings, postShutdown, putSettings } from "./api";
 import { HelpButton } from "./Help";
-import { getLang, t, type Lang } from "./i18n";
+import { clearStoredLang, detectLang, storedLang, t, type Lang } from "./i18n";
+
+type LangChoice = Lang | "auto";
 import { Modal } from "./Modal";
 import type { AiAgents, Settings as ServerSettings } from "./types/api";
 
@@ -221,14 +223,35 @@ export function Settings(props: {
 }) {
   const [startView, setStartView] = useState<StartView>(loadStartView);
   const [helpStart, setHelpStart] = useState(loadHelpStart);
+  const [langChoice, setLangChoice] = useState<LangChoice>(() => storedLang() ?? "auto");
+  const [langUnsaved, setLangUnsaved] = useState<string | null>(null);
+  const queue = useRef<Promise<void>>(Promise.resolve());
+  const latest = useRef<LangChoice>(langChoice);
+  /** The GUI switches at once; the server copy follows, serialized, and only the latest choice is sent. */
+  const changeLang = (c: LangChoice) => {
+    setLangChoice(c);
+    latest.current = c;
+    if (c === "auto") { clearStoredLang(); props.onLang(detectLang()); clearStoredLang(); } else props.onLang(c); // onLang stores the language, auto must not keep it
+    setLangUnsaved(null);
+    queue.current = queue.current.then(async () => {
+      try {
+        const doc = await getSettings();
+        if (doc.load_error) throw new Error(doc.load_error);
+        await putSettings({ ...doc, language: latest.current });
+      } catch (e) { setLangUnsaved(errMsg(e)); }
+    });
+  };
   return (
     <Modal open={props.open} title={t("settings.title")} onCancel={props.onClose}>
       <div className="field">
         <label htmlFor="set-lang">{t("lang.label")}</label>
-        <select id="set-lang" data-autofocus value={getLang()} onChange={(e) => props.onLang(e.target.value === "en" ? "en" : "de")}>
+        <select id="set-lang" data-autofocus value={langChoice} aria-describedby="set-lang-h" onChange={(e) => changeLang(e.target.value === "en" ? "en" : e.target.value === "de" ? "de" : "auto")}>
+          <option value="auto">{t("lang.auto")}</option>
           <option value="de">Deutsch</option>
           <option value="en">English</option>
         </select>
+        <small className="muted" id="set-lang-h">{t("lang.help")}</small>
+        {langUnsaved !== null && <small role="alert" className="error">{t("lang.unsaved", { cause: langUnsaved })}</small>}
       </div>
       <div className="field">
         <label htmlFor="set-font">{t("settings.font")}</label>

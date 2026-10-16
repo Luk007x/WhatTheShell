@@ -34,7 +34,7 @@ export function initToken(): string | null {
 export const hasToken = (): boolean => token !== null;
 
 async function request<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
-  const headers: Record<string, string> = { "X-WTS-Token": token ?? "" };
+  const headers: Record<string, string> = { "X-WTS-Token": token ?? "", "X-WTS-Lang": getLang() };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   const res = await fetch(path, {
     method,
@@ -70,7 +70,8 @@ export const isShutdownClose = (code: number): boolean => code === 1001 || code 
 
 export function wsUrl(path: string): string {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
-  return `${proto}//${location.host}${path}?token=${encodeURIComponent(token ?? "")}`;
+  const sep = path.includes("?") ? "&" : "?";
+  return `${proto}//${location.host}${path}${sep}token=${encodeURIComponent(token ?? "")}&lang=${getLang()}`;
 }
 
 const enc = encodeURIComponent;

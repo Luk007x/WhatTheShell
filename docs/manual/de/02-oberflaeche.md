@@ -88,7 +88,7 @@ Das Zahnrad öffnet die Einstellungen.
 
 | Feld | Werte | Wirkung |
 |---|---|---|
-| Sprache | Deutsch, English | Sprache der Oberfläche |
+| Sprache | Deutsch, English | Sprache der Oberfläche. Dieselbe Wahl gilt für Meldungen von Server und Kommandozeile `wts` (gespeichert als `language` in `settings.yaml`; `wts --lang` und `WTS_LANG` haben Vorrang) |
 | Schriftgröße | klein, normal, groß | Skaliert alle Texte |
 | Startansicht beim Öffnen | Zuletzt verwendet, Bauen: Graph, Bauen: Blöcke, Ausführen, Module | Wirkt beim nächsten Öffnen der App |
 | Vorschau automatisch ausführen | an/aus | Nur für Befehle der Klasse „sicher“ und nur mit gewähltem Beispiel; läuft immer in der Sandbox |

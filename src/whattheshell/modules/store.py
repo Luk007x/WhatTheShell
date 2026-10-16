@@ -10,6 +10,7 @@ from typing import Literal, TypeVar
 from pydantic import BaseModel
 
 from whattheshell import paths
+from whattheshell.i18n import _
 from whattheshell.models.module import Module
 from whattheshell.models.workflow import Workflow
 from whattheshell.modules.loader import (
@@ -58,7 +59,7 @@ def load_workflow_text(raw: str) -> Workflow:
 
 
 def _lines(err: DocumentError) -> list[str]:
-    where = f"Zeile {err.line}: " if err.line is not None else ""
+    where = _("Zeile {line}: ", line=err.line) if err.line is not None else ""
     return [f"{where}{err.message.strip()}"]
 
 
@@ -86,7 +87,13 @@ def user_path(kind: Kind, name: str) -> Path:
     """
     suffixes = MODULE_SUFFIXES if kind == "module" else WORKFLOW_SUFFIXES
     if not NAME.fullmatch(name) or not name.endswith(suffixes):
-        raise ValueError(f"Ungültiger Dateiname '{name}', erwartet z. B. name{suffixes[0]}")
+        raise ValueError(
+            _(
+                "Ungültiger Dateiname '{name}', erwartet z. B. name{suffix}",
+                name=name,
+                suffix=suffixes[0],
+            )
+        )
     return user_dir(kind) / name
 
 

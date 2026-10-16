@@ -93,7 +93,7 @@ Variables appear in the details area when no step is selected. They are asked fo
 | Label | Display name in the start form |
 | Help text | Explanation for the field |
 | Choices | Only for `enum`: allowed values, separated by commas |
-| Pattern (regex) | Only for `string`: the whole value must match the regular expression (at most 500 characters) |
+| Pattern (regex) | Only for `string` and `path`: the whole value must match the regular expression (at most 500 characters) |
 | min / max | Only for `int` and `float` (in the YAML file) |
 
 Types in the start form: text, number, choice (`enum`), checkbox (`bool`), password field (`secret`), path. Values of type `secret` are masked as `***` in output and logs and never remembered.
@@ -212,7 +212,7 @@ In "Build" mode the header offers:
 | Button | Effect |
 |---|---|
 | New | Empty workflow (asks if there are unsaved changes) |
-| Open | Library with search and origin tags "bundled", "own", "project" |
+| Open | Library with search, source filter and origin tags "bundled", "own", "project" |
 | Save (Ctrl+S) | Writes the workflow |
 | Save as | Asks for the "File name (id)". The id is suggested from the name: lowercase letters, digits, `-` and `_`; starts with a letter or digit |
 | Delete | Deletes an own file |
@@ -224,6 +224,23 @@ In "Build" mode the header offers:
 - Broken files appear greyed out with `path:line: message`.
 
 The position of the nodes in the graph is saved in the file under `layout`.
+
+### Library: filter, import and integrity
+
+- **Filter "Source":** All, Own, Bundled, Project. Each entry carries a badge for its source and, where needed, one for its integrity.
+- **Import:** The "Import" button or dragging a YAML file onto the library ("Drop a YAML file here to import it.") checks the file and stores it as your own workflow. The proposed file name is `name.workflow.yaml` ("File name": it must end in `.workflow.yaml`, at most 1 MiB). If the file is invalid, the errors are listed and nothing is stored. If the name exists, you are asked "… already exists. Overwrite?" ("Overwrite"). If a project file with that name exists, it takes precedence and the import is refused ("A project file with this name takes precedence. Choose another name."); choose another name.
+- **Integrity:** For every own and project workflow folder, the app keeps a stamp file `.wts-integrity.json` with a checksum per workflow. Saving, importing, AI approval and "Review and accept" update the stamp. Status of a file:
+
+| Status (badge) | Meaning |
+|---|---|
+| ok (no badge) | The file matches its stamp. Bundled workflows are always ok. |
+| Changed outside | The file was changed outside the app (e.g. in a text editor). |
+| Not reviewed | There is no stamp: the file was put there by hand, or is an older own file. After an update to this version, your existing own files show "Not reviewed" once. |
+| Invalid | The file does not pass the check; the badge shows the first error. |
+
+Workflows that are "Changed outside" or "Not reviewed" cannot be run until you have looked at them and clicked **"Review and accept"** (message: "The file was changed outside the app. Review and accept."). A dry run is always allowed. On the command line: `wts workflows list` (shows source and status), `wts workflows import FILE [--overwrite]`, `wts workflows accept ID`, and `wts run --accept`. A loose file path given to `wts run` counts as "Not reviewed" and needs `--accept`; it does not get a stamp.
+
+This is change detection, not tamper protection: whoever can edit the file can also edit the stamp. The confirmations before a run remain in effect.
 
 ## Preview of a step in the sandbox
 

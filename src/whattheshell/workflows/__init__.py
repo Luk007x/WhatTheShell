@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Literal
 
 from whattheshell import integrity
+from whattheshell.i18n import _
 from whattheshell.models.workflow import VariableSpec
 from whattheshell.modules.loader import WORKFLOW_SUFFIXES, DocumentError, load_workflow_file
 
@@ -50,7 +51,7 @@ class WorkflowIndex:
             except OSError as err:
                 entry = WorkflowEntry(
                     directory.name, directory.name, None, directory, source,
-                    error=f"{directory}: Ordner nicht lesbar: {err}",
+                    error=_("{directory}: Ordner nicht lesbar: {err}", directory=directory, err=err),  # noqa: E501
                 )  # fmt: skip
                 entries[f"{source}:{directory}"] = entry
                 continue
@@ -86,7 +87,11 @@ def _entry(path: Path, workflow_id: str, source: str) -> WorkflowEntry:
     if not ID_PATTERN.fullmatch(workflow_id):
         return WorkflowEntry(
             workflow_id, workflow_id, None, path, source,
-            error=f"{path}: Dateiname entspricht nicht dem Muster {ID_PATTERN.pattern}",
+            error=_(
+                "{path}: Dateiname entspricht nicht dem Muster {pattern}",
+                path=path,
+                pattern=ID_PATTERN.pattern,
+            ),
         )  # fmt: skip
     try:
         workflow = load_workflow_file(path)
@@ -118,7 +123,9 @@ def shadow_message(index: WorkflowIndex, workflow_id: str) -> str | None:
     entry = index.get(workflow_id)
     if entry is None or entry.source != "project":
         return None
-    return (
-        f"'{workflow_id}' wird von der Projektdatei {entry.path} (Quelle project) überdeckt. "
-        "Dort von Hand ändern oder entfernen."
+    return _(
+        "'{workflow_id}' wird von der Projektdatei {path} (Quelle project) überdeckt. "
+        "Dort von Hand ändern oder entfernen.",
+        workflow_id=workflow_id,
+        path=entry.path,
     )

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Literal
 
 from whattheshell.ai.diff import unified
+from whattheshell.i18n import _
 from whattheshell.models.common import Safety
 from whattheshell.models.module import Module
 from whattheshell.modules.store import (
@@ -40,7 +41,9 @@ def target_path(kind: Kind, target: Path) -> Path:
     folder = user_dir(kind)
     parent = target.parent if target.is_absolute() else folder / target.parent
     if parent.resolve() != folder.resolve():
-        raise ValueError(f"Ziel muss direkt in {folder} liegen, nicht {target}")
+        raise ValueError(
+            _("Ziel muss direkt in {folder} liegen, nicht {target}", folder=folder, target=target)
+        )
     return user_path(kind, target.name)
 
 
@@ -53,13 +56,17 @@ def lowered_safety(old: str | None, new: str) -> list[str]:
 
     def classes(module: Module) -> dict[str, Safety | None]:
         found: dict[str, Safety | None] = {"": module.safety}
-        found.update({f"Option {o.id}": o.safety for o in module.options})
+        found.update({_("Option {id}", id=o.id): o.safety for o in module.options})
         return found
 
     was, now = classes(before), classes(after)
     return [
-        f"ACHTUNG: Sicherheitsklasse{' von ' + key if key else ''} wird von {was[key]} "
-        f"auf {now[key]} gesenkt"
+        _(
+            "ACHTUNG: Sicherheitsklasse{scope} wird von {old} auf {new} gesenkt",
+            scope=_(" von {key}", key=key) if key else "",
+            old=was[key],
+            new=now[key],
+        )
         for key in was
         if (old_class := was[key])
         and (new_class := now.get(key))
@@ -76,7 +83,7 @@ def propose(
 ) -> Approval:
     """Build an approval; the diff starts with warnings when a module lowers its safety."""
     warnings = lowered_safety(old, new) if kind == "module" else []
-    diff = unified(old, new, target.name if target else "vorschlag")
+    diff = unified(old, new, target.name if target else _("vorschlag"))
     return Approval(
         kind, target, old, new, "\n".join([*warnings, diff]) if warnings else diff, errors
     )
@@ -91,8 +98,8 @@ def apply(approval: Approval) -> Path:
         OSError: Not writable.
     """
     if approval.errors:
-        raise ValueError("Vorschlag hat Validierungsfehler und wird nicht gespeichert")
+        raise ValueError(_("Vorschlag hat Validierungsfehler und wird nicht gespeichert"))
     if approval.kind == "text" or approval.target is None:
-        raise ValueError("Nur Module und Workflows mit Zieldatei können übernommen werden")
+        raise ValueError(_("Nur Module und Workflows mit Zieldatei können übernommen werden"))
     target = target_path(approval.kind, approval.target)
     return write_user_file(approval.kind, target.name, approval.new)

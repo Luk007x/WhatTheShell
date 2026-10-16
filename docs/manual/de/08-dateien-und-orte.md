@@ -114,7 +114,9 @@ Fremde Dateien vor dem Gebrauch ansehen und mit „Trockenlauf“ oder `wts run 
 
 ```
 wts validate DATEI [DATEI …]    # Modul oder Workflow prüfen
-wts workflows                   # Bibliothek auflisten (Quelle, id, Name, Schritte, Pfad)
+wts workflows                   # Bibliothek auflisten (Quelle, Integrität, id, Name, Schritte, Pfad)
+wts workflows import DATEI      # Workflow-Datei prüfen und als eigene ablegen (--overwrite ersetzt)
+wts workflows accept ID         # außerhalb der App geänderte Datei übernehmen
 wts modules                     # Suchpfade und geladene Module
 ```
 

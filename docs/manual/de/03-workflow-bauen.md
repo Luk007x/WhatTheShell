@@ -93,7 +93,7 @@ Variablen erscheinen im Detailbereich, wenn kein Schritt gewählt ist. Sie werde
 | Beschriftung | Anzeigename im Startformular |
 | Hilfetext | Erklärung zum Feld |
 | Auswahl | Nur bei `enum`: erlaubte Werte, mit Komma getrennt |
-| Muster (Regex) | Nur bei `string`: Der ganze Wert muss dem regulären Ausdruck entsprechen (höchstens 500 Zeichen) |
+| Muster (Regex) | Nur bei `string` und `path`: Der ganze Wert muss dem regulären Ausdruck entsprechen (höchstens 500 Zeichen) |
 | min / max | Nur bei `int` und `float` (in der YAML-Datei) |
 
 Typen im Startformular: Text, Zahl, Auswahl (`enum`), Checkbox (`bool`), Passwortfeld (`secret`), Pfad. Werte vom Typ `secret` werden in Ausgabe und Protokollen als `***` maskiert und nie gemerkt.
@@ -212,7 +212,7 @@ Die Kopfzeile bietet im Modus „Erstellen“:
 | Knopf | Wirkung |
 |---|---|
 | Neu | Leerer Workflow (fragt bei ungespeicherten Änderungen nach) |
-| Öffnen | Bibliothek mit Suche und Herkunftsmarken „mitgeliefert“, „eigene“, „Projekt“ |
+| Öffnen | Bibliothek mit Suche, Quellenfilter und Herkunftsmarken „mitgeliefert“, „eigene“, „Projekt“ |
 | Speichern (Strg+S) | Schreibt den Workflow |
 | Speichern unter | Fragt nach dem „Dateiname (id)“. Die id wird aus dem Namen vorgeschlagen: Kleinbuchstaben, Ziffern, `-` und `_`; beginnt mit Buchstabe oder Ziffer |
 | Löschen | Löscht eine eigene Datei |
@@ -224,6 +224,23 @@ Die Kopfzeile bietet im Modus „Erstellen“:
 - Kaputte Dateien erscheinen ausgegraut mit `Pfad:Zeile: Meldung`.
 
 Die Position der Knoten im Graph wird in der Datei unter `layout` gespeichert.
+
+### Bibliothek: Filter, Import und Integrität
+
+- **Filter „Quelle“:** Alle, Eigene, Mitgeliefert, Projekt. Jeder Eintrag trägt eine Marke für die Quelle und, wo nötig, eine für die Integrität.
+- **Import:** Der Knopf „Importieren“ oder das Hineinziehen einer YAML-Datei in die Bibliothek („YAML-Datei hierher ziehen, um sie zu importieren.“) prüft die Datei und legt sie als eigenen Workflow ab. Vorgeschlagen wird der Dateiname `name.workflow.yaml` („Dateiname“: muss auf `.workflow.yaml` enden, höchstens 1 MiB). Ist die Datei ungültig, werden die Fehler aufgelistet und nichts gespeichert. Gibt es den Namen schon, wird nachgefragt („… existiert schon. Überschreiben?“). Hat eine Projektdatei diesen Namen, gewinnt sie, und der Import wird abgelehnt („Eine Projektdatei mit diesem Namen hat Vorrang. Anderen Namen wählen.“); dann einen anderen Namen wählen.
+- **Integrität:** Zu jedem Ordner mit eigenen und Projekt-Workflows führt die App eine Stempeldatei `.wts-integrity.json` mit einer Prüfsumme je Workflow. Speichern, Importieren, KI-Freigabe und „Prüfen und übernehmen“ aktualisieren den Stempel. Status einer Datei:
+
+| Status (Marke) | Bedeutung |
+|---|---|
+| ok (keine Marke) | Die Datei passt zum Stempel. Mitgelieferte Workflows sind immer ok. |
+| Außerhalb geändert | Die Datei wurde außerhalb der App geändert (z. B. im Texteditor). |
+| Nicht geprüft | Es gibt keinen Stempel: Die Datei wurde von Hand abgelegt oder ist eine ältere eigene Datei. Nach dem Update auf diese Version zeigen vorhandene eigene Dateien einmalig „Nicht geprüft“. |
+| Ungültig | Die Datei besteht die Prüfung nicht; die Marke nennt den ersten Fehler. |
+
+Workflows mit „Außerhalb geändert“ oder „Nicht geprüft“ laufen erst, wenn Sie sie angesehen und **„Prüfen und übernehmen“** geklickt haben (Meldung: „Datei wurde außerhalb der App geändert. Prüfen und übernehmen.“). Ein Trockenlauf ist immer erlaubt. Auf der Kommandozeile: `wts workflows list` (zeigt Quelle und Status), `wts workflows import DATEI [--overwrite]`, `wts workflows accept ID` und `wts run --accept`. Ein loser Dateipfad bei `wts run` gilt als „Nicht geprüft“ und braucht `--accept`; er bekommt keinen Stempel.
+
+Das ist Änderungserkennung, kein Manipulationsschutz: Wer die Datei ändern darf, kann auch den Stempel ändern. Die Bestätigungen vor einem Lauf bleiben bestehen.
 
 ## Vorschau eines Schritts in der Sandbox
 

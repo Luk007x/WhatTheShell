@@ -40,6 +40,7 @@ from whattheshell.engine.template import (
     render_value,
     resolve,
 )
+from whattheshell.i18n import _
 from whattheshell.models.catalog import ToolInfo
 from whattheshell.models.common import Safety, ValueType
 from whattheshell.models.workflow import (
@@ -223,25 +224,58 @@ def _check_type(name: str, spec: VariableSpec, value: str) -> None:
         elif kind is ValueType.bool and value not in ("true", "false"):
             raise ValueError
     except ValueError:
-        hint = " (true oder false)" if kind is ValueType.bool else ""
-        raise RunError(
-            f"Variable '{name}': Wert passt nicht zu Typ {kind.value}{hint}. Wert korrigieren."
-        ) from None
+        if kind is ValueType.bool:
+            message = _(
+                "Variable '{name}': Wert passt nicht zu Typ {kind} (true oder false). "
+                "Wert korrigieren.",
+                name=name,
+                kind=kind.value,
+            )
+        else:
+            message = _(
+                "Variable '{name}': Wert passt nicht zu Typ {kind}. Wert korrigieren.",
+                name=name,
+                kind=kind.value,
+            )
+        raise RunError(message) from None
     if kind is ValueType.enum and spec.choices and value not in spec.choices:
         raise RunError(
-            f"Variable '{name}': '{value}' ist keine erlaubte Auswahl "
-            f"({', '.join(spec.choices)}). Einen dieser Werte angeben."
+            _(
+                "Variable '{name}': '{value}' ist keine erlaubte Auswahl ({choices}). "
+                "Einen dieser Werte angeben.",
+                name=name,
+                value=value,
+                choices=", ".join(spec.choices),
+            )
         )
     if spec.pattern is not None and not re.fullmatch(spec.pattern, value):
         # the value is not echoed: it may be a secret
         raise RunError(
-            f"Variable '{name}': Wert passt nicht zum Muster '{spec.pattern}'. Wert korrigieren."
+            _(
+                "Variable '{name}': Wert passt nicht zum Muster '{pattern}'. Wert korrigieren.",
+                name=name,
+                pattern=spec.pattern,
+            )
         )
     if number is not None:
         if spec.min is not None and number < spec.min:
-            raise RunError(f"Variable '{name}': {value} ist kleiner als das Minimum {spec.min:g}.")
+            raise RunError(
+                _(
+                    "Variable '{name}': {value} ist kleiner als das Minimum {limit}.",
+                    name=name,
+                    value=value,
+                    limit=f"{spec.min:g}",
+                )
+            )
         if spec.max is not None and number > spec.max:
-            raise RunError(f"Variable '{name}': {value} ist größer als das Maximum {spec.max:g}.")
+            raise RunError(
+                _(
+                    "Variable '{name}': {value} ist größer als das Maximum {limit}.",
+                    name=name,
+                    value=value,
+                    limit=f"{spec.max:g}",
+                )
+            )
 
 
 def env_blocked(key: str) -> bool:
@@ -260,22 +294,26 @@ def extra_risks(
     """Caution for environment changes, paths outside the workflow folder, terminal steps."""
     reasons: list[str] = []
     if terminal is not None:
-        reasons.append("interaktiv")
+        reasons.append(_("interaktiv"))
         if terminal.network:
-            reasons.append("Netzzugang")
+            reasons.append(_("Netzzugang"))
     if has_env:
-        reasons.append("setzt Umgebungsvariablen")
+        reasons.append(_("setzt Umgebungsvariablen"))
     if cwd is not None and not inside(cwd, root):
-        reasons.append("Arbeitsverzeichnis außerhalb des Workflow-Ordners")
+        reasons.append(_("Arbeitsverzeichnis außerhalb des Workflow-Ordners"))
     if stdin_file is not None and not inside(stdin_file, root):
-        reasons.append("liest Datei außerhalb")
+        reasons.append(_("liest Datei außerhalb"))
     return Verdict(Safety.caution if reasons else Safety.safe, tuple(reasons))
 
 
 def _terminal_cwd_error(cwd: Path, root: Path) -> str | None:
     if inside(cwd, root):
         return None
-    return f"Terminal-Schritt: cwd muss innerhalb von {root} liegen (ist: {cwd.resolve()})"
+    return _(
+        "Terminal-Schritt: cwd muss innerhalb von {root} liegen (ist: {cwd})",
+        root=root,
+        cwd=cwd.resolve(),
+    )
 
 
 def _static_path(text: str | None, variables: Mapping[str, str], root: Path) -> Path | None:
@@ -396,8 +434,11 @@ class Runner:
         unknown = sorted(set(overrides) - set(workflow.variables))
         if unknown:
             raise RunError(
-                f"Unbekannte Variable(n): {', '.join(unknown)}. "
-                f"Deklariert: {', '.join(workflow.variables) or 'keine'}."
+                _(
+                    "Unbekannte Variable(n): {unknown}. Deklariert: {declared}.",
+                    unknown=", ".join(unknown),
+                    declared=", ".join(workflow.variables) or _("keine"),
+                )
             )
         variables: dict[str, str] = {}
         asked = workflow.asked_variables()  # required is enforced when the ask step runs
@@ -408,13 +449,16 @@ class Runner:
                 variables[name] = _text(spec.default)
             elif spec.required and name not in asked:
                 raise RunError(
-                    f"Pflichtvariable '{name}' hat keinen Wert. Mit --var {name}=WERT angeben."
+                    _(
+                        "Pflichtvariable '{name}' hat keinen Wert. Mit --var {name}=WERT angeben.",
+                        name=name,
+                    )
                 )
             else:
                 continue
             _check_type(name, spec, variables[name])
         if self._ask is None and any(isinstance(s, AskStep) for s in iter_steps(workflow.steps)):
-            raise RunError("Abfrage-Schritt braucht die Oberfläche oder ein Terminal.")
+            raise RunError(_("Abfrage-Schritt braucht die Oberfläche oder ein Terminal."))
         specs: dict[str, ToolInfo] = {}
         verdicts: dict[str, Verdict] = {}
         for step in iter_steps(workflow.steps):
@@ -423,10 +467,15 @@ class Runner:
             try:
                 info = self._catalog.get(step.tool, step.command)
             except ToolNotFound as err:
-                raise RunError(f"Schritt '{step.id}': {err}") from err
+                raise RunError(_("Schritt '{id}': {err}", id=step.id, err=err)) from err
             except (OSError, ValidationError) as err:
                 raise RunError(
-                    f"Schritt '{step.id}': Tool '{step.tool}' konnte nicht gelesen werden: {err}"
+                    _(
+                        "Schritt '{id}': Tool '{tool}' konnte nicht gelesen werden: {err}",
+                        id=step.id,
+                        tool=step.tool,
+                        err=err,
+                    )
                 ) from err
             specs[step.id] = info
             static_cwd = _static_path(step.cwd, variables, self._cwd)
@@ -435,7 +484,7 @@ class Runner:
                 and static_cwd is not None
                 and (message := _terminal_cwd_error(static_cwd, self._cwd))
             ):
-                raise RunError(f"Schritt '{step.id}': {message}")
+                raise RunError(_("Schritt '{id}': {err}", id=step.id, err=message))
             verdicts[step.id] = merge_verdicts(
                 classify_command(info.command, step.args, step.extra_args),
                 extra_risks(
@@ -468,9 +517,9 @@ class Runner:
         if self._terminal is None and any(
             isinstance(step, TerminalStep) for step in iter_steps(prepared.workflow.steps)
         ):
-            self._finish("failed", TERMINAL_ONLY_GUI, 3)  # before any process starts
+            self._finish("failed", _(TERMINAL_ONLY_GUI), 3)  # before any process starts
         elif self._steps(prepared.workflow.steps, ctx):
-            self._finish("success", "Workflow abgeschlossen", 0)
+            self._finish("success", _("Workflow abgeschlossen"), 0)
         assert self._final is not None  # noqa: S101
         status, message, exit_code = self._final
         message = self._mask(message)
@@ -545,22 +594,35 @@ class Runner:
                 try:
                     taken = evaluate(step.condition, ctx, cwd=self._cwd)
                 except EvalError as err:
-                    self._finish("failed", f"Schritt '{step.id}': Bedingung: {err}", 1)
+                    self._finish(
+                        "failed",
+                        _("Schritt '{id}': Bedingung: {err}", id=step.id, err=err),
+                        1,
+                    )
                     return False
                 chosen, other = (
                     (step.then, step.else_ or []) if taken else (step.else_ or [], step.then)
                 )
-                self._skip(other, f"Bedingung von '{step.id}' wählt {'then' if taken else 'else'}")
+                self._skip(
+                    other,
+                    _(
+                        "Bedingung von '{id}' wählt {branch}",
+                        id=step.id,
+                        branch="then" if taken else "else",
+                    ),
+                )
                 return self._steps(chosen, ctx)
             case ForeachStep():
                 try:
                     source = resolve(step.source, ctx)
                 except TemplateError as err:
-                    self._finish("failed", f"Schritt '{step.id}': Quelle: {err}", 1)
+                    self._finish(
+                        "failed", _("Schritt '{id}': Quelle: {err}", id=step.id, err=err), 1
+                    )
                     return False
                 items = [line.rstrip() for line in source.splitlines() if line.strip()]
                 if not items:
-                    self._skip(step.body, f"Quelle von '{step.id}' ist leer")
+                    self._skip(step.body, _("Quelle von '{id}' ist leer", id=step.id))
                 for item in items:
                     inner = Context(
                         ctx.variables,
@@ -580,7 +642,7 @@ class Runner:
                 deadline = time.monotonic() + step.seconds
                 while (left := deadline - time.monotonic()) > 0:
                     if self._controller.abort.wait(min(_POLL, left)):
-                        self._finish("aborted", "Abgebrochen", 2)
+                        self._finish("aborted", _("Abgebrochen"), 2)
                         return False
                 return True
             case MessageStep():
@@ -594,7 +656,7 @@ class Runner:
             case AbortStep():
                 text = self._try_render(step, step.text or "", ctx)
                 if text is not None:
-                    self._finish("aborted", text or "Workflow abgebrochen", step.exit_code)
+                    self._finish("aborted", text or _("Workflow abgebrochen"), step.exit_code)
                 return False
 
     def _ask_step(self, step: AskStep, text: str) -> bool:
@@ -610,20 +672,24 @@ class Runner:
         }
         deadline = None if step.timeout is None else time.monotonic() + step.timeout
         error: str | None = None
-        for _ in range(MAX_ASKS):
+        for _attempt in range(MAX_ASKS):
             remaining = None if deadline is None else max(deadline - time.monotonic(), 0.001)
             request = AskRequest(
                 step.id, step.title, text, fields, current, step.buttons, error, remaining
             )
             answer = self._wait_for_answer(request, deadline)
             if self._controller.abort.is_set():
-                self._finish("aborted", "Abgebrochen", 2)
+                self._finish("aborted", _("Abgebrochen"), 2)
                 return False
             if answer is _TIMED_OUT:
-                self._finish("aborted", f"Keine Antwort innerhalb von {step.timeout:g} s", 2)
+                self._finish(
+                    "aborted",
+                    _("Keine Antwort innerhalb von {n} s", n=f"{step.timeout:g}"),
+                    2,
+                )
                 return False
             if answer is None:
-                self._finish("aborted", f"Abfrage '{step.id}' vom Nutzer abgebrochen", 2)
+                self._finish("aborted", _("Abfrage '{id}' vom Nutzer abgebrochen", id=step.id), 2)
                 return False
             assert isinstance(answer, AskAnswer)  # noqa: S101
             try:
@@ -637,7 +703,7 @@ class Runner:
                 }
                 continue
             return True
-        self._finish("aborted", f"Zu viele ungültige Antworten bei Abfrage '{step.id}'", 2)
+        self._finish("aborted", _("Zu viele ungültige Antworten bei Abfrage '{id}'", id=step.id), 2)
         return False
 
     def _wait_for_answer(
@@ -672,14 +738,18 @@ class Runner:
     ) -> dict[str, str]:
         """Check an answer like start values; raises RunError with the form's messages."""
         if answer.button not in step.buttons:
-            raise RunError(f"Unbekannter Knopf '{answer.button}'. Einen der Knöpfe wählen.")
+            raise RunError(
+                _("Unbekannter Knopf '{button}'. Einen der Knöpfe wählen.", button=answer.button)
+            )
         result: dict[str, str] = {}
         for name, spec in fields.items():
             value = _text(answer.values[name]) if name in answer.values else None
             value = self._variables.get(name) if value is None else value
             if not value:
                 if spec.required:
-                    raise RunError(f"Pflichtvariable '{name}' hat keinen Wert. Wert eingeben.")
+                    raise RunError(
+                        _("Pflichtvariable '{name}' hat keinen Wert. Wert eingeben.", name=name)
+                    )
                 if value == "":  # answered empty: clear the variable
                     result[name] = value
                 continue
@@ -698,7 +768,7 @@ class Runner:
         try:
             return render(text, ctx)
         except TemplateError as err:
-            self._finish("failed", f"Schritt '{step.id}': {err}", 1)
+            self._finish("failed", _("Schritt '{id}': {err}", id=step.id, err=err), 1)
             return None
 
     # -------------------------------------------------------------- command
@@ -717,7 +787,11 @@ class Runner:
                 if env_blocked(key):
                     self._emit(
                         Message(
-                            step.id, f"WARNUNG: Umgebungsvariable '{key}' nicht erlaubt, verworfen"
+                            step.id,
+                            _(
+                                "WARNUNG: Umgebungsvariable '{key}' nicht erlaubt, verworfen",
+                                key=key,
+                            ),
                         )
                     )
                 else:
@@ -728,7 +802,7 @@ class Runner:
             if isinstance(step, TerminalStep) and (message := _terminal_cwd_error(cwd, self._cwd)):
                 raise _StepError(message)
             if not cwd.is_dir():
-                raise _StepError(f"Arbeitsverzeichnis '{cwd}' existiert nicht")
+                raise _StepError(_("Arbeitsverzeichnis '{cwd}' existiert nicht", cwd=cwd))
             stdin, stdin_file, stdin_label = (
                 self._stdin(step, ctx, cwd) if isinstance(step, CommandStep) else (None, None, None)
             )
@@ -763,7 +837,10 @@ class Runner:
         if step.stdin.pipe is not None:
             if step.stdin.pipe not in self._stdout_bytes:
                 raise _StepError(
-                    f"stdin.pipe '{step.stdin.pipe}': Schritt hat keine Ausgabe (nicht gelaufen?)"
+                    _(
+                        "stdin.pipe '{pipe}': Schritt hat keine Ausgabe (nicht gelaufen?)",
+                        pipe=step.stdin.pipe,
+                    )
                 )
             return self._stdout_bytes[step.stdin.pipe], None, f"pipe: {step.stdin.pipe}"
         if step.stdin.text is not None:
@@ -773,7 +850,9 @@ class Runner:
         try:
             return path.read_bytes(), path, str(path)
         except (OSError, ValueError) as err:
-            raise _StepError(f"stdin.file '{path}' nicht lesbar: {err}") from err
+            raise _StepError(
+                _("stdin.file '{path}' nicht lesbar: {err}", path=path, err=err)
+            ) from err
 
     def _command(self, step: CommandStep | TerminalStep, ctx: Context) -> bool:
         try:
@@ -799,7 +878,7 @@ class Runner:
         if needs_confirmation(verdict.safety) and not self._confirm(
             ConfirmRequest(step.id, built.command, verdict.safety, verdict.reasons)
         ):
-            self._finish("aborted", f"Schritt '{step.id}' vom Nutzer abgelehnt", 2)
+            self._finish("aborted", _("Schritt '{id}' vom Nutzer abgelehnt", id=step.id), 2)
             return False
         self._emit(StepStarted(step.id, built.command, verdict.safety))
         attempts = 1 + (step.on_error.retries or 0)
@@ -811,7 +890,7 @@ class Runner:
             if ok:
                 return True
             if self._controller.abort.is_set():
-                self._finish("aborted", "Abgebrochen", 2)
+                self._finish("aborted", _("Abgebrochen"), 2)
                 return False
         return self._failed(step, ctx, reason)
 
@@ -819,14 +898,32 @@ class Runner:
         """Apply `on_error` after the final failed attempt; True means the run goes on."""
         action = step.on_error.action
         if action == "continue":
-            self._emit(Message(step.id, f"Schritt '{step.id}' fehlgeschlagen ({reason}), weiter"))
+            self._emit(
+                Message(
+                    step.id,
+                    _(
+                        "Schritt '{id}' fehlgeschlagen ({reason}), weiter",
+                        id=step.id,
+                        reason=reason,
+                    ),
+                )
+            )
             return True
         if action == "fallback":
             self._emit(
-                Message(step.id, f"Schritt '{step.id}' fehlgeschlagen ({reason}), Ersatzschritte")
+                Message(
+                    step.id,
+                    _(
+                        "Schritt '{id}' fehlgeschlagen ({reason}), Ersatzschritte",
+                        id=step.id,
+                        reason=reason,
+                    ),
+                )
             )
             return self._steps(step.on_error.steps or [], ctx)
-        self._finish("failed", f"Schritt '{step.id}' fehlgeschlagen: {reason}", 1)
+        self._finish(
+            "failed", _("Schritt '{id}' fehlgeschlagen: {reason}", id=step.id, reason=reason), 1
+        )
         return False
 
     def _execute(self, step: CommandStep, built: _Built, attempt: int) -> tuple[bool, str]:
@@ -848,11 +945,12 @@ class Runner:
                 cancel=self._controller.abort,
             )
             if raw is None:
-                error = (
-                    f"Programm '{built.argv[0]}' konnte nicht gestartet werden (Rechte, Format?)"
+                error = _(
+                    "Programm '{program}' konnte nicht gestartet werden (Rechte, Format?)",
+                    program=built.argv[0],
                 )
         except ValueError as err:  # NUL byte in argv or environment
-            error = f"Ungültiges Argument oder Umgebung: {err}"
+            error = _("Ungültiges Argument oder Umgebung: {err}", err=err)
         emitter.flush()
         if raw is None:
             reason = error or ""
@@ -889,12 +987,14 @@ class Runner:
         )
         self._emit(StepFinished(step.id, raw.exit_code, ok, time.monotonic() - clock, attempt))
         if raw.timed_out:
-            return ok, "Zeitlimit überschritten"
+            return ok, _("Zeitlimit überschritten")
         if raw.truncated:
-            return ok, f"Ausgabelimit von {self._output_limit} Bytes überschritten"
+            return ok, _("Ausgabelimit von {limit} Bytes überschritten", limit=self._output_limit)
         if raw.cancelled:
-            return ok, "Abgebrochen"
-        return ok, f"Exit-Code {raw.exit_code}, erlaubt: {step.ok_exit_codes}"
+            return ok, _("Abgebrochen")
+        return ok, _(
+            "Exit-Code {code}, erlaubt: {allowed}", code=raw.exit_code, allowed=step.ok_exit_codes
+        )
 
     def _run_terminal(self, step: TerminalStep, built: _Built, attempt: int) -> tuple[bool, str]:
         """One interactive attempt; later steps get no output (empty stdout/stderr)."""
@@ -919,7 +1019,7 @@ class Runner:
         try:
             code = self._terminal(request)
         except OSError as err:
-            error = f"Terminal konnte nicht gestartet werden: {err}"
+            error = _("Terminal konnte nicht gestartet werden: {err}", err=err)
         ok = code in step.ok_exit_codes and not self._controller.abort.is_set()
         self._record(
             step, built.argv, built.command, started, code, error, b"", b"", False, ok, attempt
@@ -928,8 +1028,8 @@ class Runner:
         if error:
             return False, error
         if self._controller.abort.is_set():
-            return False, "Abgebrochen"
-        return ok, f"Exit-Code {code}, erlaubt: {step.ok_exit_codes}"
+            return False, _("Abgebrochen")
+        return ok, _("Exit-Code {code}, erlaubt: {allowed}", code=code, allowed=step.ok_exit_codes)
 
     def _record(
         self,

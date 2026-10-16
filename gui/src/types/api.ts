@@ -165,6 +165,8 @@ export type RunAction = "abort" | "pause" | "resume" | "step";
 // Mirrors whattheshell.settings.Settings (docs/API.md "Einstellungen"); `key_status` is read-only, sent by GET only.
 export interface Settings {
   schema_version: number;
+  /** Language of GUI, server messages and CLI; "auto" = follow the environment. */
+  language: "auto" | "de" | "en";
   ai: {
     enabled: boolean;
     provider: "local" | "api" | "agent";

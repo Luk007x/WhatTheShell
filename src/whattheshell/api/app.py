@@ -24,6 +24,7 @@ from whattheshell.api.security import SecurityMiddleware, Session
 from whattheshell.api.terminal import router as terminal_router
 from whattheshell.api.terminal import terminal_hub
 from whattheshell.catalog import Catalog
+from whattheshell.i18n import _, resolve_default, use_lang
 from whattheshell.modules.loader import MODULE_SUFFIXES, WORKFLOW_SUFFIXES, DocumentError
 from whattheshell.modules.registry import ModuleRegistry
 from whattheshell.modules.watch import watch_dirs
@@ -32,10 +33,9 @@ from whattheshell.workflows import WorkflowIndex
 
 STATIC_DIR = Path(__file__).parent / "static"
 logger = logging.getLogger(__name__)
-FRONTEND_MISSING = "Frontend nicht gebaut: cd gui && npm ci && npm run build"
 
 
-def _http_error(_: Request, exc: StarletteHTTPException) -> JSONResponse:
+def _http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
     detail = exc.detail
     if isinstance(detail, dict):
         return error_response(exc.status_code, **detail)
@@ -43,12 +43,12 @@ def _http_error(_: Request, exc: StarletteHTTPException) -> JSONResponse:
     return error_response(exc.status_code, code, str(detail))
 
 
-def _validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
+def _validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
     errors = [
         {"path": ".".join(str(part) for part in item["loc"]), "message": item["msg"]}
         for item in exc.errors()
     ]
-    return error_response(422, "validation", "Ungültige Anfrage.", errors)
+    return error_response(422, "validation", _("Ungültige Anfrage."), errors)
 
 
 def _watch(app: FastAPI, stop: threading.Event) -> None:
@@ -60,11 +60,12 @@ def _watch(app: FastAPI, stop: threading.Event) -> None:
         app.state.modules_watch = app.state.workflows_watch = True
 
     def changed(paths: set[Path]) -> None:
-        for path in paths:
-            if path.name.endswith(MODULE_SUFFIXES):
-                registry.reload(path)
-        if any(p.name.endswith(WORKFLOW_SUFFIXES) for p in paths):
-            index.scan()
+        with use_lang(resolve_default()):  # cached errors use the server language
+            for path in paths:
+                if path.name.endswith(MODULE_SUFFIXES):
+                    registry.reload(path)
+            if any(p.name.endswith(WORKFLOW_SUFFIXES) for p in paths):
+                index.scan()
 
     try:
         watch_dirs(
@@ -121,7 +122,8 @@ def create_app(
     app.state.registry = registry
     app.state.workflows_watch = False
     app.state.workflows = WorkflowIndex(paths.workflow_dirs(Path.cwd()))
-    app.state.workflows.scan()
+    with use_lang(resolve_default()):
+        app.state.workflows.scan()
     app.add_middleware(SecurityMiddleware, session=session)
     app.add_exception_handler(StarletteHTTPException, _http_error)  # type: ignore[arg-type]
     app.add_exception_handler(RequestValidationError, _validation_error)  # type: ignore[arg-type]
@@ -140,6 +142,10 @@ def create_app(
 
         @app.get("/")
         def frontend_missing() -> JSONResponse:
-            return error_response(503, "frontend", FRONTEND_MISSING)
+            return error_response(
+                503,
+                "frontend",
+                _("Frontend nicht gebaut: cd gui && npm ci && npm run build"),
+            )
 
     return app

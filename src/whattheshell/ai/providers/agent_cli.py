@@ -12,6 +12,7 @@ from typing import Literal
 from whattheshell import paths
 from whattheshell.ai.protocol import Prompt
 from whattheshell.ai.providers.http import printable
+from whattheshell.i18n import _
 from whattheshell.settings import validate_command
 from whattheshell.subproc import run_limited, sanitized_env
 
@@ -115,21 +116,36 @@ class AgentCliProvider:
             )  # fmt: skip
             program = argv[0]
             if result is None:
-                raise RuntimeError(f"Programm `{program}` nicht gefunden")
+                raise RuntimeError(_("Programm `{program}` nicht gefunden", program=program))
             if result.timed_out:
                 raise RuntimeError(
-                    f"`{program}` hat das Zeitlimit von {self._timeout:g} s überschritten"
+                    _(
+                        "`{program}` hat das Zeitlimit von {timeout:g} s überschritten",
+                        program=program,
+                        timeout=self._timeout,
+                    )
                 )
             if result.truncated:
-                raise RuntimeError(f"Antwort von `{program}` über dem Limit abgeschnitten")
+                raise RuntimeError(
+                    _("Antwort von `{program}` über dem Limit abgeschnitten", program=program)
+                )
             if result.exit_code != 0:
                 detail = printable(result.stderr.decode(errors="replace").strip()[:300])
-                raise RuntimeError(f"`{program}` endete mit Code {result.exit_code}: {detail}")
+                raise RuntimeError(
+                    _(
+                        "`{program}` endete mit Code {code}: {detail}",
+                        program=program,
+                        code=result.exit_code,
+                        detail=detail,
+                    )
+                )
             last = work / "last.txt"
             if self._kind == "codex" and last.exists():
                 with last.open("rb") as handle:
                     data = handle.read(_MAX_BYTES + 1)
                 if len(data) > _MAX_BYTES:
-                    raise RuntimeError(f"Antwort von `{program}` über dem Limit abgeschnitten")
+                    raise RuntimeError(
+                        _("Antwort von `{program}` über dem Limit abgeschnitten", program=program)
+                    )
                 return data.decode(errors="replace")
             return result.stdout.decode(errors="replace")

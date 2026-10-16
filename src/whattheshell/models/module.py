@@ -8,6 +8,7 @@ from typing import Any, Literal
 
 from pydantic import Field, field_validator, model_validator
 
+from whattheshell.i18n import _
 from whattheshell.models.common import (
     InputSpec,
     OptionSpec,
@@ -55,7 +56,7 @@ class Expect(StrictModel):
                 re.compile(value)
             except re.error as err:
                 raise ValueError(
-                    f"stdout_regex ist kein gültiger regulärer Ausdruck: {err}"
+                    _("stdout_regex ist kein gültiger regulärer Ausdruck: {err}", err=err)
                 ) from err
         return value
 
@@ -114,10 +115,15 @@ class CommandOverride(StrictModel):
     def _unique_names(self) -> CommandOverride:
         ids = [spec.id for spec in (*self.inputs, *self.options)]
         names = [sub.name for sub in self.subcommands]
-        for kind, values in (("inputs/options-id", ids), ("subcommand-name", names)):
+        for kind, values in (
+            (_("inputs/options-id"), ids),
+            (_("subcommand-name"), names),
+        ):
             for value in values:
                 if values.count(value) > 1:
-                    raise ValueError(f"{kind} '{value}' kommt mehrfach vor")
+                    raise ValueError(
+                        _("{kind} '{value}' kommt mehrfach vor", kind=kind, value=value)
+                    )
         return self
 
 

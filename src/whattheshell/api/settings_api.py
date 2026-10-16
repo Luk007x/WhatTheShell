@@ -8,6 +8,7 @@ from fastapi import APIRouter, Request
 
 from whattheshell import paths
 from whattheshell.api.rest import fail
+from whattheshell.i18n import _, invalidate
 from whattheshell.settings import Settings, save_settings
 
 router = APIRouter(prefix="/api/settings")
@@ -41,8 +42,13 @@ def put_settings(request: Request, body: Settings) -> dict[str, Any]:
         raise fail(
             500,
             "write",
-            f"Einstellungen nicht schreibbar: {err}. Prüfe Rechte auf {paths.config_dir()}.",
+            _(
+                "Einstellungen nicht schreibbar: {err}. Prüfe Rechte auf {folder}.",
+                err=err,
+                folder=paths.config_dir(),
+            ),
         ) from err
+    invalidate()
     request.app.state.settings = body
     request.app.state.settings_error = None
     return _view(body)

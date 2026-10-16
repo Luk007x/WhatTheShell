@@ -68,6 +68,10 @@ Der Ordner für den Zustand (`$XDG_RUNTIME_DIR/whattheshell` oder `~/.cache/what
 
 ## Workflows
 
+### „Datei wurde außerhalb der App geändert“ / Workflow startet nicht
+
+Der Workflow ist „Außerhalb geändert“ oder „Nicht geprüft“ (siehe „Bibliothek: Filter, Import und Integrität“ im Kapitel „Workflow bauen“). Die Datei ansehen, dann in der Bibliothek „Prüfen und übernehmen“ klicken oder `wts workflows accept ID` bzw. `wts run --accept` verwenden. Ein Trockenlauf geht ohne Übernahme. Nach einem Update zeigen vorhandene eigene Dateien einmalig „Nicht geprüft“. Dateien außerhalb der Workflow-Ordner brauchen immer `--accept`.
+
 ### Workflow ungültig
 
 In der Oberfläche steht „n Fehler im Workflow“; die Meldung nennt das Feld. Auf der Kommandozeile:

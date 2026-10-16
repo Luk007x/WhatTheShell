@@ -52,6 +52,7 @@ from whattheshell.engine import (
     plan_text,
     secret_values,
 )
+from whattheshell.i18n import _, _lang, resolve_default, set_lang
 from whattheshell.models.catalog import CommandSpec, ToolInfo
 from whattheshell.models.common import Safety, ValueType
 from whattheshell.models.schema import export_schemas
@@ -111,7 +112,10 @@ def _format_command(command: CommandSpec) -> list[str]:
     elif command.raw_help is not None:
         count = len(command.raw_help.splitlines())
         lines.append(
-            f"Keine Optionen erkannt, Baustein „Freie Argumente“ mit Rohtext ({count} Zeilen)"
+            _(
+                "Keine Optionen erkannt, Baustein „Freie Argumente“ mit Rohtext ({count} Zeilen)",
+                count=count,
+            )
         )
     if command.subcommands:
         lines.append("Subcommands:")
@@ -120,13 +124,19 @@ def _format_command(command: CommandSpec) -> list[str]:
 
 
 def _format_info(info: ToolInfo) -> str:
-    head = (
-        f"{info.command.display_name or info.name} ({info.path}), "
-        f"{info.version or 'Version unbekannt'}, "
-        f"Quelle {info.source}, Konfidenz {info.command.confidence}, "
-        f"interaktiv {'ja' if info.command.interactive else 'nein'}"
+    head = _(
+        "{name} ({path}), {version}, Quelle {source}, "
+        "Konfidenz {confidence}, interaktiv {interactive}",
+        name=info.command.display_name or info.name,
+        path=info.path,
+        version=info.version or _("Version unbekannt"),
+        source=info.source,
+        confidence=info.command.confidence,
+        interactive=_("ja") if info.command.interactive else _("nein"),
     )
-    modules = [f"Module: {', '.join(info.module_files)}"] if info.module_files else []
+    modules = (
+        [_("Module: {files}", files=", ".join(info.module_files))] if info.module_files else []
+    )
     return "\n".join([head, *modules, *_format_command(info.command)])
 
 
@@ -139,125 +149,151 @@ def main(argv: list[str] | None = None) -> int:
     Returns:
         Process exit code.
     """
+    # language first: help texts of the real parser are translated while it is built
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument("--lang", choices=["de", "en"])
+    token = set_lang(pre.parse_known_args(argv)[0].lang or resolve_default())
+    try:
+        return _main(argv)
+    finally:
+        _lang.reset(token)
+
+
+def _main(argv: list[str] | None) -> int:
     parser = argparse.ArgumentParser(prog="wts", description=APP_NAME)
+    parser.add_argument("--lang", choices=["de", "en"], help=_("Sprache der Meldungen (de, en)"))
     parser.add_argument("--version", action="version", version=f"{APP_NAME} {__version__}")
     commands = parser.add_subparsers(dest="command", required=False)
-    schema = commands.add_parser("schema", help="JSON-Schemas verwalten")
+    schema = commands.add_parser("schema", help=_("JSON-Schemas verwalten"))
     schema_commands = schema.add_subparsers(dest="schema_command", required=True)
-    export = schema_commands.add_parser("export", help="Schemas aus den Modellen erzeugen")
-    export.add_argument("--out", type=Path, default=Path("schemas"), help="Zielordner")
-    tools = commands.add_parser("tools", help="Programme auf PATH auflisten")
-    tools.add_argument("--search", help="Nur Namen, die diesen Text enthalten")
-    inspect = commands.add_parser("inspect", help="Hilfe eines Tools als Katalogeintrag zeigen")
+    export = schema_commands.add_parser("export", help=_("Schemas aus den Modellen erzeugen"))
+    export.add_argument("--out", type=Path, default=Path("schemas"), help=_("Zielordner"))
+    tools = commands.add_parser("tools", help=_("Programme auf PATH auflisten"))
+    tools.add_argument("--search", help=_("Nur Namen, die diesen Text enthalten"))
+    inspect = commands.add_parser("inspect", help=_("Hilfe eines Tools als Katalogeintrag zeigen"))
     inspect.add_argument("tool")
-    inspect.add_argument("sub", nargs="*", help="Subbefehle")
-    inspect.add_argument("--json", action="store_true", help="Ausgabe als JSON")
-    inspect.add_argument("--refresh", action="store_true", help="Cache ignorieren")
+    inspect.add_argument("sub", nargs="*", help=_("Subbefehle"))
+    inspect.add_argument("--json", action="store_true", help=_("Ausgabe als JSON"))
+    inspect.add_argument("--refresh", action="store_true", help=_("Cache ignorieren"))
     inspect.add_argument(
-        "--no-sandbox", action="store_true", help="Hilfe-Abruf auf dem Host statt in der Sandbox"
+        "--no-sandbox", action="store_true", help=_("Hilfe-Abruf auf dem Host statt in der Sandbox")
     )
-    inspect.add_argument("--deep", action="store_true", help="Subbefehle eine Ebene mitlesen")
-    validate = commands.add_parser("validate", help="Modul- und Workflow-Dateien prüfen")
+    inspect.add_argument("--deep", action="store_true", help=_("Subbefehle eine Ebene mitlesen"))
+    validate = commands.add_parser("validate", help=_("Modul- und Workflow-Dateien prüfen"))
     validate.add_argument("files", nargs="+", type=Path)
-    scaffold = commands.add_parser("scaffold", help="Modul-Gerüst aus der Hilfe eines Tools")
+    scaffold = commands.add_parser("scaffold", help=_("Modul-Gerüst aus der Hilfe eines Tools"))
     scaffold.add_argument("tool")
-    scaffold.add_argument("sub", nargs="*", help="Subbefehle")
+    scaffold.add_argument("sub", nargs="*", help=_("Subbefehle"))
     target = scaffold.add_mutually_exclusive_group()
-    target.add_argument("--out", type=Path, help="Zieldatei statt stdout (Ordner werden angelegt)")
     target.add_argument(
-        "--user", action="store_true", help="In den Modulordner des Benutzers schreiben"
+        "--out", type=Path, help=_("Zieldatei statt stdout (Ordner werden angelegt)")
     )
-    scaffold.add_argument("--force", action="store_true", help="Zieldatei überschreiben")
-    run = commands.add_parser("run", help="Workflow ausführen")
-    run.add_argument("file", type=Path, help="Workflow-Datei oder id aus `wts workflows`")
-    run.add_argument("--dry-run", action="store_true", help="Nur den Plan zeigen")
+    target.add_argument(
+        "--user", action="store_true", help=_("In den Modulordner des Benutzers schreiben")
+    )
+    scaffold.add_argument("--force", action="store_true", help=_("Zieldatei überschreiben"))
+    run = commands.add_parser("run", help=_("Workflow ausführen"))
+    run.add_argument("file", type=Path, help=_("Workflow-Datei oder id aus `wts workflows`"))
+    run.add_argument("--dry-run", action="store_true", help=_("Nur den Plan zeigen"))
     run.add_argument(
         "--accept",
         action="store_true",
-        help="Geänderte oder ungestempelte Datei prüfen, übernehmen und ausführen",
+        help=_("Geänderte oder ungestempelte Datei prüfen, übernehmen und ausführen"),
     )
     run.add_argument(
         "--yes",
         "-y",
         action="store_true",
-        help="Alle Bestätigungen mit ja beantworten (Abfrage-Schritte beantwortet es nicht)",
+        help=_("Alle Bestätigungen mit ja beantworten (Abfrage-Schritte beantwortet es nicht)"),
     )
     run.add_argument(
-        "--var", action="append", default=[], metavar="NAME=WERT", help="Variable setzen"
+        "--var", action="append", default=[], metavar=_("NAME=WERT"), help=_("Variable setzen")
     )
-    run.add_argument("--cwd", type=Path, help="Arbeitsverzeichnis (Standard: aktuelles)")
-    run.add_argument("--json", action="store_true", help="Ergebnis als JSON statt Live-Ausgabe")
-    commands.add_parser("sandbox", help="Sandbox (bwrap) prüfen")
-    example = commands.add_parser("example", help="Beispiele eines Tools in der Sandbox ausführen")
+    run.add_argument("--cwd", type=Path, help=_("Arbeitsverzeichnis (Standard: aktuelles)"))
+    run.add_argument("--json", action="store_true", help=_("Ergebnis als JSON statt Live-Ausgabe"))
+    commands.add_parser("sandbox", help=_("Sandbox (bwrap) prüfen"))
+    example = commands.add_parser(
+        "example", help=_("Beispiele eines Tools in der Sandbox ausführen")
+    )
     example.add_argument("tool")
-    example.add_argument("number", nargs="?", type=int, help="Nur dieses Beispiel (1-basiert)")
-    example.add_argument("--all", action="store_true", help="Alle Beispiele (Standard)")
-    workflows = commands.add_parser("workflows", help="Workflow-Bibliothek (Standard: auflisten)")
+    example.add_argument("number", nargs="?", type=int, help=_("Nur dieses Beispiel (1-basiert)"))
+    example.add_argument("--all", action="store_true", help=_("Alle Beispiele (Standard)"))
+    workflows = commands.add_parser(
+        "workflows", help=_("Workflow-Bibliothek (Standard: auflisten)")
+    )
     workflow_actions = workflows.add_subparsers(dest="workflows_action")
-    workflow_actions.add_parser("list", help="Bibliothek mit Quelle und Integrität auflisten")
+    workflow_actions.add_parser("list", help=_("Bibliothek mit Quelle und Integrität auflisten"))
     import_cmd = workflow_actions.add_parser(
-        "import", help="Workflow-Datei prüfen und in den Nutzerordner übernehmen"
+        "import", help=_("Workflow-Datei prüfen und in den Nutzerordner übernehmen")
     )
     import_cmd.add_argument("file", type=Path)
-    import_cmd.add_argument("--overwrite", action="store_true", help="Vorhandene Datei ersetzen")
+    import_cmd.add_argument("--overwrite", action="store_true", help=_("Vorhandene Datei ersetzen"))
     accept_cmd = workflow_actions.add_parser(
-        "accept", help="Außerhalb der App geänderte Datei prüfen und übernehmen"
+        "accept", help=_("Außerhalb der App geänderte Datei prüfen und übernehmen")
     )
     accept_cmd.add_argument("id")
-    modules = commands.add_parser("modules", help="Geladene Module auflisten")
-    modules.add_argument("--watch", action="store_true", help="Änderungen live neu laden")
-    gui = commands.add_parser("gui", help="Oberfläche starten (nur 127.0.0.1, mit Sitzungstoken)")
+    modules = commands.add_parser("modules", help=_("Geladene Module auflisten"))
+    modules.add_argument("--watch", action="store_true", help=_("Änderungen live neu laden"))
+    gui = commands.add_parser(
+        "gui", help=_("Oberfläche starten (nur 127.0.0.1, mit Sitzungstoken)")
+    )
     gui.add_argument(
         "action",
         nargs="?",
         choices=["start", "stop", "status"],
-        help="start: im Hintergrund, stop: beenden, status: läuft sie? (Standard: Vordergrund)",
+        help=_("start: im Hintergrund, stop: beenden, status: läuft sie? (Standard: Vordergrund)"),
     )
-    gui.add_argument("--port", type=int, default=0, help="Port (Standard: freier Port)")
-    gui.add_argument("--no-browser", action="store_true", help="Browser nicht öffnen")
+    gui.add_argument("--port", type=int, default=0, help=_("Port (Standard: freier Port)"))
+    gui.add_argument("--no-browser", action="store_true", help=_("Browser nicht öffnen"))
     gui.add_argument(
-        "--install-desktop", action="store_true", help="Menüeintrag (.desktop) für `wts gui start`"
+        "--install-desktop",
+        action="store_true",
+        help=_("Menüeintrag (.desktop) für `wts gui start`"),
     )
-    terminal = commands.add_parser("terminal", help="Gespeicherte Terminal-Ausgaben")
+    terminal = commands.add_parser("terminal", help=_("Gespeicherte Terminal-Ausgaben"))
     transcripts = terminal.add_subparsers(dest="terminal_command", required=True).add_parser(
-        "transcripts", help="Transkripte auflisten oder löschen"
+        "transcripts", help=_("Transkripte auflisten oder löschen")
     )
-    transcripts.add_argument("--delete", metavar="NAME", help="Dieses Transkript löschen")
-    ai = commands.add_parser("ai", help="Optionale KI-Funktionen (standardmäßig aus)")
+    transcripts.add_argument("--delete", metavar="NAME", help=_("Dieses Transkript löschen"))
+    ai = commands.add_parser("ai", help=_("Optionale KI-Funktionen (standardmäßig aus)"))
     ai_commands = ai.add_subparsers(dest="ai_command", required=True)
-    ai_commands.add_parser("enable", help="KI-Funktionen einschalten")
-    ai_commands.add_parser("disable", help="KI-Funktionen ausschalten")
-    ai_commands.add_parser("status", help="Einstellungen zeigen (ohne Schlüssel)")
-    ai_check = ai_commands.add_parser("check", help="Konfigurierte KI-Quelle prüfen")
-    ai_check.add_argument("--no-network", action="store_true", help="Keinen Endpunkt kontaktieren")
-    ai_config = ai_commands.add_parser("config", help="Einstellung ändern")
-    ai_config_set = ai_config.add_subparsers(dest="config_command", required=True).add_parser(
-        "set", help="z. B. `provider agent`, `agent.kind codex`, `api.model NAME`"
+    ai_commands.add_parser("enable", help=_("KI-Funktionen einschalten"))
+    ai_commands.add_parser("disable", help=_("KI-Funktionen ausschalten"))
+    ai_commands.add_parser("status", help=_("Einstellungen zeigen (ohne Schlüssel)"))
+    ai_check = ai_commands.add_parser("check", help=_("Konfigurierte KI-Quelle prüfen"))
+    ai_check.add_argument(
+        "--no-network", action="store_true", help=_("Keinen Endpunkt kontaktieren")
     )
-    ai_config_set.add_argument("path", help="Punktpfad unterhalb von ai")
-    ai_config_set.add_argument("value", help="Wert (JSON oder Text)")
-    improve = ai_commands.add_parser("improve-module", help="Modul verbessern oder neu schreiben")
+    ai_config = ai_commands.add_parser("config", help=_("Einstellung ändern"))
+    ai_config_set = ai_config.add_subparsers(dest="config_command", required=True).add_parser(
+        "set", help=_("z. B. `provider agent`, `agent.kind codex`, `api.model NAME`")
+    )
+    ai_config_set.add_argument("path", help=_("Punktpfad unterhalb von ai"))
+    ai_config_set.add_argument("value", help=_("Wert (JSON oder Text)"))
+    improve = ai_commands.add_parser(
+        "improve-module", help=_("Modul verbessern oder neu schreiben")
+    )
     improve.add_argument("tool")
-    improve.add_argument("--out", type=Path, help="Dateiname im Modulordner des Benutzers")
-    examples = ai_commands.add_parser("examples", help="Beispiele und fixtures ergänzen")
+    improve.add_argument("--out", type=Path, help=_("Dateiname im Modulordner des Benutzers"))
+    examples = ai_commands.add_parser("examples", help=_("Beispiele und fixtures ergänzen"))
     examples.add_argument("tool")
-    draft = ai_commands.add_parser("draft-workflow", help="Workflow aus einer Beschreibung")
+    draft = ai_commands.add_parser("draft-workflow", help=_("Workflow aus einer Beschreibung"))
     draft.add_argument("description")
-    draft.add_argument("--name", help="Dateiname (ohne Endung) im Workflow-Ordner")
-    diagnose = ai_commands.add_parser("diagnose", help="Fehlgeschlagenen Schritt erklären")
-    diagnose.add_argument("run_json", type=Path, help="Ausgabe von `wts run --json`")
+    draft.add_argument("--name", help=_("Dateiname (ohne Endung) im Workflow-Ordner"))
+    diagnose = ai_commands.add_parser("diagnose", help=_("Fehlgeschlagenen Schritt erklären"))
+    diagnose.add_argument("run_json", type=Path, help=_("Ausgabe von `wts run --json`"))
     diagnose.add_argument("step_id")
     diagnose.add_argument(
-        "--include-output", action="store_true", help="stdout/stderr mitsenden (gekürzt)"
+        "--include-output", action="store_true", help=_("stdout/stderr mitsenden (gekürzt)")
     )
     for task in (improve, examples, draft, diagnose):
-        task.add_argument("--yes", "-y", action="store_true", help="Senden bestätigen")
+        task.add_argument("--yes", "-y", action="store_true", help=_("Senden bestätigen"))
         task.add_argument(
-            "--preview-file", type=Path, help="Datenvorschau in diese Datei (0600) statt stdout"
+            "--preview-file", type=Path, help=_("Datenvorschau in diese Datei (0600) statt stdout")
         )
     for task in (improve, examples, draft):
         task.add_argument(
-            "--apply", action="store_true", help="Ergebnis ohne Rückfrage in den Benutzerordner"
+            "--apply", action="store_true", help=_("Ergebnis ohne Rückfrage in den Benutzerordner")
         )
     args = parser.parse_args(argv)
     try:
@@ -284,7 +320,7 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
     if args.command == "inspect":
         registry = _registry()
         for err in registry.errors:
-            print(f"WARNUNG {err}", file=sys.stderr)
+            print(_("WARNUNG {err}", err=err), file=sys.stderr)
         try:
             info = _catalog(registry, sandbox=not args.no_sandbox).get(
                 args.tool,
@@ -298,8 +334,12 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
             return 1
         except (OSError, ValidationError) as err:
             print(
-                f"Tool '{args.tool}' konnte nicht gelesen werden: {err}. "
-                "Prüfe Rechte und Cache-Ordner oder nutze --refresh.",
+                _(
+                    "Tool '{tool}' konnte nicht gelesen werden: {err}. "
+                    "Prüfe Rechte und Cache-Ordner oder nutze --refresh.",
+                    tool=args.tool,
+                    err=err,
+                ),
                 file=sys.stderr,
             )
             return 1
@@ -330,13 +370,17 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
             written = export_schemas(args.out)
         except OSError as err:
             print(
-                f"Schemas konnten nicht geschrieben werden: {err}. "
-                f"Prüfe, ob der Ordner {args.out} beschreibbar ist.",
+                _(
+                    "Schemas konnten nicht geschrieben werden: {err}. "
+                    "Prüfe, ob der Ordner {out} beschreibbar ist.",
+                    err=err,
+                    out=args.out,
+                ),
                 file=sys.stderr,
             )
             return 1
         for path in written:
-            print(f"geschrieben: {path}")
+            print(_("geschrieben: {path}", path=path))
         return 0
     parser.print_help()
     return 0
@@ -346,7 +390,7 @@ def _ai(args: argparse.Namespace) -> int:
     try:
         settings = load_settings()
     except DocumentError as err:
-        print(f"{err}\nEinstellungsdatei korrigieren oder löschen.", file=sys.stderr)
+        print(_("{err}\nEinstellungsdatei korrigieren oder löschen.", err=err), file=sys.stderr)
         return 1
     try:
         if args.ai_command in ("enable", "disable", "status", "config"):
@@ -367,16 +411,45 @@ def _ai_settings(args: argparse.Namespace, settings: Settings) -> int:
         ai = settings.ai
         key = ai.api.key_env
         source = (
-            f"ENV {key} ({'gesetzt' if os.environ.get(key) else 'nicht gesetzt'})"
+            _(
+                "ENV {key} ({state})",
+                key=key,
+                state=_("gesetzt") if os.environ.get(key) else _("nicht gesetzt"),
+            )
             if ai.api.key_source == "env"
-            else "Schlüsselbund"
+            else _("Schlüsselbund")
         )
-        print(f"KI: {'an' if ai.enabled else 'aus'}, Anbieter: {ai.provider}")
-        print(f"local: {ai.local.base_url} Modell '{ai.local.model}'")
-        print(f"api: {ai.api.kind} Modell '{ai.api.model}' Schlüsselquelle {source}")
-        print(f"agent: {ai.agent.kind} Modell '{ai.agent.model}' Reasoning '{ai.agent.reasoning}'")
-        print(f"Befehlsausgaben mitsenden: {'ja' if ai.send_outputs else 'nein'}")
-        print("Prüfung der Quelle: `wts ai check`")
+        print(
+            _(
+                "KI: {state}, Anbieter: {provider}",
+                state=_("an") if ai.enabled else _("aus"),
+                provider=ai.provider,
+            )
+        )
+        print(_("local: {url} Modell '{model}'", url=ai.local.base_url, model=ai.local.model))
+        print(
+            _(
+                "api: {kind} Modell '{model}' Schlüsselquelle {source}",
+                kind=ai.api.kind,
+                model=ai.api.model,
+                source=source,
+            )
+        )
+        print(
+            _(
+                "agent: {kind} Modell '{model}' Reasoning '{reasoning}'",
+                kind=ai.agent.kind,
+                model=ai.agent.model,
+                reasoning=ai.agent.reasoning,
+            )
+        )
+        print(
+            _(
+                "Befehlsausgaben mitsenden: {state}",
+                state=_("ja") if ai.send_outputs else _("nein"),
+            )
+        )
+        print(_("Prüfung der Quelle: `wts ai check`"))
         return 0
     data = settings.model_dump(mode="json")
     if args.ai_command == "config":
@@ -386,9 +459,12 @@ def _ai_settings(args: argparse.Namespace, settings: Settings) -> int:
             node = node.get(part) if isinstance(node, dict) else None
         if not isinstance(node, dict) or leaf not in node:
             print(
-                f"Unbekannter Pfad '{args.path}'. Gültig sind z. B. provider, send_outputs, "
-                "local.model, api.model, api.key_env, agent.kind. "
-                "Schlüssel gehören nie in Dateien.",
+                _(
+                    "Unbekannter Pfad '{path}'. Gültig sind z. B. provider, send_outputs, "
+                    "local.model, api.model, api.key_env, agent.kind. "
+                    "Schlüssel gehören nie in Dateien.",
+                    path=args.path,
+                ),
                 file=sys.stderr,
             )
             return 1
@@ -404,12 +480,27 @@ def _ai_settings(args: argparse.Namespace, settings: Settings) -> int:
     except ValidationError as err:  # no input values in the message: it may be a key
         for item in err.errors():
             where = ".".join(str(p) for p in item["loc"])
-            print(f"Ungültiger Wert für {where}: {item['msg']}", file=sys.stderr)
+            print(
+                _("Ungültiger Wert für {where}: {msg}", where=where, msg=item["msg"]),
+                file=sys.stderr,
+            )
         return 1
     except OSError as err:
-        print(f"Einstellungen nicht schreibbar: {err}. Prüfe Rechte auf {paths.config_dir()}.")
+        print(
+            _(
+                "Einstellungen nicht schreibbar: {err}. Prüfe Rechte auf {path}.",
+                err=err,
+                path=paths.config_dir(),
+            )
+        )
         return 1
-    print(f"KI: {'an' if settings.ai.enabled else 'aus'} ({args.ai_command})")
+    print(
+        _(
+            "KI: {state} ({command})",
+            state=_("an") if settings.ai.enabled else _("aus"),
+            command=args.ai_command,
+        )
+    )
     return 0
 
 
@@ -418,27 +509,36 @@ def _print_check(result: CheckResult) -> None:
         "✔✘".encode(sys.stdout.encoding or "ascii")
         good, bad = "✔", "✘"
     except (UnicodeEncodeError, LookupError):
-        good, bad = "[ok]", "[fehlt]"
+        good, bad = "[ok]", _("[fehlt]")
     for item in result.items:
         print(f"{good if item.ok else bad} {item.name}: {item.detail}")
         if item.hint:
             print(f"    {item.hint}")
-    state = "bereit" if result.ok else "nicht bereit"
-    print(f"KI-Quelle '{result.provider}': {state}")
+    state = _("bereit") if result.ok else _("nicht bereit")
+    print(_("KI-Quelle '{provider}': {state}", provider=result.provider, state=state))
 
 
 def _preview_text(prompt: Prompt, provider: str) -> str:
     def part(title: str, text: str) -> str:
-        return f"--- {title} ({len(text.splitlines())} Zeilen, {len(text)} Zeichen) ---\n{text}"
+        header = _(
+            "--- {title} ({lines} Zeilen, {chars} Zeichen) ---",
+            title=title,
+            lines=len(text.splitlines()),
+            chars=len(text),
+        )
+        return f"{header}\n{text}"
 
     total = len(prompt.system) + len(prompt.user)
     return "\n".join(
         [
-            f"== Datenvorschau: Das wird an den Anbieter '{provider}' gesendet ==",
-            f"Gesamtlänge: {total} Zeichen",
-            part("System", prompt.system),
-            part("Nutzer", prompt.user),
-            "== Ende der Datenvorschau ==",
+            _(
+                "== Datenvorschau: Das wird an den Anbieter '{provider}' gesendet ==",
+                provider=provider,
+            ),
+            _("Gesamtlänge: {total} Zeichen", total=total),
+            part(_("System"), prompt.system),
+            part(_("Nutzer"), prompt.user),
+            _("== Ende der Datenvorschau =="),
         ]
     )
 
@@ -503,17 +603,23 @@ def _ai_task(args: argparse.Namespace, settings: Settings) -> int:
         return 1
     except ValueError as err:
         if args.ai_command != "diagnose":
-            print(f"Ungültiges Ziel: {err}", file=sys.stderr)
+            print(_("Ungültiges Ziel: {err}", err=err), file=sys.stderr)
             return 1
         print(
-            f"RUN.json ungültig: {err}. Erwartet ist die Ausgabe von `wts run --json`.",
+            _(
+                "RUN.json ungültig: {err}. Erwartet ist die Ausgabe von `wts run --json`.",
+                err=err,
+            ),
             file=sys.stderr,
         )
         return 1
     except (OSError, ValidationError, KeyError, TypeError) as err:
         print(
-            f"Eingabe nicht lesbar: {err!r}. Prüfe Tool, Dateipfad und Schritt-ID "
-            "(RUN.json stammt von `wts run --json`).",
+            _(
+                "Eingabe nicht lesbar: {err!r}. Prüfe Tool, Dateipfad und Schritt-ID "
+                "(RUN.json stammt von `wts run --json`).",
+                err=err,
+            ),
             file=sys.stderr,
         )
         return 1
@@ -527,29 +633,38 @@ def _ai_task(args: argparse.Namespace, settings: Settings) -> int:
         try:
             atomic_write(args.preview_file, preview + "\n", 0o600)
         except OSError as err:
-            print(f"Vorschau nicht schreibbar: {err}. Anderen Pfad wählen.", file=sys.stderr)
+            print(
+                _("Vorschau nicht schreibbar: {err}. Anderen Pfad wählen.", err=err),
+                file=sys.stderr,
+            )
             return 1
-        print(f"Datenvorschau geschrieben: {args.preview_file}")
+        print(_("Datenvorschau geschrieben: {path}", path=args.preview_file))
     else:
         print(preview)
-    sent = _confirm("Senden? [j/N] ", yes=args.yes)
+    sent = _confirm(_("Senden? [j/N] "), yes=args.yes)
     if sent is None:
-        print("Bestätigung nötig, aber kein Terminal: mit --yes bestätigen.", file=sys.stderr)
+        print(_("Bestätigung nötig, aber kein Terminal: mit --yes bestätigen."), file=sys.stderr)
         return 2
     if not sent:
-        print("Abgebrochen, nichts gesendet.", file=sys.stderr)
+        print(_("Abgebrochen, nichts gesendet."), file=sys.stderr)
         return 2
     try:
         answer = make_provider(settings).complete(prompt)
     except ImportError as err:
         print(
-            f"KI-Anbieter nicht verfügbar: {ai_tasks.sanitize(str(err), secrets)}", file=sys.stderr
+            _(
+                "KI-Anbieter nicht verfügbar: {err}",
+                err=ai_tasks.sanitize(str(err), secrets),
+            ),
+            file=sys.stderr,
         )
         return 1
     except (RuntimeError, OSError) as err:
         print(
-            f"Anbieter fehlgeschlagen: {ai_tasks.sanitize(str(err), secrets)}. "
-            "Prüfe Einstellungen mit `wts ai status`.",
+            _(
+                "Anbieter fehlgeschlagen: {err}. Prüfe Einstellungen mit `wts ai status`.",
+                err=ai_tasks.sanitize(str(err), secrets),
+            ),
             file=sys.stderr,
         )
         return 1
@@ -573,8 +688,12 @@ def _free_workflow_target(args: argparse.Namespace, name: str) -> Path:
         number += 1
     if candidate.name != f"{stem}.workflow.yaml":
         print(
-            f"{stem}.workflow.yaml existiert bereits und bleibt unberührt; Vorschlag als "
-            f"{candidate.name}. Zum Überschreiben --name {stem} angeben."
+            _(
+                "{stem}.workflow.yaml existiert bereits und bleibt unberührt; Vorschlag als "
+                "{candidate}. Zum Überschreiben --name {stem} angeben.",
+                stem=stem,
+                candidate=candidate.name,
+            )
         )
     return candidate
 
@@ -591,18 +710,27 @@ def _ai_approve(
         if kind == "module":
             module, errors = validate_module_text(raw)
             if module is not None and module.tool != args.tool:
-                errors.append(f"tool ist '{module.tool}', erwartet '{args.tool}'")
+                errors.append(
+                    _(
+                        "tool ist '{actual}', erwartet '{expected}'",
+                        actual=module.tool,
+                        expected=args.tool,
+                    )
+                )
         else:
             workflow, errors = validate_workflow_text(raw)
             if workflow is not None:
                 target = _free_workflow_target(args, workflow.name)
                 current = _read_text(target_path("workflow", target))  # diff against the real file
     except (ValueError, OSError) as err:
-        print(f"Ziel nicht nutzbar: {err}", file=sys.stderr)
+        print(_("Ziel nicht nutzbar: {err}", err=err), file=sys.stderr)
         return 1
     approval = propose(kind, target, current, raw, errors)
     if errors:
-        print("Die Antwort besteht die Schema-Prüfung nicht, nichts gespeichert:", file=sys.stderr)
+        print(
+            _("Die Antwort besteht die Schema-Prüfung nicht, nichts gespeichert:"),
+            file=sys.stderr,
+        )
         for line in errors:
             print(f"  {ai_tasks.sanitize(line, secrets)}", file=sys.stderr)
         return 1
@@ -611,19 +739,19 @@ def _ai_approve(
     elif approval.diff:
         print(ai_tasks.sanitize(approval.diff, secrets))
     else:
-        print("Keine Änderung.")
+        print(_("Keine Änderung."))
         return 0
     if not args.apply:
         if not sys.stdin.isatty():
-            print("Nichts gespeichert. Mit --apply übernehmen.", file=sys.stderr)
+            print(_("Nichts gespeichert. Mit --apply übernehmen."), file=sys.stderr)
             return 0
-        if not _ask("Übernehmen? [j/N] "):
-            print("Nicht übernommen.", file=sys.stderr)
+        if not _ask(_("Übernehmen? [j/N] ")):
+            print(_("Nicht übernommen."), file=sys.stderr)
             return 2
     try:
-        print(f"geschrieben: {apply(approval)}")
+        print(_("geschrieben: {path}", path=apply(approval)))
     except (ValueError, OSError) as err:
-        print(f"Nicht gespeichert: {err}", file=sys.stderr)
+        print(_("Nicht gespeichert: {err}", err=err), file=sys.stderr)
         return 1
     return 0
 
@@ -655,7 +783,7 @@ def _write_redirect(port: int, url: str) -> Path:
     shown = html.escape(url)
     page = (
         f'<!doctype html><meta http-equiv="refresh" content="0;url={shown}">'
-        f'<a href="{shown}">WhatTheShell öffnen</a>\n'
+        f'<a href="{shown}">{html.escape(_("WhatTheShell öffnen"))}</a>\n'
     )
     fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as handle:
@@ -688,7 +816,7 @@ def _install_desktop() -> int:
     target = Path(base) / "applications" / "whattheshell.desktop"
     entry = (
         "[Desktop Entry]\nType=Application\nName=WhatTheShell\n"
-        "Comment=Grafischer Baukasten für Terminal-Workflows\n"
+        f"Comment={_('Grafischer Baukasten für Terminal-Workflows')}\n"
         f"Exec={_desktop_quote(sys.executable)} -m whattheshell gui start\nTerminal=false\n"
         "Categories=Utility;System;\nIcon=utilities-terminal\n"
     )
@@ -696,9 +824,9 @@ def _install_desktop() -> int:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(entry, encoding="utf-8")
     except OSError as err:
-        print(f"Menüeintrag nicht geschrieben: {err}", file=sys.stderr)
+        print(_("Menüeintrag nicht geschrieben: {err}", err=err), file=sys.stderr)
         return 1
-    print(f"Menüeintrag geschrieben: {target}")
+    print(_("Menüeintrag geschrieben: {path}", path=target))
     updater = shutil.which("update-desktop-database")
     if updater:
         subprocess.run([updater, str(target.parent)], check=False)  # noqa: S603
@@ -713,7 +841,7 @@ def _gui_start(args: argparse.Namespace) -> int:
             log.parent.mkdir(parents=True, exist_ok=True)
             fd = os.open(log, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
         except OSError as err:
-            print(f"Log {log} nicht schreibbar: {err}", file=sys.stderr)
+            print(_("Log {log} nicht schreibbar: {err}", log=log, err=err), file=sys.stderr)
             return 1
         with os.fdopen(fd, "ab") as out:
             subprocess.Popen(
@@ -737,11 +865,11 @@ def _gui_start(args: argparse.Namespace) -> int:
             time.sleep(0.1)
             found = _running()
         if found is None:
-            print(f"Server nicht gestartet. Ursache im Log: {log}", file=sys.stderr)
+            print(_("Server nicht gestartet. Ursache im Log: {log}", log=log), file=sys.stderr)
             return 1
         print(found.url, flush=True)
     else:
-        print(f"Läuft bereits auf Port {found.port} (PID {found.pid})")
+        print(_("Läuft bereits auf Port {port} (PID {pid})", port=found.port, pid=found.pid))
     if not args.no_browser:
         _open_browser(found.url, found.port)
     return 0
@@ -752,26 +880,34 @@ def _gui_stop() -> int:
     if found is None or not instance.is_alive(found):
         if found is not None:
             instance.clear(found)
-        print("Nicht gestartet")
+        print(_("Nicht gestartet"))
         return 0
     if not instance.stop(found):
         print(
-            f"PID {found.pid} lässt sich nicht beenden. Manuell: kill -9 {found.pid}",
+            _(
+                "PID {pid} lässt sich nicht beenden. Manuell: kill -9 {pid}",
+                pid=found.pid,
+            ),
             file=sys.stderr,
         )
         return 1
     instance.clear(found)
-    print("Beendet")
+    print(_("Beendet"))
     return 0
 
 
 def _gui_status() -> int:
     found = _running()
     if found is None:
-        print("Nicht gestartet")
+        print(_("Nicht gestartet"))
         return 3
     print(
-        f"Läuft auf Port {found.port} (PID {found.pid}), seit {int(time.time() - found.started)} s"
+        _(
+            "Läuft auf Port {port} (PID {pid}), seit {seconds} s",
+            port=found.port,
+            pid=found.pid,
+            seconds=int(time.time() - found.started),
+        )
     )
     return 0
 
@@ -789,8 +925,10 @@ def _gui(args: argparse.Namespace) -> int:
         return _gui_status()
     if os.geteuid() == 0:
         print(
-            "Start als root wird verweigert: die Oberfläche kann Befehle ausführen. "
-            "Starte als normaler Benutzer.",
+            _(
+                "Start als root wird verweigert: die Oberfläche kann Befehle ausführen. "
+                "Starte als normaler Benutzer."
+            ),
             file=sys.stderr,
         )
         return 1
@@ -799,14 +937,14 @@ def _gui(args: argparse.Namespace) -> int:
     try:
         lock = instance.acquire_lock()
     except OSError as err:
-        print(f"Instanzsperre nicht möglich: {err}", file=sys.stderr)
+        print(_("Instanzsperre nicht möglich: {err}", err=err), file=sys.stderr)
         return 1
     if lock is None:  # another server holds it for its whole lifetime
         found = _running()
         if found is None:
-            print("Läuft bereits (Zustand noch nicht lesbar), `wts gui status` prüft.")
+            print(_("Läuft bereits (Zustand noch nicht lesbar), `wts gui status` prüft."))
         else:
-            print(f"Läuft bereits auf Port {found.port} (PID {found.pid})")
+            print(_("Läuft bereits auf Port {port} (PID {pid})", port=found.port, pid=found.pid))
             if not args.no_browser:
                 _open_browser(found.url, found.port)
         return 0
@@ -823,7 +961,11 @@ def _gui(args: argparse.Namespace) -> int:
             sock.bind(("127.0.0.1", args.port))
         except OSError as err:
             print(
-                f"Port {args.port} nicht nutzbar: {err}. Anderen Port mit --port wählen.",
+                _(
+                    "Port {port} nicht nutzbar: {err}. Anderen Port mit --port wählen.",
+                    port=args.port,
+                    err=err,
+                ),
                 file=sys.stderr,
             )
             return 1
@@ -831,13 +973,15 @@ def _gui(args: argparse.Namespace) -> int:
         port = sock.getsockname()[1]
         registry = _registry()
         for problem in registry.errors:
-            print(f"WARNUNG {problem}", file=sys.stderr)
+            print(_("WARNUNG {problem}", problem=problem), file=sys.stderr)
         session = Session(port=port)
         app = create_app(session, catalog=Catalog(registry=registry), registry=registry)
         if not (STATIC_DIR / "index.html").is_file():
             print(
-                "Hinweis: Frontend nicht gebaut (cd gui && npm ci && npm run build); "
-                "die Seite zeigt nur eine Fehlermeldung, die API läuft.",
+                _(
+                    "Hinweis: Frontend nicht gebaut (cd gui && npm ci && npm run build); "
+                    "die Seite zeigt nur eine Fehlermeldung, die API läuft."
+                ),
                 file=sys.stderr,
             )
         url = f"http://127.0.0.1:{port}/#token={session.token}"
@@ -850,8 +994,11 @@ def _gui(args: argparse.Namespace) -> int:
             instance.write(mine)
         except OSError as err:
             print(
-                f"Zustandsdatei nicht geschrieben: {err}. Ohne sie lässt sich die Instanz "
-                "nicht beenden oder erkennen; Server wird nicht gestartet.",
+                _(
+                    "Zustandsdatei nicht geschrieben: {err}. Ohne sie lässt sich die Instanz "
+                    "nicht beenden oder erkennen; Server wird nicht gestartet.",
+                    err=err,
+                ),
                 file=sys.stderr,
             )
             return 1
@@ -875,19 +1022,21 @@ def _validate(files: list[Path]) -> int:
     for path in files:
         try:
             if path.name.endswith(MODULE_SUFFIXES):
-                kind, label = "Modul", load_module_file(path).tool
+                kind, label = _("Modul"), load_module_file(path).tool
             elif path.name.endswith(WORKFLOW_SUFFIXES):
-                kind, label = "Workflow", load_workflow_file(path).name
+                kind, label = _("Workflow"), load_workflow_file(path).name
             else:
                 raise DocumentError(
-                    path, None, "Unbekannter Dateityp, erwartet *.module.yaml oder *.workflow.yaml"
+                    path,
+                    None,
+                    _("Unbekannter Dateityp, erwartet *.module.yaml oder *.workflow.yaml"),
                 )
         except DocumentError as err:
             failed += 1
             print(err, file=sys.stderr)
         else:
-            print(f"OK: {path} ({kind} {label})")
-    print(f"{len(files)} Dateien geprüft, {failed} fehlerhaft")
+            print(_("OK: {path} ({kind} {label})", path=path, kind=kind, label=label))
+    print(_("{count} Dateien geprüft, {failed} fehlerhaft", count=len(files), failed=failed))
     return 1 if failed else 0
 
 
@@ -902,7 +1051,7 @@ def _scaffold(args: argparse.Namespace) -> int:
             out.parent.mkdir(parents=True, exist_ok=True)
             with out.open("w" if args.force else "x", encoding="utf-8") as handle:
                 handle.write(text)
-            print(f"geschrieben: {out}")
+            print(_("geschrieben: {path}", path=out))
             return 0
     except ToolNotFound as err:
         print(err, file=sys.stderr)
@@ -910,13 +1059,24 @@ def _scaffold(args: argparse.Namespace) -> int:
     except FileExistsError:
         suggestion = paths.config_dir() / "modules" / f"{args.tool}.module.yaml"
         print(
-            f"{out} existiert bereits. Nutze --force zum Überschreiben oder "
-            f"wähle einen anderen Namen, z. B. {suggestion}.",
+            _(
+                "{out} existiert bereits. Nutze --force zum Überschreiben oder "
+                "wähle einen anderen Namen, z. B. {suggestion}.",
+                out=out,
+                suggestion=suggestion,
+            ),
             file=sys.stderr,
         )
         return 1
     except OSError as err:
-        print(f"Gerüst für '{args.tool}' nicht lesbar oder schreibbar: {err}", file=sys.stderr)
+        print(
+            _(
+                "Gerüst für '{tool}' nicht lesbar oder schreibbar: {err}",
+                tool=args.tool,
+                err=err,
+            ),
+            file=sys.stderr,
+        )
         return 1
     print(text, end="")
     return 0
@@ -925,24 +1085,29 @@ def _scaffold(args: argparse.Namespace) -> int:
 def _sandbox() -> int:
     status = self_test()
     if status.available:
-        print(f"Sandbox verfügbar: {status.bwrap_path}")
+        print(_("Sandbox verfügbar: {path}", path=status.bwrap_path))
         return 0
-    print(f"Sandbox nicht verfügbar: {status.reason}")
+    print(_("Sandbox nicht verfügbar: {reason}", reason=status.reason))
     if status.install_hint:
-        print(f"Installieren: {status.install_hint}")
+        print(_("Installieren: {hint}", hint=status.install_hint))
     return 1
 
 
 def _print_example(number: int, result: ExampleResult) -> bool:
-    print(f"Beispiel {number}: {result.title}")
+    print(_("Beispiel {number}: {title}", number=number, title=result.title))
     print(f"  $ {result.command}")
     for line in result.stdout.splitlines():
         print(f"  | {line}")
     for line in result.stderr.splitlines():
         print(f"  ! {line}")
     ok = not result.failures
-    code = "nicht gestartet" if result.exit_code is None else f"exit {result.exit_code}"
-    print(f"  [{'ok' if ok else 'FEHLER'} {code}, {result.duration:.2f}s]")
+    code = (
+        _("nicht gestartet")
+        if result.exit_code is None
+        else _("exit {code}", code=result.exit_code)
+    )
+    state = _("ok") if ok else _("FEHLER")
+    print(f"  [{state} {code}, {result.duration:.2f}s]")
     for failure in result.failures:
         print(f"  -> {failure}")
     return ok
@@ -950,7 +1115,7 @@ def _print_example(number: int, result: ExampleResult) -> bool:
 
 def _example(args: argparse.Namespace) -> int:
     if args.all and args.number is not None:
-        print("--all und eine Nummer schließen sich aus.", file=sys.stderr)
+        print(_("--all und eine Nummer schließen sich aus."), file=sys.stderr)
         return 3
     registry = _registry()
     try:
@@ -959,23 +1124,30 @@ def _example(args: argparse.Namespace) -> int:
         print(err, file=sys.stderr)
         return 1
     except (OSError, ValidationError) as err:
-        print(f"Tool '{args.tool}' konnte nicht gelesen werden: {err}", file=sys.stderr)
+        print(
+            _("Tool '{tool}' konnte nicht gelesen werden: {err}", tool=args.tool, err=err),
+            file=sys.stderr,
+        )
         return 1
     examples = info.command.examples
     if not examples:
-        print(f"Keine Beispiele für '{args.tool}' (kein Modul mit examples).")
+        print(_("Keine Beispiele für '{tool}' (kein Modul mit examples).", tool=args.tool))
         return 0
     if args.number is not None and not 1 <= args.number <= len(examples):
         print(
-            f"Beispiel {args.number} gibt es nicht, vorhanden: 1 bis {len(examples)}.",
+            _(
+                "Beispiel {number} gibt es nicht, vorhanden: 1 bis {count}.",
+                number=args.number,
+                count=len(examples),
+            ),
             file=sys.stderr,
         )
         return 3
     status = self_test()
     if not status.available:
-        print(f"Sandbox nicht verfügbar: {status.reason}", file=sys.stderr)
+        print(_("Sandbox nicht verfügbar: {reason}", reason=status.reason), file=sys.stderr)
         if status.install_hint:
-            print(f"Installieren: {status.install_hint}", file=sys.stderr)
+            print(_("Installieren: {hint}", hint=status.install_hint), file=sys.stderr)
         return 2
     chosen = (
         [(args.number, examples[args.number - 1])]
@@ -986,10 +1158,18 @@ def _example(args: argparse.Namespace) -> int:
     return 0 if all(results) else 1
 
 
+_YES = ("j", "ja", "y", "yes")  # accepted in every language
+_NO = ("n", "nein", "no")
+
+
+_YES = ("j", "ja", "y", "yes")  # accepted in every language
+_NO = ("n", "nein", "no")
+
+
 def _ask(prompt: str) -> bool:
     sys.stderr.write(prompt)
     sys.stderr.flush()
-    return sys.stdin.readline().strip().lower() in ("j", "ja", "y", "yes")
+    return sys.stdin.readline().strip().lower() in _YES
 
 
 def _pick(prompt: str, options: list[str], current: str | None = None) -> str | None:
@@ -1009,7 +1189,7 @@ def _pick(prompt: str, options: list[str], current: str | None = None) -> str | 
             return answer
         if answer.isdigit() and 1 <= int(answer) <= len(options):
             return options[int(answer) - 1]
-        sys.stderr.write("Ungültige Auswahl. Nummer oder Wert eingeben.\n")
+        sys.stderr.write(_("Ungültige Auswahl. Nummer oder Wert eingeben.") + "\n")
 
 
 def _ask_form(request: AskRequest) -> AskAnswer | None:
@@ -1022,7 +1202,7 @@ def _ask_form(request: AskRequest) -> AskAnswer | None:
 
 def _read_form(request: AskRequest) -> AskAnswer | None:
     if request.error:
-        sys.stderr.write(f"Fehler: {printable(request.error)}\n")
+        sys.stderr.write(_("Fehler: {error}", error=printable(request.error)) + "\n")
     if request.title:
         sys.stderr.write(f"{printable(request.title)}\n")
     if request.text:
@@ -1043,20 +1223,20 @@ def _read_form(request: AskRequest) -> AskAnswer | None:
                 return None
             entered = picked
         else:
-            hint = " [j/n]" if spec.type is ValueType.bool else ""
+            hint = _(" [j/n]") if spec.type is ValueType.bool else ""
             sys.stderr.write(f"{label}{hint}{shown}: ")
             sys.stderr.flush()
             line = sys.stdin.readline()
             if not line:
                 return None
             entered = line.strip()
-            if spec.type is ValueType.bool and entered.lower() in ("j", "ja", "n", "nein"):
-                entered = "true" if entered.lower() in ("j", "ja") else "false"
+            if spec.type is ValueType.bool and entered.lower() in _YES + _NO:
+                entered = "true" if entered.lower() in _YES else "false"
         if entered:  # empty keeps the current/default value
             values[name] = entered
     button = request.buttons[0]
     if len(request.buttons) > 1:
-        picked = _pick("Knopf: ", request.buttons)
+        picked = _pick(_("Knopf: "), request.buttons)
         if picked is None:
             return None
         button = picked
@@ -1072,23 +1252,30 @@ def _print_event(event: Event) -> None:
             for line in event.text.splitlines():
                 print(prefix + printable(line, keep_newlines=True), flush=True)
         case StepFinished():
-            state = "ok" if event.ok else "FEHLER"
-            code = "nicht gestartet" if event.exit_code is None else f"exit {event.exit_code}"
-            retry = f", Versuch {event.attempt}" if event.attempt > 1 else ""
+            state = _("ok") if event.ok else _("FEHLER")
+            code = (
+                _("nicht gestartet")
+                if event.exit_code is None
+                else _("exit {code}", code=event.exit_code)
+            )
+            retry = _(", Versuch {attempt}", attempt=event.attempt) if event.attempt > 1 else ""
             print(f"   [{state} {code}, {event.duration:.2f}s{retry}]", flush=True)
         case Message():
             print(f"   # {printable(event.text, keep_newlines=True)}", flush=True)
         case StepSkipped():
-            print(f"-- {event.step_id} übersprungen: {event.reason}", flush=True)
+            print(
+                _("-- {step} übersprungen: {reason}", step=event.step_id, reason=event.reason),
+                flush=True,
+            )
         case WorkflowFinished():
             print(f"== {event.status}: {event.message}", flush=True)
 
 
 def _parse_vars(items: list[str]) -> dict[str, str] | None:
     pairs = [item.partition("=") for item in items]
-    if any(not name or not sep for name, sep, _ in pairs):
+    if any(not name or not sep for name, sep, _value in pairs):
         return None
-    return {name: value for name, _, value in pairs}
+    return {name: value for name, _sep, value in pairs}
 
 
 def _execute(runner: Runner, prepared: Prepared, controller: Controller) -> RunResult | None:
@@ -1143,7 +1330,7 @@ def _workflows(args: argparse.Namespace) -> int:
         return _workflow_accept(args.id)
     for entry in sorted(_workflow_index().all(), key=lambda e: e.id):
         if entry.error:
-            print(f"FEHLER {entry.error}", file=sys.stderr)
+            print(_("FEHLER {error}", error=entry.error), file=sys.stderr)
         else:
             print(
                 f"{entry.source}\t{integrity_of(entry)}\t{entry.id}\t{entry.name}"
@@ -1155,18 +1342,24 @@ def _workflows(args: argparse.Namespace) -> int:
 def _workflow_import(file: Path, *, overwrite: bool) -> int:
     if not IMPORT_NAME.fullmatch(file.name):
         print(
-            f"Ungültiger Dateiname '{file.name}'. Erwartet: id.workflow.yaml "
-            "(Kleinbuchstaben, Ziffern, _ und -). Datei vorher umbenennen.",
+            _(
+                "Ungültiger Dateiname '{name}'. Erwartet: id.workflow.yaml "
+                "(Kleinbuchstaben, Ziffern, _ und -). Datei vorher umbenennen.",
+                name=file.name,
+            ),
             file=sys.stderr,
         )
         return 3
     try:
         if file.stat().st_size > MAX_IMPORT_BYTES:
-            print(f"{file} ist größer als {MAX_IMPORT_BYTES} Byte.", file=sys.stderr)
+            print(
+                _("{file} ist größer als {limit} Byte.", file=file, limit=MAX_IMPORT_BYTES),
+                file=sys.stderr,
+            )
             return 3
         text = file.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as err:
-        print(f"{file} nicht lesbar: {err}", file=sys.stderr)
+        print(_("{file} nicht lesbar: {err}", file=file, err=err), file=sys.stderr)
         return 1
     shadowed = shadow_message(_workflow_index(), file.name.removesuffix(".workflow.yaml"))
     if shadowed is not None:
@@ -1178,22 +1371,33 @@ def _workflow_import(file: Path, *, overwrite: bool) -> int:
         return 3
     if (user_dir("workflow") / file.name).exists() and not overwrite:
         print(
-            f"{file.name} gibt es im Nutzerordner schon. Mit --overwrite ersetzen.", file=sys.stderr
+            _("{name} gibt es im Nutzerordner schon. Mit --overwrite ersetzen.", name=file.name),
+            file=sys.stderr,
         )
         return 3
     try:
         target = write_user_file("workflow", file.name, text)
     except OSError as err:
-        print(f"Nicht schreibbar: {err}. Prüfe Rechte auf {user_dir('workflow')}.", file=sys.stderr)
+        print(
+            _(
+                "Nicht schreibbar: {err}. Prüfe Rechte auf {path}.",
+                err=err,
+                path=user_dir("workflow"),
+            ),
+            file=sys.stderr,
+        )
         return 1
-    print(f"Importiert: {target}")
+    print(_("Importiert: {path}", path=target))
     return 0
 
 
 def _workflow_accept(workflow_id: str) -> int:
     entry = _workflow_index().get(workflow_id)
     if entry is None:
-        print(f"Workflow '{workflow_id}' gibt es nicht. Siehe `wts workflows`.", file=sys.stderr)
+        print(
+            _("Workflow '{id}' gibt es nicht. Siehe `wts workflows`.", id=workflow_id),
+            file=sys.stderr,
+        )
         return 1
     if entry.error:
         print(entry.error, file=sys.stderr)
@@ -1202,9 +1406,9 @@ def _workflow_accept(workflow_id: str) -> int:
         if entry.source != "bundled":
             integrity.stamp(entry.path)
     except OSError as err:
-        print(f"Stempel nicht schreibbar: {err}", file=sys.stderr)
+        print(_("Stempel nicht schreibbar: {err}", err=err), file=sys.stderr)
         return 1
-    print(f"Übernommen: {entry.path}")
+    print(_("Übernommen: {path}", path=entry.path))
     return 0
 
 
@@ -1215,14 +1419,19 @@ def _integrity_refusal(file: Path, args: argparse.Namespace) -> int | None:
     try:
         state = integrity.status(file)
     except OSError as err:
-        print(f"{file} nicht lesbar: {err}", file=sys.stderr)
+        print(_("{file} nicht lesbar: {err}", file=file, err=err), file=sys.stderr)
         return 1
     if state == "ok":
         return None
     if not args.accept:
         print(
-            f"{integrity.REFUSAL} ({file}, Status {state})\n"
-            f"Hinweis: `wts workflows accept ID` oder `wts run --accept`.",
+            _(
+                "{refusal} ({file}, Status {state})\n"
+                "Hinweis: `wts workflows accept ID` oder `wts run --accept`.",
+                refusal=_(integrity.REFUSAL),
+                file=file,
+                state=state,
+            ),
             file=sys.stderr,
         )
         return 3
@@ -1237,15 +1446,20 @@ def _run(args: argparse.Namespace) -> int:
     entry = _workflow_index().get(str(file)) if len(file.parts) == 1 else None
     if not file.exists() and entry is not None:  # not a path: use the library entry
         file = entry.path
-        print(f"Quelle {entry.source}: {file}", file=sys.stderr)
+        print(_("Quelle {source}: {file}", source=entry.source, file=file), file=sys.stderr)
     try:
         workflow = load_workflow_file(file)
     except DocumentError as err:
         print(err, file=sys.stderr)
         if entry is not None and file == args.file:
             print(
-                f"Hinweis: Der Pfad '{file}' hat Vorrang vor der Workflow-id gleichen Namens "
-                f"({entry.path}, Quelle {entry.source}). Pfad umbenennen, um die id zu nutzen.",
+                _(
+                    "Hinweis: Der Pfad '{file}' hat Vorrang vor der Workflow-id gleichen Namens "
+                    "({path}, Quelle {source}). Pfad umbenennen, um die id zu nutzen.",
+                    file=file,
+                    path=entry.path,
+                    source=entry.source,
+                ),
                 file=sys.stderr,
             )
         return 3
@@ -1254,18 +1468,21 @@ def _run(args: argparse.Namespace) -> int:
         return refusal
     overrides = _parse_vars(args.var)
     if overrides is None:
-        print("--var erwartet NAME=WERT, z. B. --var logdir=./logs", file=sys.stderr)
+        print(_("--var erwartet NAME=WERT, z. B. --var logdir=./logs"), file=sys.stderr)
         return 3
     cwd: Path = (args.cwd or Path.cwd()).resolve()
     if not cwd.is_dir():
         print(
-            f"Arbeitsverzeichnis {cwd} existiert nicht. Mit --cwd ein vorhandenes angeben.",
+            _(
+                "Arbeitsverzeichnis {cwd} existiert nicht. Mit --cwd ein vorhandenes angeben.",
+                cwd=cwd,
+            ),
             file=sys.stderr,
         )
         return 3
     registry = _registry()
     for problem in registry.errors:
-        print(f"WARNUNG {problem}", file=sys.stderr)
+        print(_("WARNUNG {problem}", problem=problem), file=sys.stderr)
     controller = Controller()
     broken = threading.Event()
 
@@ -1281,8 +1498,13 @@ def _run(args: argparse.Namespace) -> int:
             return True
         reasons = f" ({'; '.join(request.reasons)})" if request.reasons else ""
         return _ask(
-            f"Schritt '{request.step_id}' ({request.safety.value}){reasons}: {request.command}\n"
-            "Ausführen? [j/N] "
+            _(
+                "Schritt '{step}' ({safety}){reasons}: {command}\nAusführen? [j/N] ",
+                step=request.step_id,
+                safety=request.safety.value,
+                reasons=reasons,
+                command=request.command,
+            )
         )
 
     runner = Runner(
@@ -1303,22 +1525,22 @@ def _run(args: argparse.Namespace) -> int:
         print(overview)
         return 0
     if any(isinstance(step, TerminalStep) for step in iter_steps(workflow.steps)):
-        print(TERMINAL_ONLY_GUI, file=sys.stderr)
+        print(_(TERMINAL_ONLY_GUI), file=sys.stderr)
         return 3
     if not sys.stdin.isatty() and any(isinstance(s, AskStep) for s in iter_steps(workflow.steps)):
-        print("Abfrage-Schritt braucht ein Terminal oder die GUI.", file=sys.stderr)
+        print(_("Abfrage-Schritt braucht ein Terminal oder die GUI."), file=sys.stderr)
         return 3
     print(overview, file=sys.stderr if args.json else sys.stdout, flush=True)
     risky = any(v.safety is not Safety.safe for v in prepared.verdicts.values())
     if risky and not args.yes:
         if not sys.stdin.isatty():
             print(
-                "Bestätigung nötig, aber kein Terminal: mit --yes bestätigen oder --dry-run",
+                _("Bestätigung nötig, aber kein Terminal: mit --yes bestätigen oder --dry-run"),
                 file=sys.stderr,
             )
             return 2
-        if not _ask("Workflow ausführen? [j/N] "):
-            print("Abgebrochen.", file=sys.stderr)
+        if not _ask(_("Workflow ausführen? [j/N] ")):
+            print(_("Abgebrochen."), file=sys.stderr)
             return 2
     try:  # a thread stuck in getpass must not leave the terminal without echo
         tty_state = termios.tcgetattr(0) if sys.stdin.isatty() else None
@@ -1332,7 +1554,7 @@ def _run(args: argparse.Namespace) -> int:
     if broken.is_set():
         raise BrokenPipeError
     if result is None:
-        print("Abgebrochen.", file=sys.stderr)
+        print(_("Abgebrochen."), file=sys.stderr)
         return 2
     if args.json:
         text = json.dumps(dataclasses.asdict(result), default=lambda o: o.isoformat(), indent=2)
@@ -1347,14 +1569,14 @@ def _modules(follow: bool) -> int:
     registry = _registry()
     for directory in registry.dirs:
         if not directory.is_dir():
-            print(f"Suchpfad: {directory} (fehlt)")
+            print(_("Suchpfad: {path} (fehlt)", path=directory))
         else:
             count = sum(1 for m in registry.all() if m.path.parent == directory)
-            print(f"Suchpfad: {directory} ({count} Module)")
+            print(_("Suchpfad: {path} ({count} Module)", path=directory, count=count))
     for loaded in sorted(registry.all(), key=lambda m: (m.priority, m.module.tool)):
         print(f"{loaded.priority}\t{loaded.module.tool}\t{loaded.path}")
     for err in registry.errors:
-        print(f"FEHLER {err}", file=sys.stderr)
+        print(_("FEHLER {error}", error=err), file=sys.stderr)
     if not follow:
         return 0
 
@@ -1362,16 +1584,20 @@ def _modules(follow: bool) -> int:
         for path in sorted(changed):
             error = next((e for e in registry.errors if e.path == path), None)
             if not path.exists():
-                print(f"entfernt: {path}", flush=True)
+                print(_("entfernt: {path}", path=path), flush=True)
             elif error is None:
-                print(f"neu geladen: {path}", flush=True)
+                print(_("neu geladen: {path}", path=path), flush=True)
             else:
-                print(f"FEHLER {error}", file=sys.stderr, flush=True)
+                print(_("FEHLER {error}", error=error), file=sys.stderr, flush=True)
 
     def announce(pairs: list[tuple[Path, Path]]) -> None:
         for directory, watched in pairs:
-            note = "" if directory == watched else f" (noch nicht vorhanden, Vorfahr {watched})"
-            print(f"beobachte: {directory}{note}", flush=True)
+            note = (
+                ""
+                if directory == watched
+                else _(" (noch nicht vorhanden, Vorfahr {path})", path=watched)
+            )
+            print(_("beobachte: {path}{note}", path=directory, note=note), flush=True)
 
     with contextlib.suppress(KeyboardInterrupt):
         watch_modules(registry, threading.Event(), report, announce)

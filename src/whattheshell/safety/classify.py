@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 
+from whattheshell.i18n import _
 from whattheshell.models.catalog import CommandSpec
 from whattheshell.models.common import Safety
 
@@ -209,25 +210,28 @@ def classify_command(
             safety = new
 
     if tool in DANGEROUS_TOOLS or tool.startswith("mkfs."):
-        raise_to(Safety.dangerous, f"Tool {tool} ist gefährlich")
+        raise_to(Safety.dangerous, _("Tool {tool} ist gefährlich", tool=tool))
     elif tool in CAUTION_TOOLS:
-        raise_to(Safety.caution, f"Tool {tool} erfordert Vorsicht")
+        raise_to(Safety.caution, _("Tool {tool} erfordert Vorsicht", tool=tool))
 
     if tool == "systemctl":
         words = {*spec.name[1:], *extra_args, *(v for v in args.values() if isinstance(v, str))}
         if words & _SYSTEMCTL_DANGEROUS:
-            raise_to(Safety.dangerous, "systemctl fährt das System herunter oder startet neu")
+            raise_to(Safety.dangerous, _("systemctl fährt das System herunter oder startet neu"))
 
     for option in spec.options:
         if args.get(option.id) in (None, False):
             continue
         if option.safety is not None:
-            raise_to(option.safety, f"Option {option.id} ist als {option.safety} eingestuft")
+            raise_to(
+                option.safety,
+                _("Option {id} ist als {safety} eingestuft", id=option.id, safety=option.safety),
+            )
         for flag, hit in _flag_hits(tool, option.flags):
-            raise_to(hit, f"Option {flag}")
+            raise_to(hit, _("Option {flag}", flag=flag))
 
     for flag, hit in _flag_hits(tool, extra_args):
-        raise_to(hit, f"Argument {flag}")
+        raise_to(hit, _("Argument {flag}", flag=flag))
 
     return Verdict(safety, tuple(dict.fromkeys(reasons)))
 

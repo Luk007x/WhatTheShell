@@ -4,7 +4,7 @@
 
 In "Run" mode you can start finished workflows without the editor.
 
-- **Library** (left): All workflows, grouped by "bundled", "own" and "project", with search ("Search workflows"), step count and the note "overrides: …" when a file of higher priority has the same id. "Refresh" reloads the list; it is also reloaded when you switch modes and on window focus. Broken files are greyed out and show `path:line: message`.
+- **Library** (left): All workflows, grouped by "bundled", "own" and "project", with the filter "Source" (All, Own, Bundled, Project), badges for source and integrity ("Changed outside", "Not reviewed", "Invalid"), a "Review and accept" button for files that must be accepted before a run, an "Import" button (or drag and drop), with search ("Search workflows"), step count and the note "overrides: …" when a file of higher priority has the same id. "Refresh" reloads the list; it is also reloaded when you switch modes and on window focus. Broken files are greyed out and show `path:line: message`.
 - **Inputs** (right): One field per variable, required fields with `*`, default values preset, plus the working directory.
 - **Recent runs:** Status, start time and exit code; a click loads the history read-only into the output.
 

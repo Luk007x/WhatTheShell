@@ -7,6 +7,7 @@ from io import StringIO
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
+from whattheshell.i18n import _
 from whattheshell.models.catalog import ToolInfo
 from whattheshell.models.common import Confidence, InputSpec, OptionSpec
 
@@ -30,7 +31,9 @@ def _field(spec: InputSpec | OptionSpec) -> CommentedMap:
     item["importance"] = "normal"
     item["help"] = spec.help
     if spec.confidence != Confidence.high:
-        item.yaml_add_eol_comment(f"Konfidenz: {spec.confidence.value}, bitte prüfen", key="id")
+        item.yaml_add_eol_comment(
+            _("Konfidenz: {confidence}, bitte prüfen", confidence=spec.confidence.value), key="id"
+        )
     return item
 
 
@@ -52,12 +55,17 @@ def scaffold_module(info: ToolInfo) -> str:
     doc["inputs"] = CommentedSeq(_field(i) for i in command.inputs)
     doc["options"] = CommentedSeq(_field(o) for o in command.options)
     doc["subcommands"] = [{"name": c.name[-1], "summary": c.summary} for c in command.subcommands]
-    doc["output"] = {"stdout": {"kind": "lines"}, "exit_codes": {0: "Erfolg"}}
+    doc["output"] = {"stdout": {"kind": "lines"}, "exit_codes": {0: _("Erfolg")}}
     doc["examples"] = []
     doc.yaml_set_start_comment(
-        f"Modul-Gerüst für {info.name}, erzeugt aus {info.path} "
-        f"({info.version or 'Version unbekannt'}) am {datetime.date.today().isoformat()}. "
-        "Felder prüfen und ergänzen, siehe docs/MODULE_AUTHORING.md."
+        _(
+            "Modul-Gerüst für {name}, erzeugt aus {path} ({version}) am {date}. "
+            "Felder prüfen und ergänzen, siehe docs/MODULE_AUTHORING.md.",
+            name=info.name,
+            path=info.path,
+            version=info.version or _("Version unbekannt"),
+            date=datetime.date.today().isoformat(),
+        )
     )
     yaml = YAML(typ="rt")
     yaml.width = 100

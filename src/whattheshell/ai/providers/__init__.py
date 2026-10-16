@@ -2,6 +2,7 @@
 """Provider factory; provider modules are imported only inside `build`."""
 
 from whattheshell.ai.protocol import Provider
+from whattheshell.i18n import _
 from whattheshell.settings import AiSettings
 
 
@@ -23,7 +24,9 @@ def build(settings: AiSettings) -> Provider:
         return OpenAICompatProvider(local.base_url, local.model, local.timeout, api_key=None)
     api = settings.api
     if not api.model:
-        raise RuntimeError("Kein Modell für die API gesetzt: `wts ai config set api.model <name>`")
+        raise RuntimeError(
+            _("Kein Modell für die API gesetzt: `wts ai config set api.model <name>`")
+        )
     from .keys import resolve_key
 
     key = resolve_key(api)

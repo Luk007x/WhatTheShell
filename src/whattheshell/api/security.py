@@ -12,6 +12,7 @@ from starlette.datastructures import Headers
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from whattheshell.api.errors import error_response
+from whattheshell.i18n import _, current_lang, normalize, use_lang
 
 TOKEN_HEADER = "x-wts-token"
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
@@ -45,7 +46,7 @@ class SecurityMiddleware:
             return (
                 400,
                 "host",
-                "Unzulässiger Host-Header. Erlaubt: 127.0.0.1 und localhost.",
+                _("Unzulässiger Host-Header. Erlaubt: 127.0.0.1 und localhost."),
             )
         path: str = scope["path"]
         if path.startswith(GUARDED_PREFIXES):
@@ -55,19 +56,39 @@ class SecurityMiddleware:
             else:
                 supplied = headers.get(TOKEN_HEADER, "")
             if not secrets.compare_digest(supplied.encode(), self.session.token.encode()):
-                return 401, "token", "Token fehlt oder ist falsch. Öffne die URL von `wts gui`."
+                return (
+                    401,
+                    "token",
+                    _("Token fehlt oder ist falsch. Öffne die URL von `wts gui`."),
+                )
         origin = headers.get("origin")
         if (is_ws or scope["method"] not in SAFE_METHODS) and origin and origin not in self.origins:
-            return 403, "origin", "Unzulässiger Origin. Anfragen nur von der eigenen Oberfläche."
+            return (
+                403,
+                "origin",
+                _("Unzulässiger Origin. Anfragen nur von der eigenen Oberfläche."),
+            )
         length = headers.get("content-length", "0")
         if length.isdigit() and int(length) > MAX_BODY_BYTES:
-            return 413, "body_too_large", TOO_LARGE
+            return 413, "body_too_large", _(TOO_LARGE)
         return None
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] not in ("http", "websocket"):
             await self.app(scope, receive, send)
             return
+        headers = Headers(scope=scope)
+        accept = headers.get("accept-language", "").split(",")[0].split(";")[0]
+        if scope["type"] == "websocket":  # browsers cannot set headers on a WebSocket
+            query = parse_qs(scope["query_string"].decode("latin-1"))
+            asked = normalize(query.get("lang", [""])[0])
+        else:
+            asked = normalize(headers.get("x-wts-lang"))
+        lang = asked or normalize(accept) or current_lang()
+        with use_lang(lang):  # contextvar: copied into handler threads and tasks
+            await self._dispatch(scope, receive, send)
+
+    async def _dispatch(self, scope: Scope, receive: Receive, send: Send) -> None:
         violation = self._violation(scope)
         if violation is None:
             if scope["type"] == "http":
@@ -94,7 +115,7 @@ class SecurityMiddleware:
                 seen += len(message.get("body", b""))
                 if seen > MAX_BODY_BYTES and not rejected:
                     rejected = True
-                    await error_response(413, "body_too_large", TOO_LARGE)(scope, receive, send)
+                    await error_response(413, "body_too_large", _(TOO_LARGE))(scope, receive, send)
                     return {"type": "http.disconnect"}
             return message
 

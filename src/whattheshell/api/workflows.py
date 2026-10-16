@@ -14,6 +14,7 @@ from whattheshell import integrity
 from whattheshell.api.errors import validation_errors
 from whattheshell.api.rest import fail
 from whattheshell.api.runs import create_run_response
+from whattheshell.i18n import _
 from whattheshell.models.common import StrictModel
 from whattheshell.models.workflow import Workflow
 from whattheshell.modules.loader import DocumentError, load_workflow_file
@@ -42,7 +43,11 @@ def _check_id(workflow_id: str) -> str:
         raise fail(
             400,
             "workflow_id",
-            f"Ungültige Workflow-id '{workflow_id}'. Erlaubt: Kleinbuchstaben, Ziffern, _ und -.",
+            _(
+                "Ungültige Workflow-id '{workflow_id}'. "
+                "Erlaubt: Kleinbuchstaben, Ziffern, _ und -.",
+                workflow_id=workflow_id,
+            ),
         )
     return workflow_id
 
@@ -62,7 +67,11 @@ def _find(request: Request, workflow_id: str) -> WorkflowEntry:
     """Winning entry of an existing workflow."""
     entry = _index(request).get(_check_id(workflow_id))
     if entry is None:
-        raise fail(404, "workflow_not_found", f"Workflow '{workflow_id}' gibt es nicht.")
+        raise fail(
+            404,
+            "workflow_not_found",
+            _("Workflow '{workflow_id}' gibt es nicht.", workflow_id=workflow_id),
+        )
     return entry
 
 
@@ -71,7 +80,7 @@ def _validate(document: dict[str, Any]) -> Workflow:
         return Workflow.model_validate(document)
     except ValidationError as err:
         raise fail(
-            422, "validation", "Workflow ist ungültig.", errors=validation_errors(err)
+            422, "validation", _("Workflow ist ungültig."), errors=validation_errors(err)
         ) from err
 
 
@@ -136,7 +145,11 @@ def put_workflow(workflow_id: str, body: DocumentBody, request: Request) -> dict
         raise fail(
             500,
             "write",
-            f"Workflow nicht schreibbar: {err}. Prüfe Rechte auf {user_dir('workflow')}.",
+            _(
+                "Workflow nicht schreibbar: {err}. Prüfe Rechte auf {folder}.",
+                err=err,
+                folder=user_dir("workflow"),
+            ),
         ) from err
     _index(request).reload(target)
     return {"id": workflow_id, "path": str(target)}
@@ -154,14 +167,24 @@ def delete_workflow(workflow_id: str, request: Request) -> Response:
             raise fail(
                 403,
                 "not_deletable",
-                f"'{workflow_id}' liegt in der Quelle '{entry.source}' ({entry.path}) und ist "
-                "hier nicht löschbar. Projektdateien gehören zum Projekt: dort von Hand entfernen.",
+                _(
+                    "'{workflow_id}' liegt in der Quelle '{source}' ({path}) und ist "
+                    "hier nicht löschbar. Projektdateien gehören zum Projekt: "
+                    "dort von Hand entfernen.",
+                    workflow_id=workflow_id,
+                    source=entry.source,
+                    path=entry.path,
+                ),
             )
-        raise fail(404, "workflow_not_found", f"Workflow '{workflow_id}' gibt es nicht.")
+        raise fail(
+            404,
+            "workflow_not_found",
+            _("Workflow '{workflow_id}' gibt es nicht.", workflow_id=workflow_id),
+        )
     try:
         target.unlink()
     except OSError as err:
-        raise fail(500, "write", f"Workflow nicht löschbar: {err}.") from err
+        raise fail(500, "write", _("Workflow nicht löschbar: {err}.", err=err)) from err
     _index(request).reload(target)
     return Response(status_code=204)
 
@@ -186,7 +209,7 @@ def run_workflow(workflow_id: str, body: RunWorkflowBody, request: Request) -> R
     state = integrity_of(entry)
     if state in ("modified", "unstamped") and not body.dry_run:  # a plan runs nothing
         return JSONResponse(
-            {"error": "integrity", "status": state, "message": integrity.REFUSAL}, 409
+            {"error": "integrity", "status": state, "message": _(integrity.REFUSAL)}, 409
         )
     return create_run_response(
         request.app, document, body.variables, body.cwd, body.dry_run, body.transcript
@@ -208,16 +231,22 @@ def import_workflow(body: ImportBody, request: Request) -> dict[str, Any]:
         raise fail(
             400,
             "filename",
-            f"Ungültiger Dateiname '{body.filename}'. Erwartet: id{SUFFIX} "
-            "(Kleinbuchstaben, Ziffern, _ und -, ohne Pfad).",
+            _(
+                "Ungültiger Dateiname '{filename}'. Erwartet: id{suffix} "
+                "(Kleinbuchstaben, Ziffern, _ und -, ohne Pfad).",
+                filename=body.filename,
+                suffix=SUFFIX,
+            ),
         )
     try:
         size = len(body.content.encode("utf-8", "surrogatepass"))
         body.content.encode("utf-8")  # lone surrogates cannot be written
     except UnicodeEncodeError as err:
-        raise fail(422, "encoding", f"Inhalt ist kein gültiges UTF-8: {err.reason}.") from err
+        raise fail(
+            422, "encoding", _("Inhalt ist kein gültiges UTF-8: {reason}.", reason=err.reason)
+        ) from err
     if size > MAX_IMPORT_BYTES:
-        raise fail(413, "too_large", f"Datei größer als {MAX_IMPORT_BYTES} Byte.")
+        raise fail(413, "too_large", _("Datei größer als {limit} Byte.", limit=MAX_IMPORT_BYTES))
     workflow_id = body.filename.removesuffix(SUFFIX)
     _refuse_if_shadowed(request, workflow_id)
     workflow, lines = validate_workflow_text(body.content)
@@ -225,14 +254,17 @@ def import_workflow(body: ImportBody, request: Request) -> dict[str, Any]:
         raise fail(
             422,
             "validation",
-            "Workflow ist ungültig.",
+            _("Workflow ist ungültig."),
             errors=[{"path": "", "message": line} for line in lines],
         )
     if (user_dir("workflow") / body.filename).exists() and not body.overwrite:
         raise fail(
             409,
             "exists",
-            f"'{body.filename}' gibt es im Nutzerordner schon. Mit overwrite=true ersetzen.",
+            _(
+                "'{filename}' gibt es im Nutzerordner schon. Mit overwrite=true ersetzen.",
+                filename=body.filename,
+            ),
         )
     try:
         target = write_user_file("workflow", body.filename, body.content)
@@ -240,7 +272,11 @@ def import_workflow(body: ImportBody, request: Request) -> dict[str, Any]:
         raise fail(
             500,
             "write",
-            f"Workflow nicht schreibbar: {err}. Prüfe Rechte auf {user_dir('workflow')}.",
+            _(
+                "Workflow nicht schreibbar: {err}. Prüfe Rechte auf {folder}.",
+                err=err,
+                folder=user_dir("workflow"),
+            ),
         ) from err
     _index(request).reload(target)
     return _item(_find(request, workflow_id))
@@ -258,7 +294,7 @@ def accept_workflow(workflow_id: str, request: Request) -> dict[str, Any]:
     except DocumentError as err:
         raise fail(422, "workflow", str(err)) from err
     except OSError as err:
-        raise fail(500, "write", f"Stempel nicht schreibbar: {err}.") from err
+        raise fail(500, "write", _("Stempel nicht schreibbar: {err}.", err=err)) from err
     _index(request).reload(entry.path)
     return _item(_find(request, workflow_id))
 

@@ -114,7 +114,9 @@ Look at foreign files before use and check them with "Dry run" or `wts run --dry
 
 ```
 wts validate DATEI [DATEI …]    # Modul oder Workflow prüfen
-wts workflows                   # Bibliothek auflisten (Quelle, id, Name, Schritte, Pfad)
+wts workflows                   # list the library (source, integrity, id, name, steps, path)
+wts workflows import FILE       # check a workflow file and store it as your own (--overwrite replaces)
+wts workflows accept ID         # accept a file changed outside the app
 wts modules                     # Suchpfade und geladene Module
 ```
 

@@ -24,6 +24,7 @@ from whattheshell.ai.protocol import Prompt, make_provider
 from whattheshell.api.modules_api import _user_path
 from whattheshell.api.rest import _get_info, _sandbox, fail
 from whattheshell.engine import mask_text
+from whattheshell.i18n import _
 from whattheshell.models.common import StrictModel, ToolName
 from whattheshell.modules.registry import ModuleRegistry
 from whattheshell.modules.scaffold import scaffold_module
@@ -86,21 +87,25 @@ def _read(path: Path) -> str | None:
     try:
         return path.read_text(encoding="utf-8") if path.is_file() else None
     except (OSError, UnicodeDecodeError) as err:
-        raise fail(500, "read", f"{path} nicht lesbar: {err}. Prüfe Rechte.") from err
+        raise fail(
+            500, "read", _("{path} nicht lesbar: {err}. Prüfe Rechte.", path=path, err=err)
+        ) from err
 
 
 def _provider_call(settings: Settings, prompt: Prompt, secrets: list[str]) -> str:
     """Run the provider; at most two at once (429 after `AI_WAIT`), errors become 502."""
     if not AI_SLOTS.acquire(timeout=AI_WAIT):
-        raise fail(429, "busy", "Zwei KI-Anfragen laufen bereits. Später erneut versuchen.")
+        raise fail(429, "busy", _("Zwei KI-Anfragen laufen bereits. Später erneut versuchen."))
     try:
         return make_provider(settings).complete(prompt)
     except (RuntimeError, OSError, ImportError) as err:
         raise fail(
             502,
             "ai_provider",
-            f"Anbieter fehlgeschlagen: {ai_tasks.sanitize(str(err), secrets)}. "
-            "Prüfe die Einstellungen (Anbieter, Schlüssel).",
+            _(
+                "Anbieter fehlgeschlagen: {err}. Prüfe die Einstellungen (Anbieter, Schlüssel).",
+                err=ai_tasks.sanitize(str(err), secrets),
+            ),
         ) from err
     finally:
         AI_SLOTS.release()
@@ -156,7 +161,13 @@ def _check(kind: str, raw: str, tool: str | None, target: str | None) -> list[st
     module, errors = validate_module_text(raw)
     stem = (target or "").partition(".module.")[0]
     if module is not None and module.tool != (tool or stem):
-        errors.append(f"tool ist '{module.tool}', erwartet '{tool or stem}'")
+        errors.append(
+            _(
+                "tool ist '{actual}', erwartet '{expected}'",
+                actual=module.tool,
+                expected=tool or stem,
+            )
+        )
     return errors
 
 
@@ -168,7 +179,7 @@ def _module_task(request: Request, body: ToolTask, *, examples: bool) -> dict[st
         try:
             current = registry_module_text(body.tool, request.app.state.registry)
         except OSError as err:
-            raise fail(500, "read", f"Modul nicht lesbar: {err}. Prüfe Rechte.") from err
+            raise fail(500, "read", _("Modul nicht lesbar: {err}. Prüfe Rechte.", err=err)) from err
     inspect_json = info.model_dump_json(exclude_none=True)  # compact: one line in the prompt
     if examples:
         base = current or scaffold_module(
@@ -241,7 +252,13 @@ def apply_proposal(request: Request, body: ApplyBody) -> dict[str, str]:
         ) from err
     except OSError as err:
         raise fail(
-            500, "write", f"Nicht schreibbar: {err}. Prüfe Rechte auf {paths.config_dir()}."
+            500,
+            "write",
+            _(
+                "Nicht schreibbar: {err}. Prüfe Rechte auf {folder}.",
+                err=err,
+                folder=paths.config_dir(),
+            ),
         ) from err
     if body.kind == "module":
         request.app.state.registry.reload(path)

@@ -51,6 +51,10 @@ wts sandbox
 
 The server opens the browser through a short private redirect page. This keeps the session token out of the process list.
 
+### Language of messages
+
+Messages from the server and the `wts` command line follow the chosen language. On the command line, `wts --lang de` or `wts --lang en` sets it for one call, the environment variable `WTS_LANG` for the session; without either, the system language is used, and English if that is neither German nor English. The interface language is set in the settings ("Language").
+
 ### Menu entry
 
 ```

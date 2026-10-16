@@ -68,3 +68,11 @@ def test_error_does_not_echo_input(tmp_path: Path) -> None:
         load_settings(path)
     assert "sk-geheim123" not in str(info.value)
     assert "key_env" in str(info.value)
+
+
+def test_language_roundtrip(tmp_path: Path) -> None:
+    path = tmp_path / "settings.yaml"
+    assert Settings().language == "auto"
+    save_settings(Settings(language="en"), path)
+    assert "language: en" in path.read_text()
+    assert load_settings(path).language == "en"

@@ -3,6 +3,8 @@
 
 from pydantic import ValidationError
 
+from whattheshell.i18n import _
+
 
 def format_validation_error(
     err: ValidationError, source: str | None = None, *, show_input: bool = True
@@ -24,6 +26,6 @@ def format_validation_error(
         for part in item["loc"]:
             path += f"[{part}]" if isinstance(part, int) else f".{part}" if path else str(part)
         prefix = f"{source}: " if source else ""
-        shown = f" (Eingabe: {repr(item['input'])[:60]})" if show_input else ""
+        shown = " " + _("(Eingabe: {value})", value=repr(item["input"])[:60]) if show_input else ""
         lines.append(f"{prefix}{path or '$'}: {item['msg']}{shown}")
     return "\n".join(lines)

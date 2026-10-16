@@ -7,6 +7,8 @@ from typing import Annotated, Any
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
+from whattheshell.i18n import _
+
 ID_PATTERN = r"^[a-z][a-z0-9_]*$"
 
 # No leading dash (option injection), no path separator.
@@ -27,7 +29,7 @@ def relative_path(value: str) -> str:
     """
     path = PurePosixPath(value)
     if str(path) == "." or path.is_absolute() or ".." in path.parts:
-        raise ValueError("Pfad muss relativ sein, nicht leer und ohne '..'")
+        raise ValueError(_("Pfad muss relativ sein, nicht leer und ohne '..'"))
     return value
 
 

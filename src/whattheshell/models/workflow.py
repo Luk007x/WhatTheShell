@@ -16,6 +16,7 @@ from pydantic import (
     model_validator,
 )
 
+from whattheshell.i18n import _
 from whattheshell.models.common import ID_PATTERN, StrictModel, ToolName, ValueType
 
 logger = logging.getLogger(__name__)
@@ -40,7 +41,7 @@ class Stdin(_Model):
     @model_validator(mode="after")
     def _exactly_one(self) -> Stdin:
         if (self.pipe, self.text, self.file).count(None) != 2:
-            raise ValueError("stdin: genau eines von pipe, text, file setzen")
+            raise ValueError(_("stdin: genau eines von pipe, text, file setzen"))
         return self
 
 
@@ -68,7 +69,9 @@ class Condition(_Model):
             try:
                 re.compile(value)
             except re.error as err:
-                raise ValueError(f"regex ist kein gültiger regulärer Ausdruck: {err}") from err
+                raise ValueError(
+                    _("regex ist kein gültiger regulärer Ausdruck: {err}", err=err)
+                ) from err
         return value
 
     @property
@@ -81,7 +84,10 @@ class Condition(_Model):
         given = [op for op in _OPERATORS if getattr(self, op) is not None]
         if len(given) != 1:
             raise ValueError(
-                f"condition: genau ein Operator erlaubt, gesetzt: {', '.join(given) or 'keiner'}"
+                _(
+                    "condition: genau ein Operator erlaubt, gesetzt: {given}",
+                    given=", ".join(given) or _("keiner"),
+                )
             )
         return self
 
@@ -99,15 +105,15 @@ class OnError(_Model):
     @model_validator(mode="after")
     def _action_fields(self) -> OnError:
         if (self.action == "retry") != (self.retries is not None):
-            raise ValueError("on_error: retries ist genau bei action=retry Pflicht")
+            raise ValueError(_("on_error: retries ist genau bei action=retry Pflicht"))
         if (self.action == "fallback") != (self.steps is not None):
-            raise ValueError("on_error: steps ist genau bei action=fallback Pflicht")
+            raise ValueError(_("on_error: steps ist genau bei action=fallback Pflicht"))
         return self
 
 
 def _not_reserved(value: str) -> str:
     if value in _RESERVED_IDS:
-        raise ValueError(f"'{value}' ist reserviert")
+        raise ValueError(_("'{value}' ist reserviert", value=value))
     return value
 
 
@@ -208,11 +214,11 @@ class AskStep(_Step):
     @model_validator(mode="after")
     def _unique(self) -> AskStep:
         if len(set(self.fields)) != len(self.fields):
-            raise ValueError("ask: fields enthält doppelte Namen")
+            raise ValueError(_("ask: fields enthält doppelte Namen"))
         if len(set(self.buttons)) != len(self.buttons):
-            raise ValueError("ask: buttons enthält doppelte Einträge")
+            raise ValueError(_("ask: buttons enthält doppelte Einträge"))
         if self.button_variable in self.fields:
-            raise ValueError("ask: button_variable darf nicht auch in fields stehen")
+            raise ValueError(_("ask: button_variable darf nicht auch in fields stehen"))
         return self
 
 
@@ -246,7 +252,9 @@ def _default_kind(value: Any) -> Any:
     for item in value:
         if isinstance(item, dict) and "kind" not in item:
             if "tool" not in item:
-                raise ValueError(f"Schritt '{item.get('id', '?')}' braucht `kind` oder `tool`")
+                raise ValueError(
+                    _("Schritt '{id}' braucht `kind` oder `tool`", id=item.get("id", "?"))
+                )
             item = {**item, "kind": "command"}
         result.append(item)
     return result
@@ -271,23 +279,25 @@ class VariableSpec(_Model):
     @model_validator(mode="after")
     def _check_spec(self) -> VariableSpec:
         if self.type == ValueType.secret and self.default is not None:
-            raise ValueError("Variable vom Typ secret darf keinen default haben")
+            raise ValueError(_("Variable vom Typ secret darf keinen default haben"))
         if self.choices and self.type != ValueType.enum:
-            raise ValueError("choices ist nur bei type enum erlaubt")
+            raise ValueError(_("choices ist nur bei type enum erlaubt"))
         if (self.min is not None or self.max is not None) and self.type not in (
             ValueType.int,
             ValueType.float,
         ):
-            raise ValueError("min und max sind nur bei type int oder float erlaubt")
+            raise ValueError(_("min und max sind nur bei type int oder float erlaubt"))
         if self.pattern is not None:
             if self.type not in (ValueType.string, ValueType.path):
-                raise ValueError("pattern ist nur bei type string oder path erlaubt")
+                raise ValueError(_("pattern ist nur bei type string oder path erlaubt"))
             if len(self.pattern) > 500:
-                raise ValueError("pattern: höchstens 500 Zeichen erlaubt")
+                raise ValueError(_("pattern: höchstens 500 Zeichen erlaubt"))
             try:
                 re.compile(self.pattern)
             except re.error as exc:
-                raise ValueError(f"pattern: ungültiger regulärer Ausdruck ({exc})") from None
+                raise ValueError(
+                    _("pattern: ungültiger regulärer Ausdruck ({err})", err=exc)
+                ) from None
         return self
 
 
@@ -329,26 +339,40 @@ class Workflow(_Model):
         ids: set[str] = set()
         for step in iter_steps(self.steps):
             if step.id in ids:
-                raise ValueError(f"Schritt-id '{step.id}' kommt mehrfach vor")
+                raise ValueError(_("Schritt-id '{id}' kommt mehrfach vor", id=step.id))
             ids.add(step.id)
         for step in iter_steps(self.steps):
             if isinstance(step, ForeachStep) and step.as_ in ids:
-                raise ValueError(f"Schritt '{step.id}': as '{step.as_}' überdeckt eine Schritt-id")
+                raise ValueError(
+                    _(
+                        "Schritt '{id}': as '{name}' überdeckt eine Schritt-id",
+                        id=step.id,
+                        name=step.as_,
+                    )
+                )
         _check_steps(self.steps, set(), frozenset(), set(self.variables), ids)
         for step in iter_steps(self.steps):
             if isinstance(step, AskStep) and step.button_variable is not None:
                 spec = self.variables.get(step.button_variable)
                 if spec is None or spec.type not in (ValueType.string, ValueType.enum):
                     raise ValueError(
-                        f"Schritt '{step.id}': button_variable '{step.button_variable}' muss eine "
-                        "deklarierte Variable vom Typ string oder enum sein"
+                        _(
+                            "Schritt '{id}': button_variable '{name}' muss eine "
+                            "deklarierte Variable vom Typ string oder enum sein",
+                            id=step.id,
+                            name=step.button_variable,
+                        )
                     )
         terminals = {s.id for s in iter_steps(self.steps) if isinstance(s, TerminalStep)}
         for step in iter_steps(self.steps):
             if isinstance(step, CommandStep) and step.stdin and step.stdin.pipe in terminals:
                 raise ValueError(
-                    f"Schritt '{step.id}': pipe-Quelle {step.stdin.pipe} ist ein "
-                    "Terminal-Schritt und hat keine Ausgabe"
+                    _(
+                        "Schritt '{id}': pipe-Quelle {pipe} ist ein "
+                        "Terminal-Schritt und hat keine Ausgabe",
+                        id=step.id,
+                        pipe=step.stdin.pipe,
+                    )
                 )
         if self.layout is not None:
             for unknown in [n for n in self.layout.nodes if n not in ids]:
@@ -393,33 +417,43 @@ def _check_refs(
     step: Step, visible: set[str], names: frozenset[str], variables: set[str], ids: set[str]
 ) -> None:
     def fail(ref: str, why: str) -> None:
-        raise ValueError(f"Schritt '{step.id}': Referenz '{ref}' {why}")
+        raise ValueError(_("Schritt '{id}': Referenz '{ref}' {why}", id=step.id, ref=ref, why=why))
 
     def resolve(ref: str, allow_file: bool) -> None:
         if allow_file and ref.startswith("file:"):
             return
-        head, _, tail = ref.partition(".")
+        head, _sep, tail = ref.partition(".")
         if not tail:
             if head not in names:
-                fail(ref, "ist außerhalb eines passenden foreach unbekannt")
+                fail(ref, _("ist außerhalb eines passenden foreach unbekannt"))
         elif head == "var":
             if tail not in variables:
-                fail(ref, "nennt keine deklarierte Variable")
+                fail(ref, _("nennt keine deklarierte Variable"))
         elif head in visible:
             if tail not in _STEP_FIELDS:
-                fail(ref, f"muss auf {'|'.join(sorted(_STEP_FIELDS))} enden")
+                fail(ref, _("muss auf {fields} enden", fields="|".join(sorted(_STEP_FIELDS))))
         elif head in ids:
-            fail(ref, f"zeigt auf '{head}', der nicht vorher steht")
+            fail(ref, _("zeigt auf '{head}', der nicht vorher steht", head=head))
         else:
-            fail(ref, "ist unbekannt")
+            fail(ref, _("ist unbekannt"))
 
     if isinstance(step, SetStep) and step.variable not in variables:
-        raise ValueError(f"Schritt '{step.id}' setzt undeklarierte Variable '{step.variable}'")
+        raise ValueError(
+            _(
+                "Schritt '{id}' setzt undeklarierte Variable '{name}'",
+                id=step.id,
+                name=step.variable,
+            )
+        )
     if isinstance(step, AskStep):
         for name in step.fields:
             if name not in variables:
                 raise ValueError(
-                    f"Schritt '{step.id}': Feld '{name}' ist keine deklarierte Variable"
+                    _(
+                        "Schritt '{id}': Feld '{name}' ist keine deklarierte Variable",
+                        id=step.id,
+                        name=name,
+                    )
                 )
     if isinstance(step, IfStep):
         resolve(step.condition.source, allow_file=True)
@@ -428,12 +462,18 @@ def _check_refs(
     elif isinstance(step, CommandStep) and step.stdin and step.stdin.pipe is not None:
         pipe = step.stdin.pipe
         if pipe not in visible:
-            fail(pipe, "(stdin.pipe) ist kein vorheriger Schritt")
+            fail(pipe, _("(stdin.pipe) ist kein vorheriger Schritt"))
     for text in _strings(step.model_dump(exclude=_OWN_FIELDS_ONLY)):
         for opening in re.finditer(r"(?<!\\)\{\{", text):
             match = _TEMPLATE.match(text, opening.start())
             if match is None:
-                raise ValueError(f"Schritt '{step.id}': ungültiges Template in {text!r}")
+                raise ValueError(
+                    _(
+                        "Schritt '{id}': ungültiges Template in {text}",
+                        id=step.id,
+                        text=repr(text),
+                    )
+                )
             resolve(match.group(1), allow_file=False)
 
 

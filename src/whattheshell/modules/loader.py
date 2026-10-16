@@ -11,6 +11,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.error import YAMLError
 
+from whattheshell.i18n import _
 from whattheshell.models.migrate import MigrationError, migrate
 from whattheshell.models.module import Module
 from whattheshell.models.validation import format_validation_error
@@ -47,7 +48,7 @@ def _plain(node: Any, seen: set[int] | None = None) -> Any:
     seen = set() if seen is None else seen
     if isinstance(node, dict | list):
         if id(node) in seen:
-            raise ValueError("YAML-Aliase (&anker/*alias) sind nicht erlaubt")
+            raise ValueError(_("YAML-Aliase (&anker/*alias) sind nicht erlaubt"))
         seen.add(id(node))
     if isinstance(node, dict):
         return {_plain(k, seen): _plain(v, seen) for k, v in node.items()}
@@ -98,33 +99,33 @@ def load_document(path: Path, model: type[T], *, show_input: bool = True) -> T:
     try:
         return _load(path, model, show_input)
     except RecursionError as err:
-        raise DocumentError(path, None, "Dokument zu tief verschachtelt") from err
+        raise DocumentError(path, None, _("Dokument zu tief verschachtelt")) from err
     except MemoryError as err:
-        raise DocumentError(path, None, "Speichergrenze überschritten") from err
+        raise DocumentError(path, None, _("Speichergrenze überschritten")) from err
 
 
 def _load(path: Path, model: type[T], show_input: bool) -> T:
     try:
         if not stat.S_ISREG(path.stat().st_mode):  # follows symlinks; FIFO/device would hang
-            raise DocumentError(path, None, "Keine reguläre Datei")
+            raise DocumentError(path, None, _("Keine reguläre Datei"))
         with path.open("rb") as handle:
             data = handle.read(MAX_DOCUMENT_BYTES + 1)
         if len(data) > MAX_DOCUMENT_BYTES:
-            raise DocumentError(path, None, "Datei zu groß (Grenze 1 MiB)")
+            raise DocumentError(path, None, _("Datei zu groß (Grenze 1 MiB)"))
         text = data.decode("utf-8")
     except (OSError, UnicodeDecodeError) as err:
-        raise DocumentError(path, None, f"Datei nicht lesbar: {err}") from err
+        raise DocumentError(path, None, _("Datei nicht lesbar: {err}", err=err)) from err
 
     doc: Any
     try:
         doc = json.loads(text) if path.suffix == ".json" else YAML(typ="rt").load(text)
     except json.JSONDecodeError as err:
-        raise DocumentError(path, err.lineno, f"Ungültiges JSON: {err.msg}") from err
+        raise DocumentError(path, err.lineno, _("Ungültiges JSON: {msg}", msg=err.msg)) from err
     except YAMLError as err:
         mark = getattr(err, "problem_mark", None)
         problem = getattr(err, "problem", None) or str(err)
         raise DocumentError(
-            path, mark.line + 1 if mark else None, f"Ungültiges YAML: {problem}"
+            path, mark.line + 1 if mark else None, _("Ungültiges YAML: {problem}", problem=problem)
         ) from err
 
     try:
@@ -153,7 +154,7 @@ def load_module_file(path: Path) -> Module:
         DocumentError: Bad file name or any error of `load_document`.
     """
     if not path.name.endswith(MODULE_SUFFIXES):
-        raise DocumentError(path, None, "Dateiname muss auf .module.yaml enden")
+        raise DocumentError(path, None, _("Dateiname muss auf .module.yaml enden"))
     return load_document(path, Module)
 
 
@@ -164,5 +165,5 @@ def load_workflow_file(path: Path) -> Workflow:
         DocumentError: Bad file name or any error of `load_document`.
     """
     if not path.name.endswith(WORKFLOW_SUFFIXES):
-        raise DocumentError(path, None, "Dateiname muss auf .workflow.yaml enden")
+        raise DocumentError(path, None, _("Dateiname muss auf .workflow.yaml enden"))
     return load_document(path, Workflow)
