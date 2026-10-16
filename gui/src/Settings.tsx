@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { useEffect, useState } from "react";
-import { ApiError, errMsg, getSettings, postShutdown, putSettings } from "./api";
+import { useEffect, useState, type ReactNode } from "react";
+import { ApiError, errMsg, getAiAgents, getSettings, postShutdown, putSettings } from "./api";
 import { getLang, t, type Lang } from "./i18n";
 import { Modal } from "./Modal";
 import type { Settings as ServerSettings } from "./types/api";
@@ -21,6 +21,21 @@ export const loadFontSize = (): FontSize => {
 };
 export const loadAutoPreview = (): boolean => read("wts.autopreview") !== "off";
 export const saveAutoPreview = (on: boolean): void => write("wts.autopreview", on ? "on" : "off");
+
+export const START_VIEWS = ["last", "build-graph", "build-blocks", "run", "modules"] as const;
+export type StartView = (typeof START_VIEWS)[number];
+export const loadStartView = (): StartView => START_VIEWS.find((v) => v === read("wts.startview")) ?? "last";
+export const saveStartView = (v: StartView): void => write("wts.startview", v);
+/** Mode and view at app start: a fixed start view wins over the last-used mode/view. */
+export function initialModeView<M extends string, V extends string>(startView: StartView, savedMode: M, savedView: V, modes: { build: M; run: M; modules: M }, views: { graph: V; blocks: V }): { mode: M; view: V } {
+  switch (startView) {
+    case "build-graph": return { mode: modes.build, view: views.graph };
+    case "build-blocks": return { mode: modes.build, view: views.blocks };
+    case "run": return { mode: modes.run, view: savedView };
+    case "modules": return { mode: modes.modules, view: savedView };
+    case "last": return { mode: savedMode, view: savedView };
+  }
+}
 export const applyFontSize = (size: FontSize): void => { document.documentElement.style.setProperty("--font-scale", String(SCALE[size])); };
 export const saveFontSize = (size: FontSize): void => write("wts.fontsize", size);
 
@@ -29,7 +44,17 @@ function AiSettings({ onChanged }: { onChanged: (enabled: boolean) => void }) {
   const [doc, setDoc] = useState<ServerSettings | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [saved, setSaved] = useState(false);
+  const [agents, setAgents] = useState<Record<string, string | null> | null>(null);
+  const [agentsError, setAgentsError] = useState<unknown>(null);
+  const agentMode = doc?.ai.enabled === true && doc.ai.provider === "agent";
   useEffect(() => { getSettings().then(setDoc, setError); }, []);
+  useEffect(() => {
+    if (!agentMode || agents) return;
+    let live = true;
+    setAgentsError(null);
+    getAiAgents().then((r) => { if (live) setAgents(r); }, (e: unknown) => { if (live) setAgentsError(e); });
+    return () => { live = false; };
+  }, [agentMode, agents]);
   if (!doc) return <section><h3>{t("ai.settings")}</h3>{error !== null && <p role="alert" className="error">{errMsg(error)}</p>}</section>;
   const ai = doc.ai;
   const edit = (patch: Partial<ServerSettings["ai"]>) => { setSaved(false); setDoc({ ...doc, ai: { ...ai, ...patch } }); };
@@ -40,12 +65,13 @@ function AiSettings({ onChanged }: { onChanged: (enabled: boolean) => void }) {
       {help && <small className="muted">{help}</small>}
     </div>
   );
-  const choice = <K extends string>(id: string, label: string, value: K, values: readonly K[], set: (v: K) => void) => (
+  const choice = <K extends string>(id: string, label: string, value: K, values: readonly K[], set: (v: K) => void, show: (v: K) => string = (v) => v, help?: ReactNode) => (
     <div className="field">
       <label htmlFor={id}>{label}</label>
       <select id={id} value={value} onChange={(e) => { const v = values.find((x) => x === e.target.value); if (v) set(v); }}>
-        {values.map((v) => <option key={v} value={v}>{v}</option>)}
+        {values.map((v) => <option key={v} value={v}>{show(v)}</option>)}
       </select>
+      {help}
     </div>
   );
   const save = () => {
@@ -81,7 +107,12 @@ function AiSettings({ onChanged }: { onChanged: (enabled: boolean) => void }) {
           )}
           {ai.provider === "agent" && (
             <>
-              {choice("ai-g-kind", "kind", agent.kind, ["claude", "codex"], (kind) => edit({ agent: { ...agent, kind } }))}
+              {choice("ai-g-kind", "kind", agent.kind, ["claude", "codex"], (kind) => edit({ agent: { ...agent, kind } }),
+                (k) => (agents ? `${k} – ${t(agents[k] ? "ai.agent.found" : "ai.agent.missing")}` : k),
+                <>
+                  {agents && <small className="muted">{agents[agent.kind] ?? t("ai.agent.hint")}</small>}
+                  {agentsError !== null && <small role="alert" className="error">{errMsg(agentsError)}</small>}
+                </>)}
               <div className="field">
                 <label htmlFor="ai-g-cmd">command</label>
                 <textarea id="ai-g-cmd" rows={3} value={agent.command.join("\n")} onChange={(e) => edit({ agent: { ...agent, command: e.target.value === "" ? [] : e.target.value.split("\n") } })} />
@@ -134,6 +165,7 @@ export function Settings(props: {
   fontSize: FontSize; onFontSize: (s: FontSize) => void;
   autoPreview: boolean; onAutoPreview: (on: boolean) => void;
 }) {
+  const [startView, setStartView] = useState<StartView>(loadStartView);
   return (
     <Modal open={props.open} title={t("settings.title")} onCancel={props.onClose}>
       <div className="field">
@@ -147,6 +179,12 @@ export function Settings(props: {
         <label htmlFor="set-font">{t("settings.font")}</label>
         <select id="set-font" value={props.fontSize} onChange={(e) => props.onFontSize(e.target.value === "small" || e.target.value === "large" ? e.target.value : "normal")}>
           {(["small", "normal", "large"] as const).map((s) => <option key={s} value={s}>{t(`settings.font.${s}`)}</option>)}
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor="set-startview">{t("settings.view")}</label>
+        <select id="set-startview" value={startView} onChange={(e) => { const v = START_VIEWS.find((x) => x === e.target.value) ?? "last"; setStartView(v); saveStartView(v); }}>
+          {START_VIEWS.map((v) => <option key={v} value={v}>{t(`settings.view.${v}`)}</option>)}
         </select>
       </div>
       <div className="field">

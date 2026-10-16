@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import json
+import shutil
 import stat
 import subprocess
 import sys
@@ -11,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from whattheshell.ai.check import CheckResult, check
+from whattheshell.ai.check import CheckResult, agents_found, check
 from whattheshell.settings import Settings
 
 KEY = "sk-geheim-123"
@@ -167,3 +168,8 @@ def test_unreadable_login_file(bin_dir: Path, tmp_path: Path) -> None:
     login.chmod(0)
     ok, detail, hint = _items(check(_settings(provider="agent")))["Anmeldung"]
     assert not ok and "Anmeldedatei nicht kopierbar" in detail and ".credentials.json" in hint
+
+
+def test_agents_found(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(shutil, "which", lambda name: "/usr/bin/codex" if name == "codex" else None)
+    assert agents_found() == {"claude": None, "codex": "/usr/bin/codex"}

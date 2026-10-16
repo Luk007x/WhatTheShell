@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -95,6 +96,13 @@ def test_check_reports_ai_off_with_200_without_provider_import(
     assert body["ok"] is False and [i["name"] for i in body["items"]] == ["KI aus"]
     assert "wts ai enable" in body["items"][0]["hint"]
     assert "whattheshell.ai.providers" not in sys.modules
+
+
+def test_agents_listed_with_ai_off(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(shutil, "which", lambda name: "/bin/claude" if name == "claude" else None)
+    reply = client.get("/api/ai/agents")
+    assert reply.status_code == 200
+    assert reply.json() == {"claude": "/bin/claude", "codex": None}
 
 
 def test_check_without_network(client: TestClient, fake: FakeProvider) -> None:

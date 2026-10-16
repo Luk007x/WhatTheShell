@@ -4,6 +4,7 @@
 Provider, network and process code is imported only after the ``ai.enabled`` gate.
 """
 
+import shutil
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -42,6 +43,14 @@ class CheckResult:
     ok: bool
     provider: str
     items: list[CheckItem] = field(default_factory=list)
+
+
+def agents_found() -> dict[str, str | None]:
+    """Absolute path of each agent CLI on PATH, else None.
+
+    Only tells whether the program is on PATH: no version, no login check, no process started.
+    """
+    return {kind: shutil.which(kind) for kind in _AGENT_HINTS}
 
 
 def check(settings: Settings, *, probe_network: bool = True) -> CheckResult:
@@ -154,8 +163,6 @@ def _check_api(api: ApiSettings, probe_network: bool) -> list[CheckItem]:
 
 
 def _check_agent(agent: AgentSettings) -> list[CheckItem]:
-    import shutil
-
     from whattheshell.subproc import run_limited
 
     from .providers.agent_cli import CREDENTIALS, isolated_env  # lazy: gate first

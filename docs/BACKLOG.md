@@ -12,3 +12,9 @@ Punkte, die bewusst zurückgestellt sind. Jeder Eintrag nennt Auslöser und Bedi
 | Kombinierte Kurzoptionen wie `-rf` in `extra_args` für die Gefahrenklasse zerlegen | offen | ein Modul Gefahr an einer Einzeloption festmacht. |
 | LLM-Labels für Communities im graphify-Graphen | offen | der Graph für Außenstehende lesbar sein soll. |
 | Typtreue der Hilfe-Heuristik bei BusyBox (Metavariablen nur in Beschreibung) | offen | BusyBox-Nutzer Optionen mit falschem Typ melden. |
+
+## Nach D-017 (2026-10-16)
+
+- **Versionshinweis in den Einstellungen:** PyPI-JSON nur auf Klick lesen, neuere Version und den passenden Update-Befehl anzeigen; kein Installieren aus der App (D-017).
+- **Persistenter Lauf-Verlauf:** Workflow, Start, Dauer, Ergebnis, Exit-Code je Lauf in `cache_dir()`; ohne Ausgaben und Secrets; Ansicht im Ausführen-Modus.
+- **Oberflächeneinstellungen serverseitig:** Sprache, Schrift, Theme, Startansicht in `settings.yaml` statt `localStorage`, damit sie Browserwechsel überleben.

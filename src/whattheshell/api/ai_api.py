@@ -19,7 +19,7 @@ from whattheshell import paths
 from whattheshell.ai import AiDisabled, require_enabled
 from whattheshell.ai import tasks as ai_tasks
 from whattheshell.ai.approve import Approval, apply, propose
-from whattheshell.ai.check import check
+from whattheshell.ai.check import agents_found, check
 from whattheshell.ai.protocol import Prompt, make_provider
 from whattheshell.api.modules_api import _user_path
 from whattheshell.api.rest import _get_info, _sandbox, fail
@@ -252,6 +252,14 @@ def apply_proposal(request: Request, body: ApplyBody) -> dict[str, str]:
 def check_ai(request: Request, network: bool = True) -> dict[str, Any]:
     """Preflight of the configured source; with AI off 200 and the single item "KI aus"."""
     return dataclasses.asdict(check(request.app.state.settings, probe_network=network))
+
+
+@router.get("/agents")
+def agent_programs() -> dict[str, str | None]:
+    """Which agent CLIs are on PATH."""
+    # Ungated on purpose: the user picks a provider before enabling AI. It only looks up PATH
+    # (no foreign process, no network), so the AI code path stays unreachable while AI is off.
+    return agents_found()
 
 
 router.include_router(_gated)  # after all routes: include copies them

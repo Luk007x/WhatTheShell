@@ -49,6 +49,7 @@ Verbindlicher Vertrag zwischen `src/whattheshell/api/` und `gui/`. Nur `127.0.0.
 | `GET /api/settings` | – | Settings-Dokument (siehe unten) plus schreibgeschütztes `key_status: "set"|"missing"` (ist die Umgebungsvariable `ai.api.key_env` gesetzt; der Wert wird nie ausgegeben) |
 | `PUT /api/settings` | Settings-Dokument (ohne `key_status`) | Validierung wie `Settings` (unbekannte oder Schlüsselfelder → 422 `validation`, ohne Eingabewerte), schreibt atomar (0600), lädt die Einstellungen neu; Antwort wie `GET`. `ai.enabled` wird nur hier oder mit `wts ai enable` true |
 | `GET /api/ai/check?network=1\|0` | – | `{ok, provider, items: [{name, ok, detail, hint}]}`: Preflight der konfigurierten Quelle (D-012). Ohne Gate: bei ausgeschalteter KI trotzdem 200 mit dem einzigen Item „KI aus“ (`ok: false`), damit die GUI es anzeigen kann; Anbieter-, Netz- und Prozesscode wird dann nicht geladen. `network=0` kontaktiert keinen Endpunkt; Agenten-CLIs werden immer gestartet (`--version`, Anmeldestatus im Temp-HOME). Fehler und Zeitlimits sind Items, nie 5xx |
+| `GET /api/ai/agents` | – | `{"claude": Pfad\|null, "codex": Pfad\|null}`: absoluter Pfad des Agenten-Programms auf PATH, sonst `null`. Ohne Gate (auch bei ausgeschalteter KI 200), damit die GUI vor dem Einschalten den Anbieter wählen lässt. Prüft nur PATH: kein Prozess, kein Netz, keine Versions- oder Anmeldeprüfung |
 | `POST /api/ai/improve-module` | `{tool, send: bool=false}` | siehe Abschnitt „KI-Endpunkte“ |
 | `POST /api/ai/examples` | `{tool, send}` | dito |
 | `POST /api/ai/draft-workflow` | `{description, name?, send}` | dito (`name` = Dateiname ohne Endung, Muster `^[A-Za-z0-9][A-Za-z0-9_-]*$`) |
@@ -123,7 +124,7 @@ Jeder KI-Einstieg ruft zuerst `ai.require_enabled(settings)` (wirft `AiDisabled`
 
 ## KI-Endpunkte (`/api/ai/*`)
 
-- Jeder Aufruf außer `GET /api/ai/check` prüft zuerst `ai.enabled`: aus → 403 `{"error": "ai_disabled", message}`, noch vor der Body-Prüfung und bevor `ai.providers` importiert wird.
+- Jeder Aufruf außer `GET /api/ai/check` und `GET /api/ai/agents` prüft zuerst `ai.enabled`: aus → 403 `{"error": "ai_disabled", message}`, noch vor der Body-Prüfung und bevor `ai.providers` importiert wird.
 - Zweiphasig (F-30). `send: false` (Standard): `{"prompt": {"system", "user"}, "chars": n}`, nichts wird gesendet. `send: true`: `{"kind": "module"|"workflow"|"text", "raw", "errors": [str], "diff", "target": str|null, "valid": bool}`. Der Prompt ist in beiden Fällen um den Wert von `ai.api.key_env` maskiert. Nichts wird gespeichert oder ausgeführt; `raw` ist unvertraut und wird erst mit `apply` übernommen.
 - `diagnose` ohne `include_output` entfernt `stdout`/`stderr` aus dem Schritt vor dem Prompt-Bau; `ai.send_outputs: true` erzwingt sie.
 - `improve-module`/`examples`: Grundlage ist die Nutzerdatei (`target` = `<tool>.module.yaml`), sonst ein Gerüst aus dem rohen Katalog. Antwort mit anderem `tool:` → `valid: false`.

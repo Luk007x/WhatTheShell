@@ -13,7 +13,7 @@ import { CatalogPanel } from "./catalog/CatalogPanel";
 import { clearToolCache, StepPanel } from "./detail/StepPanel";
 import { ModulesView } from "./modules/ModulesView";
 import { Templates } from "./catalog/Templates";
-import { applyFontSize, loadAutoPreview, loadFontSize, saveAutoPreview, saveFontSize, Settings, type FontSize } from "./Settings";
+import { applyFontSize, initialModeView, loadAutoPreview, loadFontSize, loadStartView, saveAutoPreview, saveFontSize, Settings, type FontSize } from "./Settings";
 import { mergeTemplate } from "./model/templates";
 import { VariablesPanel } from "./detail/VariablesPanel";
 import { useDebounced } from "./hooks";
@@ -113,7 +113,8 @@ export function App() {
   const [selected, setSelected] = useState<string | null>(null);
   const [safety, setSafety] = useState<Record<string, string>>({});
   const [category, setCategory] = useState<Record<string, string>>({});
-  const [mode, setModeState] = useState<Mode>(loadMode);
+  const [start] = useState(() => initialModeView(loadStartView(), loadMode(), loadView(), { build: "build", run: "run", modules: "modules" }, { graph: "graph", blocks: "blocks" }));
+  const [mode, setModeState] = useState<Mode>(start.mode);
   const [notice, setNotice] = useState<string | null>(null);
   const [cols, setColsState] = useState<Cols>(loadCols);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -122,7 +123,7 @@ export function App() {
   const [stopped, setStopped] = useState(false); // server quit: the app is replaced by the closing view, nothing is polled
   const [aiEnabled, setAiEnabled] = useState(false);
   const [refresh, setRefresh] = useState(0); // bumped when ToolInfos must be reloaded (language, module saved)
-  const [view, setViewState] = useState<View>(loadView);
+  const [view, setViewState] = useState<View>(start.view);
   const [theme, setThemeState] = useState<Theme>(getTheme);
   const [outputOpen, setOutputOpen] = useState(true);
   const [keysOpen, setKeysOpen] = useState(false);

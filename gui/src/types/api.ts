@@ -171,6 +171,9 @@ export interface Settings {
   key_status?: "set" | "missing";
 }
 
+/** Absolute path of each agent program, null = not on PATH (GET /api/ai/agents). */
+export type AiAgents = Record<string, string | null>;
+
 export type AiTaskName = "improve-module" | "examples" | "draft-workflow" | "diagnose";
 export type AiBody =
   | { tool: string }

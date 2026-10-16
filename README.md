@@ -36,6 +36,21 @@ wts gui
 
 Node wird nur zum Bauen benötigt, nicht zur Laufzeit: Das Wheel enthält das fertige Frontend.
 
+Getestet wird auf Ubuntu (CI) und Fedora (Entwicklung). Der Code enthält nichts Distributionsspezifisches; benötigt
+werden nur `bwrap`, `setsid` und `prlimit` (util-linux). `wts sandbox` zeigt, was fehlt, mit dem Installationsbefehl
+der jeweiligen Distribution.
+
+## Aktualisieren
+
+```
+wts gui stop                              # laufenden Server beenden (laufende Workflows werden abgebrochen)
+pipx upgrade whattheshell                 # bzw. uv tool upgrade whattheshell / pip install -U whattheshell
+wts gui start
+```
+
+Einstellungen (`~/.config/whattheshell`), eigene Module und Workflows bleiben erhalten; sie liegen nicht im Paket.
+Ein Update aus der laufenden App heraus gibt es bewusst nicht (siehe `docs/DECISIONS.md`, D-017).
+
 ## Starten und Beenden
 
 ```

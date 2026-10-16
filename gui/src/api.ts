@@ -2,7 +2,7 @@
 import { getLang } from "./i18n";
 import type {
   CommandRequest, CommandResult, PreviewRequest, PreviewResult, RunAction, RunCreated, RunListItem, RunRequest, WorkflowRunRequest,
-  RunState, SandboxStatus, Settings, AiBody, AiPreview, AiResult, AiTaskName, Status, ToolInfo, ToolSummary, ValidationResult, Workflow, WorkflowDoc, WorkflowListItem,
+  RunState, SandboxStatus, Settings, AiAgents, AiBody, AiPreview, AiResult, AiTaskName, Status, ToolInfo, ToolSummary, ValidationResult, Workflow, WorkflowDoc, WorkflowListItem,
 } from "./types/api";
 
 export const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
@@ -129,6 +129,7 @@ export const scaffoldModule = (tool: string) => api.post<{ raw: string }>("/api/
 export const getTemplates = (tool: string) => api.get<TemplateEntry[]>(`/api/templates/${enc(tool)}`);
 
 export const getSettings = () => api.get<Settings>("/api/settings");
+export const getAiAgents = () => api.get<AiAgents>("/api/ai/agents");
 export const putSettings = ({ key_status: _readOnly, ...doc }: Settings) => api.put<Settings>("/api/settings", doc);
 export function aiTask(task: AiTaskName, body: AiBody & { send: false }, signal?: AbortSignal): Promise<AiPreview>;
 export function aiTask(task: AiTaskName, body: AiBody & { send: true }, signal?: AbortSignal): Promise<AiResult>;
