@@ -113,7 +113,8 @@ jobs:
           test "$(stat -c %a "$XDG_RUNTIME_DIR/whattheshell/gui.json")" = 600
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:48777/)" = 200
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:48777/api/status)" = 401
-          wts gui --no-browser | grep -q "Läuft bereits"
+          wts gui --no-browser | grep -q "Already running"
+          WTS_LANG=de wts gui --no-browser | grep -q "Läuft bereits"
           wts gui stop
           trap - EXIT
           test ! -e "$XDG_RUNTIME_DIR/whattheshell/gui.json"
