@@ -15,6 +15,9 @@ from whattheshell.engine.events import (
 from whattheshell.engine.plan import PlannedLine, plan, plan_text
 from whattheshell.engine.runner import (
     TERMINAL_ONLY_GUI,
+    AskAnswer,
+    Asker,
+    AskRequest,
     Confirmer,
     ConfirmRequest,
     Controller,
@@ -33,6 +36,9 @@ from whattheshell.engine.template import Context, StepOutput, TemplateError, ren
 __all__ = [
     "ArgvError",
     "ConfirmRequest",
+    "AskAnswer",
+    "AskRequest",
+    "Asker",
     "Confirmer",
     "Context",
     "Controller",

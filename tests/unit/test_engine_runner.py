@@ -11,6 +11,8 @@ import pytest
 from whattheshell.bundled import MODULES_DIR, WORKFLOWS_DIR
 from whattheshell.catalog import Catalog
 from whattheshell.engine import (
+    AskAnswer,
+    AskRequest,
     ConfirmRequest,
     Controller,
     Event,
@@ -410,7 +412,7 @@ def test_output_limit_fails_step(tmp_path: Path) -> None:
 def test_template_error_is_step_failure(tmp_path: Path) -> None:
     wf = make_workflow([echo("a", "{{ var.unset }}")], {"unset": {}})
     result, _ = run(tmp_path, wf)
-    assert result.status == "failed" and "Unbekannte Variable" in result.message
+    assert result.status == "failed" and "noch keinen Wert" in result.message
 
 
 _NEEDED = ("find", "grep", "wc", "tee")
@@ -699,3 +701,152 @@ def test_symlinked_root_gives_resolved_terminal_cwd(tmp_path: Path) -> None:
     runner, _, requests = _terminal_runner(link)
     assert runner.run(runner.prepare(make_workflow([_term()]), {})).status == "success"
     assert requests[0].cwd == real.resolve()
+
+
+# ---------------------------------------------------------------- ask steps
+
+ASK_VARS = {
+    "name": {"type": "string", "required": True},
+    "mode": {"type": "enum", "choices": ["a", "b"]},
+    "pw": {"type": "secret"},
+    "out": {"type": "string"},
+}
+
+
+def _ask(**extra: Any) -> dict[str, Any]:
+    return {"id": "q", "kind": "ask", "text": "Hi {{ var.name }}", "fields": ["name"], **extra}
+
+
+def _ask_run(
+    tmp_path: Path, answers: list[AskAnswer | None], steps: list[dict[str, Any]]
+) -> tuple[RunResult, list[Event], list[AskRequest]]:
+    requests: list[AskRequest] = []
+
+    def asker(request: AskRequest) -> AskAnswer | None:
+        requests.append(request)
+        return answers.pop(0)
+
+    runner, events = make_runner(tmp_path, ask=asker)
+    result = runner.run(runner.prepare(make_workflow(steps, ASK_VARS), {"name": "x"}))
+    return result, events, requests
+
+
+def test_ask_values_land_in_variables(tmp_path: Path) -> None:
+    steps = [
+        _ask(fields=["name", "pw"], buttons=["Ja", "Nein"], button_variable="out"),
+        {"id": "m", "kind": "message", "text": "{{ var.name }}/{{ var.out }}"},
+    ]
+    result, events, requests = _ask_run(
+        tmp_path, [AskAnswer({"name": "Eva", "pw": "s3"}, "Nein")], steps
+    )
+    assert result.status == "success"
+    assert Message("m", "Eva/Nein") in events
+    request = requests[0]
+    assert request.text == "Hi x" and list(request.fields) == ["name", "pw"]
+    assert request.current == {"name": "x"} and request.buttons == ["Ja", "Nein"]
+    assert result.variables["pw"] != "s3"
+
+
+def test_ask_cancel_aborts(tmp_path: Path) -> None:
+    result, _, _ = _ask_run(tmp_path, [None], [_ask()])
+    assert (result.status, result.exit_code) == ("aborted", 2)
+
+
+def test_ask_invalid_value_asks_again_with_error(tmp_path: Path) -> None:
+    steps = [_ask(fields=["name", "mode"])]
+    answers: list[AskAnswer | None] = [
+        AskAnswer({"mode": "zzz"}, "OK"),
+        AskAnswer({"name": "", "mode": "a"}, "OK"),
+        AskAnswer({"mode": "b"}, "OK"),
+    ]
+    result, _, requests = _ask_run(tmp_path, answers, steps)
+    assert result.status == "success" and result.variables["mode"] == "b"
+    assert [r.error is None for r in requests] == [True, False, False]
+    assert requests[1].error and "keine erlaubte Auswahl" in requests[1].error
+    assert requests[2].error and "Pflichtvariable" in requests[2].error
+
+
+def test_ask_without_asker_fails_in_prepare(tmp_path: Path) -> None:
+    runner, _ = make_runner(tmp_path)
+    with pytest.raises(RunError, match="Abfrage-Schritt"):
+        runner.prepare(make_workflow([_ask()], ASK_VARS), {"name": "x"})
+
+
+def test_ask_timeout_aborts(tmp_path: Path) -> None:
+    release = threading.Event()
+
+    def asker(request: AskRequest) -> AskAnswer | None:
+        release.wait(5)
+        return None
+
+    runner, _ = make_runner(tmp_path, ask=asker)
+    prepared = runner.prepare(make_workflow([_ask(timeout=0.2)], ASK_VARS), {"name": "x"})
+    result = runner.run(prepared)
+    release.set()
+    assert (result.status, result.exit_code) == ("aborted", 2)
+    assert "Keine Antwort innerhalb von 0.2 s" in result.message
+
+
+def test_required_variable_only_asked_is_not_required_at_prepare(tmp_path: Path) -> None:
+    ask = {"id": "q", "kind": "ask", "fields": ["w"], "buttons": ["OK"]}
+    variables = {"w": {"required": True}}
+    wf = make_workflow([ask, echo("a", "{{ var.w }}")], variables)
+    assert wf.asked_variables() == {"w"}
+    result, _ = run(tmp_path, wf, ask=lambda r: AskAnswer({"w": "hi"}, "OK"))
+    assert result.status == "success"
+    early = make_workflow([echo("a", "{{ var.w }}"), ask], variables)
+    result, _ = run(tmp_path, early, ask=lambda r: AskAnswer({"w": "hi"}, "OK"))
+    assert result.status == "failed"
+
+
+def test_ask_text_and_current_are_masked(tmp_path: Path) -> None:
+    requests: list[AskRequest] = []
+
+    def asker(request: AskRequest) -> AskAnswer | None:
+        requests.append(request)
+        return AskAnswer({}, "OK")
+
+    steps = [_ask(text="pw is {{ var.pw }}", fields=["name"])]
+    runner, events = make_runner(tmp_path, ask=asker)
+    wf = make_workflow(steps, ASK_VARS)
+    runner.run(runner.prepare(wf, {"name": "x", "pw": "hunter2"}))
+    assert requests[0].text == "pw is ***" and "hunter2" not in requests[0].text
+
+
+def test_asker_crash_counts_as_cancel(tmp_path: Path) -> None:
+    def asker(request: AskRequest) -> AskAnswer | None:
+        raise ValueError("boom")
+
+    result, _ = run(tmp_path, make_workflow([_ask()], ASK_VARS), {"name": "x"}, ask=asker)
+    assert (result.status, result.exit_code) == ("aborted", 2)
+
+
+def test_ask_empty_answer_clears_optional_variable(tmp_path: Path) -> None:
+    steps = [_ask(fields=["name", "out"])]
+    runner, _ = make_runner(tmp_path, ask=lambda r: AskAnswer({"out": ""}, "OK"))
+    prepared = runner.prepare(make_workflow(steps, ASK_VARS), {"name": "x", "out": "old"})
+    assert runner.run(prepared).variables["out"] == ""
+
+
+def test_ask_gives_up_after_too_many_invalid_answers(tmp_path: Path) -> None:
+    result, _, requests = _ask_run(
+        tmp_path, [AskAnswer({"mode": "zzz"}, "OK")] * 25, [_ask(fields=["mode"])]
+    )
+    assert result.status == "aborted" and "Zu viele ungültige Antworten" in result.message
+    assert len(requests) == 20
+
+
+def test_ask_reask_carries_remaining_timeout(tmp_path: Path) -> None:
+    steps = [_ask(fields=["mode"], timeout=30)]
+    answers: list[AskAnswer | None] = [AskAnswer({"mode": "zzz"}, "OK"), None]
+    _, _, requests = _ask_run(tmp_path, answers, steps)
+    assert requests[0].timeout is not None and requests[1].timeout is not None
+    assert requests[1].timeout <= requests[0].timeout <= 30
+
+
+def test_template_names_declared_but_unset_variable(tmp_path: Path) -> None:
+    wf = make_workflow(
+        [{"id": "m", "kind": "message", "text": "{{ var.out }}"}], {"out": {"type": "string"}}
+    )
+    result, _ = run(tmp_path, wf)
+    assert result.status == "failed" and "noch keinen Wert" in result.message

@@ -99,6 +99,8 @@ export const controlRun = (id: string, action: RunAction) =>
   api.post<void>(`/api/runs/${enc(id)}/control`, { action });
 export const confirmRun = (id: string, stepId: string, ok: boolean) =>
   api.post<void>(`/api/runs/${enc(id)}/confirm`, { step_id: stepId, ok });
+export const answerRun = (id: string, body: { step_id: string; values?: Record<string, string>; button?: string; cancel?: true }) =>
+  api.post<void>(`/api/runs/${enc(id)}/answer`, body);
 export const deleteTranscript = (name: string) => api.del<void>(`/api/terminal/transcripts/${enc(name)}`);
 export const postShutdown = () => api.post<{ status: "stopping" }>("/api/shutdown");
 export const postSelftest = () => api.post<SandboxStatus>("/api/sandbox/selftest");

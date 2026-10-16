@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+import io
 import json
 from pathlib import Path
 
 import pytest
 
 from whattheshell.cli import main
+from whattheshell.models.common import ValueType
 
 from .test_engine_runner import tools  # noqa: F401
 
@@ -108,3 +110,63 @@ def test_terminal_workflow_is_refused_but_dry_run_shows_plan(
     assert "[terminal] interaktiv" in capsys.readouterr().out
     assert main(["run", _file(tmp_path, TERMINAL), "--yes"]) != 0
     assert "nur in `wts gui`" in capsys.readouterr().err
+
+
+ASK = """schema_version: 1
+name: t
+variables:
+  who: { type: string, label: Name }
+  mode: { type: enum, choices: [fast, slow] }
+  pw: { type: secret }
+steps:
+  - { id: q, kind: ask, title: Daten, fields: [who, mode, pw], buttons: [Los, Zurück] }
+  - { id: a, tool: echo-args, extra_args: ["{{ var.who }}", "{{ var.mode }}", "{{ var.pw }}"] }
+"""
+
+
+class _Tty(io.StringIO):
+    def isatty(self) -> bool:
+        return True
+
+
+def test_ask_step_prompts_fields_enum_secret_and_buttons(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("sys.stdin", _Tty("Ada\n9\n2\n1\n"))  # 9 = invalid enum choice
+    monkeypatch.setattr("getpass.getpass", lambda prompt: "geheim")
+    assert main(["run", _file(tmp_path, ASK)]) == 0
+    captured = capsys.readouterr()
+    assert "Name (who)" in captured.err and "Ungültige Auswahl" in captured.err
+    assert "Ada" in captured.out and "slow" in captured.out
+    assert "geheim" not in captured.out + captured.err
+
+
+def test_ask_step_without_terminal_is_3(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["run", _file(tmp_path, ASK), "--yes"]) == 3
+    assert "Abfrage-Schritt braucht ein Terminal" in capsys.readouterr().err
+
+
+def test_ask_enum_empty_keeps_current_and_eof_cancels(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from whattheshell.cli import _ask_form
+    from whattheshell.engine import AskRequest
+    from whattheshell.models.workflow import VariableSpec
+
+    spec = VariableSpec(type=ValueType.enum, choices=["fast", "slow"])
+    request = AskRequest("q", "", "", {"mode": spec}, {"mode": "slow"}, ["OK"])
+    monkeypatch.setattr("sys.stdin", io.StringIO("\n"))
+    answer = _ask_form(request)
+    assert answer is not None and answer.values == {"mode": "slow"}
+    monkeypatch.setattr("sys.stdin", io.StringIO(""))
+    assert _ask_form(request) is None
+    monkeypatch.setattr("getpass.getpass", lambda prompt: (_ for _ in ()).throw(EOFError()))
+    secret = AskRequest("q", "", "", {"pw": VariableSpec(type=ValueType.secret)}, {}, ["OK"])
+    assert _ask_form(secret) is None
+
+
+def test_printable_keeps_newlines_and_tabs_only_on_request() -> None:
+    from whattheshell.subproc import printable
+
+    assert printable("a\nb\t\x1b[0m\r") == "a b  [0m "
+    assert printable("a\nb\t\x1b\r", keep_newlines=True) == "a\nb\t  "

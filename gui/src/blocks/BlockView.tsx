@@ -24,6 +24,7 @@ const subtitle = (s: Step): string => {
     case "set": return `${s.variable} = ${s.value}`;
     case "wait": return `${s.seconds} s`;
     case "message": return s.text;
+    case "ask": return s.title || (s.fields ?? []).join(", ");
     case "abort": return s.text ?? "";
   }
 };

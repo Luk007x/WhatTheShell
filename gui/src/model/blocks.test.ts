@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { expect, test } from "vitest";
-import { canDrop, commandStep, dropIndex, moveTargets, toBlocks, type Block, type Move } from "./blocks";
+import { canDrop, commandStep, dropIndex, moveTargets, parseButtons, toBlocks, type Block, type Move } from "./blocks";
 import { logErrors as wf } from "./fixture";
 import { allSteps, moveStep } from "./ops";
 
@@ -60,4 +60,10 @@ test("drop rules", () => {
 test("commandStep: interactive tool becomes a terminal step", () => {
   expect(commandStep(wf, "vim", { terminal: true })).toMatchObject({ id: "vim", kind: "terminal", tool: "vim" });
   expect(commandStep(wf, "ls").kind).toBeUndefined();
+});
+
+test("parseButtons trims, drops empties and caps at 6", () => {
+  expect(parseButtons(" Ja, ,Nein ,")).toEqual(["Ja", "Nein"]);
+  expect(parseButtons("")).toEqual([]);
+  expect(parseButtons("1,2,3,4,5,6,7")).toHaveLength(6);
 });

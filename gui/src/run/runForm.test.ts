@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { expect, test } from "vitest";
-import { initialValues, matchesPattern, storable, toOverrides, validate } from "./runForm";
+import { askedVariables, withoutAsked, initialValues, matchesPattern, storable, toOverrides, validate } from "./runForm";
 
 const entry = {
   variables: {
@@ -50,4 +50,17 @@ test("validate: pattern is a full match, invalid regex is left to the backend", 
   expect(validate(e, { id: "ab1x" })).toEqual({ id: "pattern" });
   expect(validate(e, { id: "" })).toEqual({});
   expect(matchesPattern("(", "x")).toBe(true);
+});
+
+test("askedVariables walks nested steps; withoutAsked and toOverrides leave them out", () => {
+  const wf = { steps: [
+    { id: "i", kind: "if", condition: { source: "x", is_empty: false }, then: [{ id: "q", kind: "ask", title: "", text: "", fields: ["a"], buttons: ["OK"], button_variable: "b" }] },
+    { id: "f", kind: "foreach", source: "x", body: [{ id: "q2", kind: "ask", title: "", text: "", fields: ["c"] }] },
+  ] } as unknown as Parameters<typeof askedVariables>[0];
+  const asked = askedVariables(wf);
+  expect([...asked].sort()).toEqual(["a", "b", "c"]);
+  const entry = withoutAsked({ variables: { a: { required: true }, d: {} } }, asked);
+  expect(Object.keys(entry.variables)).toEqual(["d"]);
+  expect(validate(entry, { d: "" })).toEqual({});
+  expect(toOverrides(entry, { a: "x", d: "y" })).toEqual({ d: "y" });
 });

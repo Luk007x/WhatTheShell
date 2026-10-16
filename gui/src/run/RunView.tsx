@@ -9,7 +9,7 @@ import { Icon } from "../icons";
 import type { RunListItem, WorkflowListItem } from "../types/api";
 import type { Workflow } from "../types/workflow";
 import { RunForm } from "./RunForm";
-import { hasTerminal, initialValues, storable, toOverrides, validate, type FieldError, type FormValues } from "./runForm";
+import { askedVariables, hasTerminal, initialValues, storable, toOverrides, validate, withoutAsked, type FieldError, type FormValues } from "./runForm";
 import { Problem, RunControls, RunDialog, RunOutput, StepConfirm } from "./RunPanel";
 import { usePlanThenRun, useRun } from "./useRun";
 
@@ -40,7 +40,11 @@ export function RunView({ active, onOpenInEditor }: { active: boolean; onOpenInE
   const [ranId, setRanId] = useState<string | null>(null); // workflow of the run started here
   const run = useRun();
   const out = useRef<HTMLDivElement>(null);
-  const entry = items.find((x) => x.id === selId) ?? null;
+  const [loadedId, setLoadedId] = useState<string | null>(null); // workflow whose document (asked variables) has arrived
+  const [asked, setAsked] = useState<ReadonlySet<string>>(new Set()); // variables an ask step collects in the run
+  const picked = items.find((x) => x.id === selId) ?? null;
+  const loaded = loadedId !== null && loadedId === selId;
+  const entry = picked && { ...picked, ...withoutAsked(picked, asked) };
 
   const body = (dry: boolean) => ({ variables: entry ? toOverrides(entry, values) : {}, cwd: cwd.trim() === "" ? null : cwd.trim(), dry_run: dry, ...(transcript ? { transcript } : {}) }); // omitted when off: the default
   const pr = usePlanThenRun(run, (dry) => {
@@ -70,10 +74,11 @@ export function RunView({ active, onOpenInEditor }: { active: boolean; onOpenInE
   const pick = (x: WorkflowListItem) => {
     const s = loadStored(x.id);
     setSelId(x.id); setValues(initialValues(x, s.values)); setCwd(s.cwd); setErrors({}); setFormError(null); setPlan(null); setTranscript(false); setWithTerminal(false);
-    getWorkflow(x.id).then((r) => setWithTerminal(hasTerminal(r.document.steps)), setFormError);
+    setAsked(new Set()); setLoadedId(null);
+    getWorkflow(x.id).then((r) => { setWithTerminal(hasTerminal(r.document.steps)); setAsked(askedVariables(r.document)); setLoadedId(x.id); }, setFormError);
   };
   const checked = (): boolean => {
-    if (!entry) return false;
+    if (!entry || !loaded) return false;
     const e = validate(entry, values);
     setErrors(e);
     setFormError(null);
@@ -106,13 +111,13 @@ export function RunView({ active, onOpenInEditor }: { active: boolean; onOpenInE
               <form className="runform" noValidate aria-label={entry.name} onSubmit={(e) => { e.preventDefault(); execute(); }}>
                 <h3>{entry.name}</h3>
                 {entry.description && <p className="hint">{entry.description}</p>}
-                <RunForm prefix="rf" variables={entry.variables} values={values} errors={errors} cwd={cwd}
+                <RunForm prefix="rf" hidden={Object.keys(picked?.variables ?? {}).length - Object.keys(entry.variables).length} variables={entry.variables} values={values} errors={errors} cwd={cwd}
                   onValues={(v) => { setValues(v); save(v, cwd); }} onCwd={(c) => { setCwd(c); save(values, c); }}
                   transcript={withTerminal ? transcript : undefined} onTranscript={setTranscript} />
                 {formError !== null && <Problem error={formError} />}
                 <div className="tb-group">
-                  <button type="button" onClick={dryRun}>{t("run.dry")}</button>
-                  <button type="submit" className="btn--primary" disabled={run.running}><Icon name="play" filled />{t("run.execute")}</button>
+                  <button type="button" onClick={dryRun} disabled={!loaded}>{t("run.dry")}</button>
+                  <button type="submit" className="btn--primary" disabled={run.running || !loaded}><Icon name="play" filled />{t("run.execute")}</button>
                 </div>
               </form>
             )}
@@ -139,7 +144,7 @@ export function RunView({ active, onOpenInEditor }: { active: boolean; onOpenInE
           <div className="toolbar">
             <h2>{t("output.title")}</h2>
             <RunControls run={run} testId="runview-status" />
-            {done && <button onClick={execute} disabled={ranId !== selId || run.running}>{t("runview.again")}</button>}
+            {done && <button onClick={execute} disabled={ranId !== selId || run.running || !loaded}>{t("runview.again")}</button>}
             {done && <button onClick={() => openInEditor(ranId)}>{t("runview.editor")}</button>}
           </div>
           <div className="run-out" ref={out}>

@@ -3,6 +3,7 @@
 
 import contextlib
 import os
+import re
 import selectors
 import signal
 import subprocess
@@ -13,6 +14,15 @@ from dataclasses import dataclass
 from typing import IO
 
 _CHUNK = 65536
+
+
+def printable(text: str, keep_newlines: bool = False) -> str:
+    """Replace control characters (terminal escapes) in foreign text with spaces.
+
+    With `keep_newlines`, line feeds and tabs survive (multi-line text).
+    """
+    pattern = r"[\x00-\x08\x0b-\x1f\x7f]" if keep_newlines else r"[\x00-\x1f\x7f]"
+    return re.sub(pattern, " ", text)
 
 
 @dataclass(frozen=True)

@@ -2,11 +2,12 @@
 """Shared JSON-over-HTTP helper; redirects are refused, proxies from the environment apply."""
 
 import json
-import re
 import urllib.error
 import urllib.request
 from typing import Any
 from urllib.parse import urlsplit
+
+from whattheshell.subproc import printable as printable  # re-export, moved to subproc
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -17,11 +18,6 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 # build_opener keeps the default ProxyHandler (HTTP_PROXY, HTTPS_PROXY, NO_PROXY)
 _OPENER = urllib.request.build_opener(_NoRedirect)
 MAX_ANSWER = 2 * 1024 * 1024
-
-
-def printable(text: str) -> str:
-    """Replace control characters (terminal escapes) in foreign text with spaces."""
-    return re.sub(r"[\x00-\x1f\x7f]", " ", text)
 
 
 def post_json(url: str, body: dict[str, Any], headers: dict[str, str], timeout: float) -> Any:

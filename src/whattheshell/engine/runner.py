@@ -7,6 +7,7 @@ in `Runner.prepare`.
 
 import codecs
 import dataclasses
+import logging
 import os
 import re
 import threading
@@ -15,7 +16,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import ValidationError
 
@@ -43,6 +44,7 @@ from whattheshell.models.catalog import ToolInfo
 from whattheshell.models.common import Safety, ValueType
 from whattheshell.models.workflow import (
     AbortStep,
+    AskStep,
     CommandStep,
     ForeachStep,
     IfStep,
@@ -88,6 +90,8 @@ _BLOCKED_ENV_PREFIXES = ("LD_", "GIT_CONFIG")
 _ENV_KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _MAX_TIMEOUT = 86400.0
 _POLL = 0.1
+MAX_ASKS = 20  # invalid answers per ask step before the run aborts
+logger = logging.getLogger(__name__)
 TERMINAL_ONLY_GUI = "Terminal-Schritte laufen nur in `wts gui`. Workflow dort starten."
 
 
@@ -134,6 +138,32 @@ class ConfirmRequest:
 
 
 Confirmer = Callable[[ConfirmRequest], bool]
+
+
+@dataclass(frozen=True)
+class AskRequest:
+    """Form for an `ask` step; `error` is set when the previous answer was invalid."""
+
+    step_id: str
+    title: str
+    text: str
+    fields: dict[str, VariableSpec]
+    current: dict[str, str]  # current values of the fields, secrets left out
+    buttons: list[str]
+    error: str | None = None
+    timeout: float | None = None  # seconds the step waits for an answer
+
+
+@dataclass(frozen=True)
+class AskAnswer:
+    """The user's answer: a value per field (missing = keep current) and the pressed button."""
+
+    values: dict[str, Any]
+    button: str
+
+
+# Blocks the runner thread until answered; None = the user cancelled.
+Asker = Callable[[AskRequest], AskAnswer | None]
 
 
 @dataclass(frozen=True)
@@ -324,6 +354,9 @@ class _Built:
     verdict: Verdict
 
 
+_TIMED_OUT = object()
+
+
 class _StepError(Exception):
     """A step cannot be run as configured (message is shown to the user)."""
 
@@ -342,6 +375,7 @@ class Runner:
         output_limit: int = 1_048_576,
         step_timeout: float | None = None,
         terminal: TerminalProvider | None = None,
+        ask: Asker | None = None,
     ) -> None:
         self._catalog = catalog
         self._confirm = confirm
@@ -351,6 +385,7 @@ class Runner:
         self._output_limit = output_limit
         self._step_timeout = step_timeout
         self._terminal = terminal
+        self._ask = ask
 
     def prepare(self, workflow: Workflow, overrides: Mapping[str, str]) -> Prepared:
         """Check variables, resolve every tool and classify every command; runs nothing.
@@ -365,18 +400,21 @@ class Runner:
                 f"Deklariert: {', '.join(workflow.variables) or 'keine'}."
             )
         variables: dict[str, str] = {}
+        asked = workflow.asked_variables()  # required is enforced when the ask step runs
         for name, spec in workflow.variables.items():
             if name in overrides:
                 variables[name] = overrides[name]
             elif spec.default is not None:
                 variables[name] = _text(spec.default)
-            elif spec.required:
+            elif spec.required and name not in asked:
                 raise RunError(
                     f"Pflichtvariable '{name}' hat keinen Wert. Mit --var {name}=WERT angeben."
                 )
             else:
                 continue
             _check_type(name, spec, variables[name])
+        if self._ask is None and any(isinstance(s, AskStep) for s in iter_steps(workflow.steps)):
+            raise RunError("Abfrage-Schritt braucht die Oberfläche oder ein Terminal.")
         specs: dict[str, ToolInfo] = {}
         verdicts: dict[str, Verdict] = {}
         for step in iter_steps(workflow.steps):
@@ -424,7 +462,9 @@ class Runner:
         self._stdout_bytes: dict[str, bytes] = {}
         self._results: dict[str, StepResult] = {}
         self._final: tuple[Literal["success", "failed", "aborted"], str, int] | None = None
-        ctx = Context(self._variables, self._outputs)
+        ctx = Context(
+            self._variables, self._outputs, declared=frozenset(prepared.workflow.variables)
+        )
         if self._terminal is None and any(
             isinstance(step, TerminalStep) for step in iter_steps(prepared.workflow.steps)
         ):
@@ -526,6 +566,7 @@ class Runner:
                         ctx.variables,
                         ctx.results,
                         {**ctx.items, step.as_: item, "item": item},
+                        ctx.declared,
                     )
                     if not self._steps(step.body, inner):
                         return False
@@ -547,11 +588,111 @@ class Runner:
                 if text is not None:
                     self._emit(Message(step.id, text))
                 return text is not None
+            case AskStep():
+                text = self._try_render(step, step.text, ctx)
+                return text is not None and self._ask_step(step, text)
             case AbortStep():
                 text = self._try_render(step, step.text or "", ctx)
                 if text is not None:
                     self._finish("aborted", text or "Workflow abgebrochen", step.exit_code)
                 return False
+
+    def _ask_step(self, step: AskStep, text: str) -> bool:
+        """Ask until the answer is valid, the user cancels or the timeout/abort hits."""
+        assert self._ask is not None  # noqa: S101 (checked in `prepare`)
+        specs = self._prepared.workflow.variables
+        fields = {name: specs[name] for name in step.fields}
+        text = self._mask(text)
+        current = {
+            n: self._mask(self._variables[n])
+            for n, spec in fields.items()
+            if n in self._variables and spec.type is not ValueType.secret
+        }
+        deadline = None if step.timeout is None else time.monotonic() + step.timeout
+        error: str | None = None
+        for _ in range(MAX_ASKS):
+            remaining = None if deadline is None else max(deadline - time.monotonic(), 0.001)
+            request = AskRequest(
+                step.id, step.title, text, fields, current, step.buttons, error, remaining
+            )
+            answer = self._wait_for_answer(request, deadline)
+            if self._controller.abort.is_set():
+                self._finish("aborted", "Abgebrochen", 2)
+                return False
+            if answer is _TIMED_OUT:
+                self._finish("aborted", f"Keine Antwort innerhalb von {step.timeout:g} s", 2)
+                return False
+            if answer is None:
+                self._finish("aborted", f"Abfrage '{step.id}' vom Nutzer abgebrochen", 2)
+                return False
+            assert isinstance(answer, AskAnswer)  # noqa: S101
+            try:
+                self._variables.update(self._valid_answer(step, fields, answer))
+            except RunError as err:
+                error = str(err)
+                current |= {  # keep what was typed; secrets are never echoed
+                    n: self._mask(_text(answer.values[n]))
+                    for n, spec in fields.items()
+                    if n in answer.values and spec.type is not ValueType.secret
+                }
+                continue
+            return True
+        self._finish("aborted", f"Zu viele ungültige Antworten bei Abfrage '{step.id}'", 2)
+        return False
+
+    def _wait_for_answer(
+        self, request: AskRequest, deadline: float | None
+    ) -> AskAnswer | None | object:
+        """Run the asker in a helper thread so abort and timeout stay responsive."""
+        assert self._ask is not None  # noqa: S101
+        box: list[AskAnswer | None] = []
+        done = threading.Event()
+
+        def call(ask: Asker) -> None:
+            try:
+                box.append(ask(request))
+            except Exception:  # noqa: BLE001 - logged; a broken asker counts as cancelled
+                logger.exception("Abfrage '%s' fehlgeschlagen", request.step_id)
+                box.append(None)
+            finally:
+                done.set()
+
+        # ponytail: an abandoned asker thread lingers until its dialog closes, daemon so it
+        # never blocks exit
+        threading.Thread(target=call, args=(self._ask,), daemon=True).start()
+        while not done.wait(_POLL):
+            if self._controller.abort.is_set():
+                return None
+            if deadline is not None and time.monotonic() >= deadline:
+                return _TIMED_OUT
+        return box[0]
+
+    def _valid_answer(
+        self, step: AskStep, fields: Mapping[str, VariableSpec], answer: AskAnswer
+    ) -> dict[str, str]:
+        """Check an answer like start values; raises RunError with the form's messages."""
+        if answer.button not in step.buttons:
+            raise RunError(f"Unbekannter Knopf '{answer.button}'. Einen der Knöpfe wählen.")
+        result: dict[str, str] = {}
+        for name, spec in fields.items():
+            value = _text(answer.values[name]) if name in answer.values else None
+            value = self._variables.get(name) if value is None else value
+            if not value:
+                if spec.required:
+                    raise RunError(f"Pflichtvariable '{name}' hat keinen Wert. Wert eingeben.")
+                if value == "":  # answered empty: clear the variable
+                    result[name] = value
+                continue
+            _check_type(name, spec, value)
+            result[name] = value
+        if step.button_variable is not None:
+            _check_type(
+                step.button_variable,
+                self._prepared.workflow.variables[step.button_variable],
+                answer.button,
+            )
+            result[step.button_variable] = answer.button
+        return result
 
     def _try_render(self, step: Step, text: str, ctx: Context) -> str | None:
         try:

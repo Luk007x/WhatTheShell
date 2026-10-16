@@ -7,7 +7,7 @@ import { Modal } from "./Modal";
 /** Help sections with their number of paragraphs (p) and bullets (b); texts live in i18n as `help.<section>.p1..`/`.b1..`. */
 const SECTIONS = {
   start: { p: 0, b: 6 },
-  build: { p: 0, b: 5 },
+  build: { p: 0, b: 6 },
   run: { p: 0, b: 6 },
   modules: { p: 0, b: 4 },
   terminal: { p: 0, b: 5 },
@@ -56,7 +56,7 @@ function Content({ section }: { section: HelpSection }) {
 }
 
 /** Help dialog: section list on the left, content on the right (stacked on narrow screens). `section` null = closed. */
-export function Help({ section, onSection, onClose }: { section: HelpSection | null; onSection: (s: HelpSection) => void; onClose: () => void }) {
+export function Help({ section, onSection, onClose, onManual }: { section: HelpSection | null; onSection: (s: HelpSection) => void; onClose: () => void; onManual: (section: HelpSection) => void }) {
   return (
     <Modal open={section !== null} title={t("help.title")} onCancel={onClose} className="modal--help">
       {section !== null && (
@@ -79,7 +79,7 @@ export function Help({ section, onSection, onClose }: { section: HelpSection | n
             </div>
             <Content section={section} />
           </div>
-          <div className="actions"><button data-autofocus onClick={onClose}>{t("settings.close")}</button></div>
+          <div className="actions"><button onClick={() => onManual(section)}>{t("manual.more")}</button><button data-autofocus onClick={onClose}>{t("settings.close")}</button></div>
         </>
       )}
     </Modal>

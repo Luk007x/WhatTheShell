@@ -2,6 +2,7 @@
 // Pure logic of the run form: values per workflow variable, checks, and the string overrides the API expects.
 import { allSteps, isTerminal, type Step } from "../model/ops";
 import type { VariableSpec, WorkflowListItem } from "../types/api";
+import type { Workflow } from "../types/workflow";
 
 /** Form state: checkboxes hold booleans, every other field its text. */
 export type FormValues = Record<string, string | boolean>;
@@ -59,11 +60,16 @@ export function validate(entry: Entry, values: FormValues): Record<string, Field
 /** `variables` of a run request: booleans as "true"/"false", empty fields left out (the default applies). */
 export function toOverrides(entry: Entry, values: FormValues): Record<string, string> {
   return Object.fromEntries(Object.entries(values).flatMap(([k, v]) => {
+    if (!(k in entry.variables)) return []; // not part of the form (e.g. asked during the run)
     if (typeof v === "boolean") return [[k, v ? "true" : "false"]];
     const text = TRIMMED.has(entry.variables[k]?.type ?? "string") ? v.trim() : v;
     return text === "" ? [] : [[k, text]];
   }));
 }
+
+/** `values` of an ask answer: every field is sent, empty text as "" (unlike run overrides, there is no default to fall back on). */
+export const askValues = (entry: Entry, values: FormValues): Record<string, string> =>
+  ({ ...Object.fromEntries(Object.keys(entry.variables).map((k) => [k, ""])), ...toOverrides(entry, values) });
 
 /** What may be remembered in localStorage: declared, non-secret variables only. */
 export function storable(entry: Entry, values: FormValues): FormValues {
@@ -72,6 +78,21 @@ export function storable(entry: Entry, values: FormValues): FormValues {
     return v.type === "secret" || value === undefined ? [] : [[k, value]];
   }));
 }
+
+/** Variables an `ask` step collects during the run (fields, button_variable; any depth): not asked in the start form. */
+export function askedVariables(wf: Pick<Workflow, "steps">): Set<string> {
+  const out = new Set<string>();
+  for (const s of allSteps(wf.steps)) {
+    if (s.kind !== "ask") continue;
+    for (const f of s.fields ?? []) out.add(f);
+    if (s.button_variable) out.add(s.button_variable);
+  }
+  return out;
+}
+
+/** The entry without the asked variables, for form, required check and overrides. */
+export const withoutAsked = (entry: Entry, asked: ReadonlySet<string>): Entry =>
+  ({ variables: Object.fromEntries(Object.entries(entry.variables).filter(([k]) => !asked.has(k))) });
 
 /** Does the workflow contain a terminal step (at any depth)? Only then the transcript option is offered. */
 export const hasTerminal = (steps: Step[]): boolean => allSteps(steps).some(isTerminal);

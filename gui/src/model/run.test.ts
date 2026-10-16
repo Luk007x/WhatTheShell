@@ -72,3 +72,14 @@ test("terminal_request carries the server's transcript flag, absent stays absent
   expect(reduceEvents(initialRun, { type: "terminal_request", step_id: "t", command: "cat", transcript: false }).terminal?.transcript).toBe(false);
   expect(reduceEvents(initialRun, { type: "terminal_request", step_id: "t", command: "cat" }).terminal?.transcript).toBeUndefined();
 });
+
+test("ask_request becomes pending, answer clears, re-ask with error keeps current", () => {
+  const ask = { type: "ask_request", step_id: "q", title: "T", text: "x", fields: [{ name: "a", type: "string", required: true }, { name: "b" }], current: {}, buttons: ["Ja", "Nein"], timeout: 30, error: null };
+  const s = play([ask]);
+  expect(s.ask).toMatchObject({ n: 1, step_id: "q", buttons: ["Ja", "Nein"], timeout: 30, error: null });
+  expect(Object.keys(s.ask?.fields ?? {})).toEqual(["a", "b"]);
+  const again = reduceEvents(s, { ...ask, current: { a: "kept" }, error: "bad" });
+  expect(again.ask).toMatchObject({ n: 2, error: "bad", current: { a: "kept" } });
+  expect(reduceEvents(again, { type: "step_finished", step_id: "q", ok: true }).ask).toBeNull();
+  expect(reduceEvents(again, { type: "finished", status: "aborted" }).ask).toBeNull();
+});

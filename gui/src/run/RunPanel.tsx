@@ -8,10 +8,10 @@ import { useDebounced } from "../hooks";
 import { t } from "../i18n";
 import { Icon } from "../icons";
 import { Modal } from "../Modal";
-import type { StepBlock, TerminalState } from "../model/run";
+import type { AskRequest, StepBlock, TerminalState } from "../model/run";
 import type { Workflow } from "../types/workflow";
-import { RunForm } from "./RunForm";
-import { hasTerminal, initialValues, toOverrides, type FormValues } from "./runForm";
+import { RunForm, VariableFields } from "./RunForm";
+import { askedVariables, askValues, hasTerminal, initialValues, toOverrides, validate, withoutAsked, type FormValues } from "./runForm";
 import { TerminalEnd, TerminalPane } from "./Terminal";
 import { usePlanThenRun, useRun, type PlanThenRun, type Run } from "./useRun";
 
@@ -82,10 +82,49 @@ export function RunOutput({ run, onSelect, extra }: { run: Run; onSelect?: (id: 
   );
 }
 
-/** Per-step confirmation (10.4); kept outside hidden areas so it shows in every mode. */
+/** Form of an `ask` step; remounted per request (`key`), so a re-ask starts from the server's `current`. Values are never stored. */
+function AskForm({ ask, run }: { ask: AskRequest; run: Run }) {
+  const entry = { variables: ask.fields };
+  const [values, setValues] = useState<FormValues>(() => initialValues(entry, ask.current));
+  const [shown, setShown] = useState(false); // errors only after the first submit
+  const [left, setLeft] = useState(ask.timeout);
+  useEffect(() => {
+    if (ask.timeout === null) return;
+    const end = Date.now() + ask.timeout * 1000;
+    const id = setInterval(() => setLeft(Math.max(0, Math.ceil((end - Date.now()) / 1000))), 1000);
+    return () => clearInterval(id);
+  }, [ask.timeout]);
+  const errors = validate(entry, values);
+  const send = (button: string) => {
+    setShown(true);
+    if (Object.keys(errors).length === 0) run.answerAsk(askValues(entry, values), button);
+  };
+  const buttons = ask.buttons.length > 0 ? ask.buttons : ["OK"];
+  return (
+    <form noValidate onSubmit={(e) => { e.preventDefault(); send(buttons[0] ?? "OK"); }}>
+      {ask.error && <p role="alert" className="error">{ask.error}</p>}
+      {ask.text && <p style={{ whiteSpace: "pre-wrap" }}>{ask.text}</p>}
+      <VariableFields prefix={`ask${ask.n}`} variables={ask.fields} values={values} errors={shown ? errors : {}} onValues={setValues} />
+      {left !== null && <p className="muted" role="status">{t("ask.deadline", { n: left })}</p>}
+      <div className="actions">
+        <button type="button" className="btn--danger" disabled={run.answering} onClick={() => run.answerAsk({}, "", true)}>{t("ask.cancel")}</button>
+        {buttons.map((b, i) => (
+          <button key={`${i}-${b}`} type={i === 0 ? "submit" : "button"} className={i === 0 ? "btn--primary" : undefined} disabled={run.answering} onClick={i === 0 ? undefined : () => send(b)}>{b}</button>
+        ))}
+      </div>
+    </form>
+  );
+}
+
+/** Per-step confirmation (10.4) and `ask` dialog; kept outside hidden areas so they show in every mode. */
 export function StepConfirm({ run }: { run: Run }) {
   const c = run.view.confirm;
+  const ask = run.readOnly ? null : run.view.ask;
   return (
+    <>
+    <Modal open={ask !== null} title={ask?.title || t("ask.default")} onCancel={() => undefined /* Escape must not end the run by accident: only the explicit button */}>
+      {ask && <AskForm key={ask.n} ask={ask} run={run} />}
+    </Modal>
     <Modal open={c !== null} title={t("run.confirm.title")} onCancel={() => run.answer(false)}>
       {c && (
         <>
@@ -99,6 +138,7 @@ export function StepConfirm({ run }: { run: Run }) {
         </>
       )}
     </Modal>
+    </>
   );
 }
 
@@ -136,7 +176,9 @@ export function RunPanel({ wf, onCapture, onEvaluate, onSelectStep }: {
   const { enabled: aiOn } = useAi();
   const [diag, setDiag] = useState<Step | null>(null);
   const { view, running, runId } = run;
-  const entry = { variables: wf.variables ?? {} };
+  const asked = askedVariables(wf);
+  const all = wf.variables ?? {};
+  const entry = withoutAsked({ variables: all }, asked);
 
   const request = (dry: boolean) => createRun({ document: wf, variables: toOverrides(entry, values), cwd: cwd.trim() === "" ? null : cwd.trim(), dry_run: dry, ...(transcript ? { transcript } : {}) }); // omitted when off: the default
   const pr = usePlanThenRun(run, request, transcript);
@@ -182,7 +224,7 @@ export function RunPanel({ wf, onCapture, onEvaluate, onSelectStep }: {
         build={(include) => ({ step: stripOutputs(diag, include), include_output: include })} />}
 
       <RunDialog pr={pr}>
-        <RunForm prefix="rv" variables={entry.variables} values={values} cwd={cwd}
+        <RunForm prefix="rv" hidden={Object.keys(all).length - Object.keys(entry.variables).length} variables={entry.variables} values={values} cwd={cwd}
           onValues={(v) => change(() => setValues(v))} onCwd={(c) => change(() => setCwd(c))}
           transcript={hasTerminal(wf.steps) ? transcript : undefined} onTranscript={(on) => change(() => setTranscript(on))} />
       </RunDialog>

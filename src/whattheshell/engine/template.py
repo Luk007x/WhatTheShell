@@ -33,6 +33,7 @@ class Context:
     variables: Mapping[str, str]
     results: Mapping[str, StepOutput]
     items: Mapping[str, str] = field(default_factory=dict)  # as-name -> value; `item` = innermost
+    declared: frozenset[str] = frozenset()  # declared variable names, to explain unset ones
 
 
 def resolve(ref: str, ctx: Context) -> str:
@@ -48,6 +49,11 @@ def resolve(ref: str, ctx: Context) -> str:
         raise TemplateError(f"Unbekannte Referenz '{ref}': hier ist kein foreach-Element sichtbar")
     if head == "var":
         if tail not in ctx.variables:
+            if tail in ctx.declared:
+                raise TemplateError(
+                    f"Variable '{tail}' hat noch keinen Wert "
+                    "(wird erst durch einen Abfrage-Schritt gesetzt)."
+                )
             raise TemplateError(f"Unbekannte Variable '{tail}' in '{ref}'")
         return ctx.variables[tail]
     result = ctx.results.get(head)

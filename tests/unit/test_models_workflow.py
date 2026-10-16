@@ -333,3 +333,38 @@ def test_variable_pattern_invalid(spec: dict[str, Any]) -> None:
     with pytest.raises(ValidationError, match="pattern"):
         Workflow.model_validate(wf(A, variables={"v": spec}))
     Workflow.model_validate(wf(A, variables={"v": {"type": "string", "pattern": "[a-z]+"}}))
+
+
+# ---------------------------------------------------------------- ask step
+
+ASK_VARS = {"name": {"type": "string"}, "mode": {"type": "enum", "choices": ["a", "b"]}}
+
+
+def ask(**extra: Any) -> dict[str, Any]:
+    return {"id": "q", "kind": "ask", "fields": ["name"], **extra}
+
+
+def test_ask_valid() -> None:
+    w = Workflow.model_validate(
+        wf(ask(buttons=["Ja", "Nein"], button_variable="mode"), variables=ASK_VARS)
+    )
+    assert w.steps[0].kind == "ask"
+
+
+@pytest.mark.parametrize(
+    ("step", "match"),
+    [
+        (ask(fields=["nope"]), "deklarierte Variable"),
+        (ask(buttons=["a", "a"]), "doppelte"),
+        (ask(buttons=[]), "buttons"),
+        (ask(fields=["name", "name"]), "doppelte"),
+        (ask(button_variable="name"), "nicht auch in fields"),
+        (ask(button_variable="nope"), "button_variable"),
+        (ask(fields=[], button_variable="n"), "button_variable"),
+        (ask(timeout=0), "timeout"),
+    ],
+)
+def test_ask_invalid(step: dict[str, Any], match: str) -> None:
+    variables = {**ASK_VARS, "n": {"type": "int"}}
+    with pytest.raises(ValidationError, match=match):
+        Workflow.model_validate(wf(step, variables=variables))

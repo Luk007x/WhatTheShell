@@ -25,7 +25,7 @@ export type OkExitCodes = number[];
 export type Action = "abort" | "continue" | "retry" | "fallback";
 export type Retries = number | null;
 export type Steps1 =
-  (CommandStep | TerminalStep | IfStep | ForeachStep | SetStep | WaitStep | MessageStep | AbortStep)[] | null;
+  (CommandStep | TerminalStep | IfStep | ForeachStep | SetStep | WaitStep | MessageStep | AskStep | AbortStep)[] | null;
 export type Id1 = string;
 export type Label2 = string | null;
 export type Tool1 = string;
@@ -72,19 +72,42 @@ export type Kind5 = "message";
 export type Text = string;
 export type Id7 = string;
 export type Label8 = string | null;
-export type Kind6 = "abort";
-export type Text1 = string | null;
-export type ExitCode = number;
-export type Body = (CommandStep | TerminalStep | IfStep | ForeachStep | SetStep | WaitStep | MessageStep | AbortStep)[];
-export type Then = (CommandStep | TerminalStep | IfStep | ForeachStep | SetStep | WaitStep | MessageStep | AbortStep)[];
-export type Else =
-  (CommandStep | TerminalStep | IfStep | ForeachStep | SetStep | WaitStep | MessageStep | AbortStep)[] | null;
-export type Kind7 = "command";
-export type Pipe = string | null;
+export type Kind6 = "ask";
+export type Title = string;
+export type Text1 = string;
+export type Fields = string[];
+/**
+ * @minItems 1
+ * @maxItems 6
+ */
+export type Buttons =
+  | [string]
+  | [string, string]
+  | [string, string, string]
+  | [string, string, string, string]
+  | [string, string, string, string, string]
+  | [string, string, string, string, string, string];
+export type ButtonVariable = string | null;
+export type Timeout2 = number | null;
+export type Id8 = string;
+export type Label9 = string | null;
+export type Kind7 = "abort";
 export type Text2 = string | null;
+export type ExitCode = number;
+export type Body = (
+  CommandStep | TerminalStep | IfStep | ForeachStep | SetStep | WaitStep | MessageStep | AskStep | AbortStep
+)[];
+export type Then = (
+  CommandStep | TerminalStep | IfStep | ForeachStep | SetStep | WaitStep | MessageStep | AskStep | AbortStep
+)[];
+export type Else =
+  (CommandStep | TerminalStep | IfStep | ForeachStep | SetStep | WaitStep | MessageStep | AskStep | AbortStep)[] | null;
+export type Kind8 = "command";
+export type Pipe = string | null;
+export type Text3 = string | null;
 export type File = string | null;
 export type Steps = (
-  CommandStep | TerminalStep | IfStep | ForeachStep | SetStep | WaitStep | MessageStep | AbortStep
+  CommandStep | TerminalStep | IfStep | ForeachStep | SetStep | WaitStep | MessageStep | AskStep | AbortStep
 )[];
 export type X = number;
 export type Y = number;
@@ -135,7 +158,7 @@ export interface CommandStep {
   timeout?: Timeout;
   ok_exit_codes?: OkExitCodes;
   on_error?: OnError;
-  kind?: Kind7;
+  kind?: Kind8;
   stdin?: Stdin | null;
 }
 export interface Args {
@@ -248,13 +271,27 @@ export interface MessageStep {
   text: Text;
 }
 /**
- * End the workflow.
+ * Ask the user for values of declared variables and/or a button press.
  */
-export interface AbortStep {
+export interface AskStep {
   id: Id7;
   label?: Label8;
   kind: Kind6;
+  title?: Title;
   text?: Text1;
+  fields?: Fields;
+  buttons?: Buttons;
+  button_variable?: ButtonVariable;
+  timeout?: Timeout2;
+}
+/**
+ * End the workflow.
+ */
+export interface AbortStep {
+  id: Id8;
+  label?: Label9;
+  kind: Kind7;
+  text?: Text2;
   exit_code?: ExitCode;
 }
 /**
@@ -262,7 +299,7 @@ export interface AbortStep {
  */
 export interface Stdin {
   pipe?: Pipe;
-  text?: Text2;
+  text?: Text3;
   file?: File;
 }
 /**

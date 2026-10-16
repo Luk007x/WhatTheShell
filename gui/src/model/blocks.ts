@@ -72,7 +72,7 @@ export const commandStep = (wf: Workflow, tool: string, opts: { terminal?: boole
 export const MIME_TOOL = "application/x-wts-tool";
 export const MIME_KIND = "application/x-wts-kind";
 
-export const CONTROL_KINDS = ["if", "foreach", "set", "wait", "message", "abort"] as const;
+export const CONTROL_KINDS = ["if", "foreach", "set", "wait", "message", "ask", "abort"] as const;
 export type ControlKind = (typeof CONTROL_KINDS)[number];
 
 /** New control step with defaults (same as the graph toolbar). */
@@ -86,6 +86,10 @@ export function controlStep(wf: Workflow, kind: ControlKind): Step {
     case "set": return { id, kind, variable: Object.keys(wf.variables ?? {})[0] ?? "", value: "" };
     case "wait": return { id, kind, seconds: 1 };
     case "message": return { id, kind, text: "" };
+    case "ask": return { id, kind, title: "", text: "", fields: [], buttons: ["OK"] };
     case "abort": return { id, kind };
   }
 }
+
+/** Comma-separated button labels -> trimmed, non-empty, at most 6 (limit of the ask step). */
+export const parseButtons = (text: string): string[] => text.split(",").map((b) => b.trim()).filter(Boolean).slice(0, 6);

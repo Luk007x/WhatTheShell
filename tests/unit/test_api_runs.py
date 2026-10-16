@@ -245,3 +245,52 @@ def test_run_history_newest_first(client: TestClient) -> None:
     assert [r["run_id"] for r in listed] == ids[::-1]
     assert listed[0]["status"] == "success" and listed[0]["exit_code"] == 0
     assert listed[0]["workflow_name"] == "t" and listed[0]["finished"]
+
+
+ASK_DOC = {
+    **doc(
+        {"id": "q", "kind": "ask", "title": "T", "fields": ["n", "pw"], "buttons": ["Go"]},
+        {"id": "a", "tool": "echo-args", "extra_args": ["{{ var.n }}"]},
+    ),
+    "variables": {
+        "n": {"type": "int", "label": "Zahl"},
+        "pw": {"type": "secret"},
+    },
+}
+
+
+def test_ask_invalid_value_reasks_with_typed_value_then_runs(client: TestClient) -> None:
+    run_id = create(client, ASK_DOC)["run_id"]
+    with client.websocket_connect(f"/ws/runs/{run_id}") as ws:
+        client.post(f"/api/runs/{run_id}/start")
+        ask = ws.receive_json()
+        assert ask["type"] == "ask_request" and ask["step_id"] == "q"
+        assert [f["name"] for f in ask["fields"]] == ["n", "pw"]
+        assert ask["fields"][0]["label"] == "Zahl" and ask["buttons"] == ["Go"]
+        assert ask["timeout"] is None and ask["error"] is None and ask["current"] == {}
+        ws.send_json(
+            {"type": "answer", "step_id": "q", "values": {"n": "abc", "pw": "s3"}, "button": "Go"}
+        )
+        again = ws.receive_json()
+        assert again["type"] == "ask_request" and again["error"]
+        assert again["current"] == {"n": "abc"}  # typed value kept, secret not echoed
+        response = client.post(
+            f"/api/runs/{run_id}/answer",
+            json={"step_id": "q", "values": {"n": 7, "pw": "s3"}, "button": "Go"},
+        )
+        assert response.status_code == 202 and response.json() == {"status": "answered"}
+        events = read_until_finished(ws)
+    assert events[-1]["status"] == "success"
+    assert any(e["type"] == "output" and "7" in e["text"] for e in events)
+
+
+def test_ask_cancel_aborts_and_unknown_question_is_404(client: TestClient) -> None:
+    run_id = create(client, ASK_DOC)["run_id"]
+    missing = client.post(f"/api/runs/{run_id}/answer", json={"step_id": "q", "cancel": True})
+    assert missing.status_code == 404 and missing.json()["error"] == "no_question"
+    with client.websocket_connect(f"/ws/runs/{run_id}") as ws:
+        client.post(f"/api/runs/{run_id}/start")
+        assert ws.receive_json()["type"] == "ask_request"
+        client.post(f"/api/runs/{run_id}/answer", json={"step_id": "q", "cancel": True})
+        finished = read_until_finished(ws)[-1]
+    assert finished["status"] == "aborted" and finished["exit_code"] == 2

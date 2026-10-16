@@ -8,6 +8,7 @@ import {
   argsFromForm, conditionOperator, conditionWith, fieldKind, firstSentence, linesOf, matchesQuery,
   OPERATORS, rawFromArg, sortOptions, type OperatorName, type RawValue, type Spec,
 } from "../model/form";
+import { parseButtons } from "../model/blocks";
 import { findStep, isCommand, isTerminal, isToolStep, visibleSteps, type Step } from "../model/ops";
 import type { CommandResult, OptionSpec, PreviewResult, SandboxStatus, ToolInfo } from "../types/api";
 import type { CommandStep, TerminalStep, Workflow } from "../types/workflow";
@@ -372,6 +373,18 @@ function Text({ id, label, value, onChange, type = "text", list, help }: { id: s
   );
 }
 
+/** Comma-separated button labels with their own draft, so a typed comma survives. */
+function AskButtons({ id, value, onChange }: { id: string; value: string[]; onChange: (v: string[]) => void }) {
+  const [draft, setDraft] = useState(value.join(", "));
+  return (
+    <div className="field">
+      <label htmlFor={id}>{t("ask.f.buttons")}</label>
+      <input id={id} aria-describedby={`${id}-h`} value={draft} onChange={(e) => { setDraft(e.target.value); onChange(parseButtons(e.target.value)); }} />
+      <small className="muted" id={`${id}-h`}>{t("ask.f.buttons.help")}</small>
+    </div>
+  );
+}
+
 function ControlForm({ step, wf, update }: { step: Exclude<Step, CommandStep | TerminalStep>; wf: Workflow; update: Update }) {
   const p = `f-${step.id}`;
   const before = visibleSteps(wf, step.id);
@@ -435,6 +448,39 @@ function ControlForm({ step, wf, update }: { step: Exclude<Step, CommandStep | T
       return <Text id={`${p}-sec`} type="number" label={t("wait.seconds")} value={step.seconds} onChange={(v) => update({ seconds: Number(v) }, "seconds")} />;
     case "message":
       return <Text id={`${p}-text`} label={t("message.text")} value={step.text} onChange={(v) => update({ text: v }, "text")} />;
+    case "ask": {
+      const names = Object.keys(wf.variables ?? {});
+      const vars = wf.variables ?? {};
+      const choosable = names.filter((n) => vars[n]?.type === "enum" || (vars[n]?.type ?? "string") === "string");
+      return (
+        <>
+          <Text id={`${p}-title`} label={t("ask.f.title")} value={step.title ?? ""} onChange={(v) => update({ title: v }, "title")} />
+          <div className="field">
+            <label htmlFor={`${p}-text`}>{t("message.text")}</label>
+            <textarea id={`${p}-text`} rows={3} aria-describedby={`${p}-text-h`} value={step.text ?? ""} onChange={(e) => update({ text: e.target.value }, "text")} />
+            <small className="muted" id={`${p}-text-h`}>{t("ask.f.text.help")}</small>
+          </div>
+          <fieldset className="field">
+            <legend>{t("ask.f.fields")}</legend>
+            {names.length === 0 && <small className="muted">{t("ask.f.fields.none")}</small>}
+            {names.map((n) => (
+              <label key={n}><input type="checkbox" checked={(step.fields ?? []).includes(n)} onChange={(e) => update({ fields: names.filter((x) => (x === n ? e.target.checked : (step.fields ?? []).includes(x))) })} /> {n}</label>
+            ))}
+            <small className="muted">{t("ask.f.fields.help")}</small>
+          </fieldset>
+          <AskButtons id={`${p}-buttons`} value={step.buttons ?? ["OK"]} onChange={(b) => update({ buttons: b.length > 0 ? b : undefined }, "buttons")} />
+          <div className="field">
+            <label htmlFor={`${p}-bvar`}>{t("ask.f.bvar")}</label>
+            <select id={`${p}-bvar`} aria-describedby={`${p}-bvar-h`} value={step.button_variable ?? ""} onChange={(e) => update({ button_variable: e.target.value || undefined })}>
+              <option value="">{t("ask.f.bvar.none")}</option>
+              {choosable.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <small className="muted" id={`${p}-bvar-h`}>{t("ask.f.bvar.help")}</small>
+          </div>
+          <Text id={`${p}-timeout`} type="number" label={t("ask.f.timeout")} help={t("ask.f.timeout.help")} value={step.timeout ?? ""} onChange={(v) => update({ timeout: v === "" ? undefined : Number(v) }, "timeout")} />
+        </>
+      );
+    }
     case "abort":
       return (
         <>

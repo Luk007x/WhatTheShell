@@ -2,16 +2,17 @@
 // Run state shared by the editor's run panel and the run view: events over WebSocket, control, step confirmation,
 // and the 10.6 flow "dry run → confirm the plan → real run".
 import { useEffect, useReducer, useRef, useState } from "react";
-import { confirmRun, controlRun, getRun, isShutdownClose, startRun, wsUrl } from "../api";
+import { answerRun, confirmRun, controlRun, getRun, isShutdownClose, startRun, wsUrl } from "../api";
 import { initialRun, reduceEvents, type RunView } from "../model/run";
 import type { RunAction, RunCreated, RunEvent } from "../types/api";
 
-type Action = { kind: "event"; ev: RunEvent } | { kind: "reset"; events?: RunEvent[] } | { kind: "clearConfirm"; stepId: string };
+type Action = { kind: "event"; ev: RunEvent } | { kind: "reset"; events?: RunEvent[] } | { kind: "clearConfirm"; stepId: string } | { kind: "clearAsk"; n: number };
 const reducer = (s: RunView, a: Action): RunView => {
   switch (a.kind) {
     case "event": return reduceEvents(s, a.ev);
     case "reset": return (a.events ?? []).reduce(reduceEvents, initialRun);
     case "clearConfirm": return s.confirm?.step_id === a.stepId ? { ...s, confirm: null } : s; // a newer request stays
+    case "clearAsk": return s.ask?.n === a.n ? { ...s, ask: null } : s; // a re-ask (newer n) stays
   }
 };
 
@@ -107,6 +108,27 @@ export function useRun() {
       .finally(() => setAnswering(false));
   };
 
+  /** Answer or cancel the pending ask step; the dialog closes only once the answer went out. */
+  const answerAsk = (values: Record<string, string>, button: string, cancel = false) => {
+    const a = view.ask;
+    if (!a || !runId || answering) return;
+    const body = cancel ? { step_id: a.step_id, cancel: true as const } : { step_id: a.step_id, values, button };
+    const sock = ws.current;
+    if (sock?.readyState === WebSocket.OPEN) {
+      try {
+        sock.send(JSON.stringify({ type: "answer", ...body }));
+        dispatch({ kind: "clearAsk", n: a.n });
+      } catch (e) {
+        setError(e);
+      }
+      return;
+    }
+    setAnswering(true);
+    answerRun(runId, body)
+      .then(() => dispatch({ kind: "clearAsk", n: a.n }), setError)
+      .finally(() => setAnswering(false));
+  };
+
   /** After a lost connection: reload the history; a run that is still going is followed again. */
   const loadHistory = () => {
     if (!runId) return;
@@ -125,7 +147,7 @@ export function useRun() {
     terminalClosed: setTermClose,
     running: view.status === "running" && !readOnly,
     finished: isFinished(view),
-    launch, show, control, answer, loadHistory,
+    launch, show, control, answer, answerAsk, loadHistory,
   };
 }
 

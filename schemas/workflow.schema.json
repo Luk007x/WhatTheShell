@@ -52,6 +52,99 @@
       "title": "AbortStep",
       "type": "object"
     },
+    "AskStep": {
+      "additionalProperties": false,
+      "description": "Ask the user for values of declared variables and/or a button press.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "kind": {
+          "const": "ask",
+          "title": "Kind",
+          "type": "string"
+        },
+        "title": {
+          "default": "",
+          "title": "Title",
+          "type": "string"
+        },
+        "text": {
+          "default": "",
+          "title": "Text",
+          "type": "string"
+        },
+        "fields": {
+          "default": [],
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "title": "Fields",
+          "type": "array"
+        },
+        "buttons": {
+          "default": [
+            "OK"
+          ],
+          "items": {
+            "maxLength": 40,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 6,
+          "minItems": 1,
+          "title": "Buttons",
+          "type": "array"
+        },
+        "button_variable": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Button Variable"
+        },
+        "timeout": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timeout"
+        }
+      },
+      "required": [
+        "id",
+        "kind"
+      ],
+      "title": "AskStep",
+      "type": "object"
+    },
     "CommandStep": {
       "additionalProperties": false,
       "description": "Runs an external program.",
@@ -392,6 +485,7 @@
             "discriminator": {
               "mapping": {
                 "abort": "#/$defs/AbortStep",
+                "ask": "#/$defs/AskStep",
                 "command": "#/$defs/CommandStep",
                 "foreach": "#/$defs/ForeachStep",
                 "if": "#/$defs/IfStep",
@@ -423,6 +517,9 @@
               },
               {
                 "$ref": "#/$defs/MessageStep"
+              },
+              {
+                "$ref": "#/$defs/AskStep"
               },
               {
                 "$ref": "#/$defs/AbortStep"
@@ -476,6 +573,7 @@
             "discriminator": {
               "mapping": {
                 "abort": "#/$defs/AbortStep",
+                "ask": "#/$defs/AskStep",
                 "command": "#/$defs/CommandStep",
                 "foreach": "#/$defs/ForeachStep",
                 "if": "#/$defs/IfStep",
@@ -509,6 +607,9 @@
                 "$ref": "#/$defs/MessageStep"
               },
               {
+                "$ref": "#/$defs/AskStep"
+              },
+              {
                 "$ref": "#/$defs/AbortStep"
               }
             ]
@@ -523,6 +624,7 @@
                 "discriminator": {
                   "mapping": {
                     "abort": "#/$defs/AbortStep",
+                    "ask": "#/$defs/AskStep",
                     "command": "#/$defs/CommandStep",
                     "foreach": "#/$defs/ForeachStep",
                     "if": "#/$defs/IfStep",
@@ -554,6 +656,9 @@
                   },
                   {
                     "$ref": "#/$defs/MessageStep"
+                  },
+                  {
+                    "$ref": "#/$defs/AskStep"
                   },
                   {
                     "$ref": "#/$defs/AbortStep"
@@ -669,6 +774,7 @@
                 "discriminator": {
                   "mapping": {
                     "abort": "#/$defs/AbortStep",
+                    "ask": "#/$defs/AskStep",
                     "command": "#/$defs/CommandStep",
                     "foreach": "#/$defs/ForeachStep",
                     "if": "#/$defs/IfStep",
@@ -700,6 +806,9 @@
                   },
                   {
                     "$ref": "#/$defs/MessageStep"
+                  },
+                  {
+                    "$ref": "#/$defs/AskStep"
                   },
                   {
                     "$ref": "#/$defs/AbortStep"
@@ -1133,6 +1242,7 @@
         "discriminator": {
           "mapping": {
             "abort": "#/$defs/AbortStep",
+            "ask": "#/$defs/AskStep",
             "command": "#/$defs/CommandStep",
             "foreach": "#/$defs/ForeachStep",
             "if": "#/$defs/IfStep",
@@ -1164,6 +1274,9 @@
           },
           {
             "$ref": "#/$defs/MessageStep"
+          },
+          {
+            "$ref": "#/$defs/AskStep"
           },
           {
             "$ref": "#/$defs/AbortStep"

@@ -89,3 +89,12 @@ def test_plan_terminal_step_is_marked_interactive(tmp_path: Path) -> None:
     text = _text(tmp_path, wf)
     assert "t [terminal] interaktiv, wird im Trockenlauf übersprungen: echo-args" in text
     assert "caution: interaktiv; Netzzugang" in text
+
+
+def test_plan_text_ask(tmp_path: Path) -> None:
+    wf = make_workflow(
+        [{"id": "q", "kind": "ask", "title": "Wer?", "fields": ["v"], "buttons": ["Ja", "Nein"]}],
+        {"v": {}},
+    )
+    runner, _ = make_runner(tmp_path, ask=lambda request: None)
+    assert "Abfrage „Wer?“: v, Knöpfe: Ja, Nein" in plan_text(plan(runner.prepare(wf, {})))

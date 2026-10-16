@@ -44,6 +44,7 @@ Verbindlicher Vertrag zwischen `src/whattheshell/api/` und `gui/`. Nur `127.0.0.
 | `GET /api/runs/{id}` | – | `{status, events: [...]}` (Verlauf, max 10 000 Events) |
 | `POST /api/runs/{id}/control` | `{action: "abort"|"pause"|"resume"|"step"}` | 204 |
 | `POST /api/runs/{id}/confirm` | `{step_id, ok: bool}` | 204 (Antwort auf `confirm_request`) |
+| `POST /api/runs/{id}/answer` | `{step_id, values: {name: wert}, button}` oder `{step_id, cancel: true}` | 202 `{status: "answered"}` (Antwort auf `ask_request`); `404 {error: "no_question"}`, wenn für den Schritt nichts offen ist. Die API prüft nur die Form; Werte prüft der Runner und fragt bei Fehler mit `error` erneut |
 | `GET /api/terminal/transcripts` | – | `[{name, size, mtime}]` (neueste zuerst; `mtime` Unix-Sekunden) aus `cache_dir()/terminal/` |
 | `DELETE /api/terminal/transcripts/{name}` | – | 204; `name` muss `^[A-Za-z0-9._-]+\.txt$` sein, ohne führenden Punkt und Pfadanteil (sonst 422 `name`), unbekannt 404. CLI: `wts terminal transcripts [--delete NAME]` |
 | `GET /api/settings` | – | Settings-Dokument (siehe unten) plus schreibgeschütztes `key_status: "set"|"missing"` (ist die Umgebungsvariable `ai.api.key_env` gesetzt; der Wert wird nie ausgegeben) |
@@ -69,12 +70,13 @@ Server → Client, je Nachricht ein JSON-Objekt `{type, ...}` in Reihenfolge, be
 | `step_finished` | `step_id, exit_code, ok, duration, attempt` |
 | `step_skipped` | `step_id, reason` |
 | `message` | `step_id, text` |
+| `ask_request` | `step_id, title, text, fields: [VariableSpec + name], current: {name: wert}, buttons, timeout (s oder null), error (str oder null)`; Lauf wartet auf `/answer` oder WS `answer`. Bei ungültigem Wert kommt dasselbe Ereignis erneut mit `error` und den getippten Werten in `current` (Geheimnisse nie) |
 | `confirm_request` | `step_id, command, safety, reasons` (Lauf wartet, bis `/confirm` oder WS-Nachricht kommt) |
 | `terminal_request` | `step_id, command` (vom Runner maskiert), `transcript: bool` (Ausgabe wird gespeichert, im UI anzeigen): Terminal-Schritt wartet auf `/ws/runs/{id}/terminal/{step_id}`; ohne Verbindung binnen 600 s → Exit 124 und `message` „Kein Terminal verbunden“ |
 | `terminal_closed` | `step_id, exit_code, transcript: name|null` |
 | `finished` | `status: "success"|"failed"|"aborted", message, exit_code` |
 
-Client → Server: `{type: "confirm", step_id, ok}` und `{type: "control", action}`; gleichwertig zu den REST-Aufrufen.
+Client → Server: `{type: "confirm", step_id, ok}` und `{type: "answer", step_id, values, button}` bzw. `{type: "answer", step_id, cancel: true}` und `{type: "control", action}`; gleichwertig zu den REST-Aufrufen.
 
 ## Terminal `/ws/runs/{id}/terminal/{step_id}?token=…` (Phase 7, SECURITY.md 7)
 

@@ -18,6 +18,7 @@ import { mergeTemplate } from "./model/templates";
 import { VariablesPanel } from "./detail/VariablesPanel";
 import { useDebounced } from "./hooks";
 import { Icon } from "./icons";
+import { ManualView } from "./manual/ManualView";
 import { applyTheme, getTheme, setTheme, THEMES, type Theme } from "./theme";
 import { clampCol, COL_MIN, colMax, Resizer } from "./Resizer";
 import { getLang, setLang, t, type Lang } from "./i18n";
@@ -130,6 +131,7 @@ export function App() {
   const [theme, setThemeState] = useState<Theme>(getTheme);
   const [outputOpen, setOutputOpen] = useState(true);
   const [helpSection, setHelpSection] = useState<HelpSection | null>(null);
+  const [manual, setManual] = useState<string | null>(null); // open manual: chapter id wanted first (null = closed)
   const [knownTools, setKnownTools] = useState<ReadonlySet<string>>(new Set());
   const [interactiveTools, setInteractiveTools] = useState<ReadonlySet<string>>(new Set());
   const saveRef = useRef<(() => void) | null>(null);
@@ -145,6 +147,7 @@ export function App() {
     try { localStorage.setItem("wts.helpseen", "1"); } catch { /* storage unavailable: the help opens again next time */ }
   };
   const wf = state.doc;
+  const editorBar = mode !== "run" && manual === null; // file menu and history belong to the editor
   const dirty = useMemo(() => JSON.stringify(wf) !== savedJson, [wf, savedJson]);
 
   useEffect(() => { document.title = `${dirty ? "* " : ""}${wf.name || t("file.untitled")} – ${t("app.name")}`; }, [dirty, wf.name]);
@@ -268,13 +271,14 @@ export function App() {
       {/* Kopfzeile: name, file, history, status, settings */}
       <header className="app-header">
         <h1 className="brand">{t("app.name")}</h1>
-        {mode !== "run" && <FileMenu wf={wf} fileId={fileId} dirty={dirty}
+        {manual !== null && <button onClick={() => setManual(null)}>← {t("manual.back")}</button>}
+        {editorBar && <FileMenu wf={wf} fileId={fileId} dirty={dirty}
           onLoad={loadDoc}
           onSaved={(id) => { setFileId(id); setSavedJson(JSON.stringify(wf)); setNotice(t("file.saved.run", { id })); }}
           onDeleted={(id) => { if (id === fileId) setFileId(null); }}
           onNew={newDoc} saveRef={saveRef}
           onDraft={(doc) => { dispatch({ type: "load", doc }); setSavedJson(JSON.stringify(emptyWorkflow())); setFileId(null); setSelected(null); }} />}
-        {mode !== "run" && <span className="tb-group">
+        {editorBar && <span className="tb-group">
           <button disabled={state.past.length === 0} onClick={() => dispatch({ type: "undo" })}><Icon name="undo" />{t("history.undo")}</button>
           <button disabled={state.future.length === 0} onClick={() => dispatch({ type: "redo" })}><Icon name="redo" />{t("history.redo")}</button>
         </span>}
@@ -282,13 +286,14 @@ export function App() {
         <span className="status-pill" title={sandboxTip} role="status" data-testid="sandbox-status" data-available={sandbox?.available ?? "unknown"}>
           <span className={`dot ${sandboxClass}`} aria-hidden="true" /> {sandboxText}
         </span>
+        <button className="btn--icon" aria-label={t("manual.title")} title={t("manual.title")} onClick={() => setManual("")}><Icon name="book" /></button>
         <button className="btn--icon" aria-label={t("help.title")} title={t("help.title")} onClick={() => setHelpSection("start")}><Icon name="help" /></button>
         <button className="btn--icon" data-testid="theme-toggle" data-theme={theme} aria-label={themeLabel} title={themeLabel} onClick={cycleTheme}><Icon name={THEME_ICON[theme]} /></button>
         <button className="btn--icon" aria-label={t("settings.title")} title={t("settings.title")} onClick={() => setSettingsOpen(true)}><Icon name="settings" /></button>
       </header>
 
       {/* Modusleiste: one button per mode, view switch of the build mode */}
-      <nav className="modebar">
+      <nav className="modebar" hidden={manual !== null}>
         <div role="group" aria-label={t("mode.label")} className="segmented">
           {MODES.map((m) => (
             <button key={m} aria-pressed={mode === m} aria-label={MODE_ARIA[m] && t(MODE_ARIA[m])} onClick={() => setMode(m)}>{t(`mode.${m}`)}</button>
@@ -304,10 +309,11 @@ export function App() {
       </nav>
 
       {/* Ausführen: library | form, output below; replaces the editor grid and footer, stays mounted (hidden) in other modes */}
-      <RunView active={mode === "run"} onOpenInEditor={(doc, id) => { if (!dirty || window.confirm(t("file.discard"))) loadDoc(doc, id); }} />
+      <RunView active={mode === "run" && manual === null} onOpenInEditor={(doc, id) => { if (!dirty || window.confirm(t("file.discard"))) loadDoc(doc, id); }} />
 
       {/* Hauptgrid: catalog | center | details */}
-      {mode !== "run" && <main id="main" tabIndex={-1} className="app-main"
+      {manual !== null && <ManualView initial={manual} />}
+      {mode !== "run" && manual === null && <main id="main" tabIndex={-1} className="app-main"
         style={{ gridTemplateColumns: `minmax(12rem, ${cols.catalog}px) auto minmax(18rem, 1fr) auto minmax(16rem, ${cols.details}px)` }}>
         <CatalogPanel selected={catalogTool} onSelect={setCatalogTool} onLoaded={onLoaded} reloadKey={refresh} onAdd={(name) => {
           if (mode !== "build") return;
@@ -351,7 +357,7 @@ export function App() {
 
       {/* Fuss: status line, validation errors, run panel */}
       {/* kept mounted in the run mode so a running editor run survives the switch */}
-      <footer className="app-footer" hidden={mode === "run"}>
+      <footer className="app-footer" hidden={mode === "run" || manual !== null}>
         <div className="statusbar">
           <p className="statusline" role="status">
             <span className={`dot ${validation === "checking" ? "caution" : typeof validation === "string" || !validation.ok ? "dangerous" : "safe"}`} aria-hidden="true" />
@@ -382,7 +388,7 @@ export function App() {
             onEvaluate={(id) => { const created = newId(wf, `${id}_pruefe`); edit((w) => evaluateOutput(w, id)); setSelected(created); }} />
         </div>
       </footer>
-      <Help section={helpSection} onSection={setHelpSection} onClose={closeHelp} />
+      <Help section={helpSection} onSection={setHelpSection} onClose={closeHelp} onManual={(s) => { closeHelp(); setManual(s); }} />
       <Settings open={settingsOpen} onClose={() => setSettingsOpen(false)} onStopped={() => { setSettingsOpen(false); setStopped(true); }} onAiChanged={setAiEnabled} lang={getLang()} onLang={changeLang}
         fontSize={fontSize} onFontSize={(s) => { saveFontSize(s); setFontSize(s); }}
         autoPreview={autoPreview} onAutoPreview={(on) => { saveAutoPreview(on); setAutoPreview(on); }} />

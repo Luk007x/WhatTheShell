@@ -33,6 +33,7 @@ Lizenzen aus den Paket-Metadaten (importlib.metadata). Alle permissiv (MIT, BSD,
 | @xterm/xterm | 6.0.0 | MIT | ja | Terminal-Schritte: Terminal-Emulator im Laufpanel (OSC 52/Titel/OSC 8 abgeschaltet, SECURITY.md 7.3) |
 | @xterm/addon-fit | 0.11.0 | MIT | ja | Terminalgröße an den Container anpassen (keine Link-, Image- oder Clipboard-Addons) |
 | yaml | 2.x | ISC | ja | Modul-Editor: Formular ↔ YAML-Rohtext |
+| marked (dev) | 18 | MIT | ja | Handbuch: `docs/manual/*.md` → HTML beim Build (Vite-Plugin), keine Laufzeitabhängigkeit |
 | vite, @vitejs/plugin-react, vitest (dev) | 6.4, 4.7, 4.1 | MIT | ja | Build, Tests |
 | typescript (dev) | 5.9 | Apache-2.0 | ja | Typprüfung |
 | json-schema-to-typescript (dev) | 16 | MIT | ja | Typen aus `schemas/` |

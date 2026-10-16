@@ -4,6 +4,7 @@
 import argparse
 import contextlib
 import dataclasses
+import getpass
 import html
 import json
 import os
@@ -13,6 +14,7 @@ import signal
 import socket
 import subprocess
 import sys
+import termios
 import threading
 import time
 import webbrowser
@@ -30,6 +32,8 @@ from whattheshell.ai.protocol import Prompt, make_provider
 from whattheshell.catalog import Catalog, ToolNotFound
 from whattheshell.engine import (
     TERMINAL_ONLY_GUI,
+    AskAnswer,
+    AskRequest,
     ConfirmRequest,
     Controller,
     Event,
@@ -49,9 +53,9 @@ from whattheshell.engine import (
     secret_values,
 )
 from whattheshell.models.catalog import CommandSpec, ToolInfo
-from whattheshell.models.common import Safety
+from whattheshell.models.common import Safety, ValueType
 from whattheshell.models.schema import export_schemas
-from whattheshell.models.workflow import TerminalStep, iter_steps
+from whattheshell.models.workflow import AskStep, TerminalStep, iter_steps
 from whattheshell.modules.loader import (
     MODULE_SUFFIXES,
     WORKFLOW_SUFFIXES,
@@ -71,6 +75,7 @@ from whattheshell.modules.store import (
 from whattheshell.modules.watch import watch_modules
 from whattheshell.sandbox import ExampleResult, run_example, self_test
 from whattheshell.settings import Settings, load_settings, save_settings
+from whattheshell.subproc import printable
 from whattheshell.workflows import WorkflowIndex
 
 
@@ -164,7 +169,10 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("file", type=Path, help="Workflow-Datei oder id aus `wts workflows`")
     run.add_argument("--dry-run", action="store_true", help="Nur den Plan zeigen")
     run.add_argument(
-        "--yes", "-y", action="store_true", help="Alle Bestätigungen mit ja beantworten"
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Alle Bestätigungen mit ja beantworten (Abfrage-Schritte beantwortet es nicht)",
     )
     run.add_argument(
         "--var", action="append", default=[], metavar="NAME=WERT", help="Variable setzen"
@@ -965,6 +973,77 @@ def _ask(prompt: str) -> bool:
     return sys.stdin.readline().strip().lower() in ("j", "ja", "y", "yes")
 
 
+def _pick(prompt: str, options: list[str], current: str | None = None) -> str | None:
+    """Numbered choice (number or option); empty keeps `current`; None on EOF."""
+    for number, option in enumerate(options, 1):
+        sys.stderr.write(f"  {number}) {printable(option)}\n")
+    while True:
+        sys.stderr.write(prompt)
+        sys.stderr.flush()
+        line = sys.stdin.readline()
+        if not line:
+            return None
+        answer = line.strip()
+        if not answer and current:
+            return current
+        if answer in options:
+            return answer
+        if answer.isdigit() and 1 <= int(answer) <= len(options):
+            return options[int(answer) - 1]
+        sys.stderr.write("Ungültige Auswahl. Nummer oder Wert eingeben.\n")
+
+
+def _ask_form(request: AskRequest) -> AskAnswer | None:
+    """Terminal asker for `ask` steps; EOF on stdin or getpass cancels."""
+    try:
+        return _read_form(request)
+    except EOFError:
+        return None
+
+
+def _read_form(request: AskRequest) -> AskAnswer | None:
+    if request.error:
+        sys.stderr.write(f"Fehler: {printable(request.error)}\n")
+    if request.title:
+        sys.stderr.write(f"{printable(request.title)}\n")
+    if request.text:
+        sys.stderr.write(f"{printable(request.text, keep_newlines=True)}\n")
+    values: dict[str, Any] = {}
+    for name, spec in request.fields.items():
+        label = printable(f"{spec.label} ({name})" if spec.label else name)
+        if spec.help:
+            sys.stderr.write(f"{printable(spec.help, keep_newlines=True)}\n")
+        current = request.current.get(name)
+        shown = f" [{printable(current)}]" if current else ""
+        if spec.type is ValueType.secret:
+            sys.stderr.flush()
+            entered = getpass.getpass(f"{label}: ")
+        elif spec.type is ValueType.enum and spec.choices:
+            picked = _pick(f"{label}{shown}: ", spec.choices, current)
+            if picked is None:
+                return None
+            entered = picked
+        else:
+            hint = " [j/n]" if spec.type is ValueType.bool else ""
+            sys.stderr.write(f"{label}{hint}{shown}: ")
+            sys.stderr.flush()
+            line = sys.stdin.readline()
+            if not line:
+                return None
+            entered = line.strip()
+            if spec.type is ValueType.bool and entered.lower() in ("j", "ja", "n", "nein"):
+                entered = "true" if entered.lower() in ("j", "ja") else "false"
+        if entered:  # empty keeps the current/default value
+            values[name] = entered
+    button = request.buttons[0]
+    if len(request.buttons) > 1:
+        picked = _pick("Knopf: ", request.buttons)
+        if picked is None:
+            return None
+        button = picked
+    return AskAnswer(values, button)
+
+
 def _print_event(event: Event) -> None:
     match event:
         case StepStarted():
@@ -972,14 +1051,14 @@ def _print_event(event: Event) -> None:
         case OutputChunk():
             prefix = "  | " if event.stream == "stdout" else "  ! "
             for line in event.text.splitlines():
-                print(prefix + line, flush=True)
+                print(prefix + printable(line, keep_newlines=True), flush=True)
         case StepFinished():
             state = "ok" if event.ok else "FEHLER"
             code = "nicht gestartet" if event.exit_code is None else f"exit {event.exit_code}"
             retry = f", Versuch {event.attempt}" if event.attempt > 1 else ""
             print(f"   [{state} {code}, {event.duration:.2f}s{retry}]", flush=True)
         case Message():
-            print(f"   # {event.text}", flush=True)
+            print(f"   # {printable(event.text, keep_newlines=True)}", flush=True)
         case StepSkipped():
             print(f"-- {event.step_id} übersprungen: {event.reason}", flush=True)
         case WorkflowFinished():
@@ -1100,6 +1179,7 @@ def _run(args: argparse.Namespace) -> int:
     runner = Runner(
         _catalog(registry),
         confirm=confirm,
+        ask=_ask_form,
         on_event=None if args.json else on_event,
         controller=controller,
         cwd=cwd,
@@ -1116,6 +1196,9 @@ def _run(args: argparse.Namespace) -> int:
     if any(isinstance(step, TerminalStep) for step in iter_steps(workflow.steps)):
         print(TERMINAL_ONLY_GUI, file=sys.stderr)
         return 3
+    if not sys.stdin.isatty() and any(isinstance(s, AskStep) for s in iter_steps(workflow.steps)):
+        print("Abfrage-Schritt braucht ein Terminal oder die GUI.", file=sys.stderr)
+        return 3
     print(overview, file=sys.stderr if args.json else sys.stdout, flush=True)
     risky = any(v.safety is not Safety.safe for v in prepared.verdicts.values())
     if risky and not args.yes:
@@ -1128,7 +1211,15 @@ def _run(args: argparse.Namespace) -> int:
         if not _ask("Workflow ausführen? [j/N] "):
             print("Abgebrochen.", file=sys.stderr)
             return 2
-    result = _execute(runner, prepared, controller)
+    try:  # a thread stuck in getpass must not leave the terminal without echo
+        tty_state = termios.tcgetattr(0) if sys.stdin.isatty() else None
+    except termios.error:
+        tty_state = None
+    try:
+        result = _execute(runner, prepared, controller)
+    finally:
+        if tty_state is not None:
+            termios.tcsetattr(0, termios.TCSADRAIN, tty_state)
     if broken.is_set():
         raise BrokenPipeError
     if result is None:

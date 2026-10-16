@@ -153,7 +153,23 @@ layout:                            # optional, nur für den Knoten-Graph
 | `set` | `variable`, `value` | Variable setzen/überschreiben. `variable` muss unter `variables` deklariert sein. |
 | `wait` | `seconds` | Verzögerung. |
 | `message` | `text` | Meldung an den Nutzer. |
+| `ask` | – | Fragt Werte deklarierter Variablen und/oder einen Knopfdruck ab (siehe unten). |
 | `abort` | – | Workflow beenden, `text` und `exit_code` optional. |
+
+#### Abfrage-Schritt
+
+```yaml
+- id: frage
+  kind: ask
+  title: "Ziel wählen"                 # optional
+  text: "Hallo {{ var.name }}"         # optional, Template erlaubt
+  fields: [ziel, passwort]             # deklarierte Variablen, in dieser Reihenfolge; secret erlaubt
+  buttons: [Los, Später]               # 1-6 eindeutige Beschriftungen, Standard [OK]
+  button_variable: wahl                # optional: string/enum-Variable, nicht in fields; erhält den Knopf
+  timeout: 60                          # optional, Sekunden; ohne Antwort endet der Lauf als abgebrochen
+```
+
+Die Eingaben werden wie Startwerte geprüft (Typ, Pflicht, Muster, Auswahl); bei Fehlern wird erneut mit Fehlertext gefragt. Abbrechen oder Timeout beendet den Lauf mit Status `aborted` (Exit 2). Ohne Oberfläche oder Terminal scheitert `prepare`. Variablen, die in `fields` oder `button_variable` eines Abfrage-Schritts vorkommen, brauchen bei `prepare` keinen Startwert, auch mit `required: true`; die Pflicht gilt erst bei der Antwort. Eine leere Antwort auf ein optionales Feld leert die Variable. Ohne `timeout` wartet die Abfrage, bis geantwortet oder der Lauf abgebrochen wird. Nach 20 ungültigen Antworten endet der Lauf als abgebrochen.
 
 #### Terminal-Schritt
 

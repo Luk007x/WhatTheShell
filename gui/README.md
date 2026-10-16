@@ -30,7 +30,7 @@ Start the backend first (`uv run wts gui --no-browser`), then open `http://local
 
 1. **Starten**: `uv run wts gui --no-browser`, die URL mit `#token=...` aus der Konsole öffnen.
 2. **Katalog** (links): Werkzeug suchen und auswählen. Der Stern merkt Favoriten.
-3. **Hinzufügen**: Toolbar „Hinzufügen: <Werkzeug>" fügt einen Befehlsschritt ein; Kontrollbausteine (Bedingung, Schleife, Variable, Warten, Meldung, Abbrechen) daneben. Ist ein `if`/`foreach` gewählt, wählt das Ziel-Select „ans Ende / in Dann / in Sonst / in Schleife".
+3. **Hinzufügen**: Toolbar „Hinzufügen: <Werkzeug>" fügt einen Befehlsschritt ein; Kontrollbausteine (Bedingung, Schleife, Variable, Warten, Meldung, Abfrage, Abbrechen) daneben. Ist ein `if`/`foreach` gewählt, wählt das Ziel-Select „ans Ende / in Dann / in Sonst / in Schleife".
 4. **Verbinden**: Ablaufkante vom unteren Anschluss „weiter" (setzt die Reihenfolge) oder „dann/sonst/Rumpf/bei Fehler" (Teilfolge) auf den oberen Eingang „Ablauf"; Datenkante von „stdout" (rechts) nach „stdin" (links, nur Befehle). Andere Kombinationen werden abgelehnt, die Statuszeile sagt warum. Entf löscht Knoten oder Pipe-Kanten. Katalog-Einträge und Kontrollbausteine lassen sich auf die Fläche ziehen. Tastenkürzel: siehe „Tastenkürzel“ (`?` öffnet die Übersicht).
 5. **Formular** (rechts): Schritt anklicken; Eingaben, Optionen, „Freie Argumente", stdin, Fehlerbehandlung. Darunter der fertige Befehl (kopierbar) mit Sicherheitsklasse.
 6. **Vorschau**: Beispiel wählen, „Beispiel ausführen" (nur in der Sandbox; bei sicheren Befehlen mit Beispiel automatisch).
@@ -120,3 +120,10 @@ Einstellungen, Abschnitt „Programm“: „WhatTheShell beenden“ ruft `POST /
 - Kleine `?`-Knöpfe in den Kopfzeilen von Katalog, Arbeitsfläche, Variablen, Ausführen und Modulen springen direkt zum passenden Abschnitt.
 - Beim ersten Start öffnet sich die Hilfe automatisch; danach merkt sich `localStorage` (`wts.helpseen`), dass sie gesehen wurde.
 - Texte stehen in `src/i18n.ts` unter `help.<abschnitt>.*`; neue Abschnitte in `src/Help.tsx` (`SECTIONS`) eintragen.
+
+## Handbuch
+
+- Kapitel liegen als Markdown unter `../docs/manual/NN-slug.md` (Dateiname sortiert die Reihenfolge, `slug` wird die Kapitel-ID, die erste `# `-Überschrift der Titel).
+- Neues Kapitel: Datei anlegen, fertig. Der Vite-Build (`vite.config.ts`, virtuelles Modul `virtual:manual`) wandelt alle Kapitel mit `marked` in HTML um und bettet sie ins Bundle ein; `vite dev` lädt bei Änderungen neu. Ohne Kapitel zeigt die Ansicht „Noch keine Kapitel“.
+- Interne Links: `[Text](#kapitel-id)` oder `[Text](#kapitel-id/ueberschrift-id)`; Überschrift-IDs sind der Slug des Textes (`ä`→`ae`, Leerzeichen→`-`).
+- Einstieg: Buch-Symbol in der Kopfzeile und „Ausführlich im Handbuch“ im Hilfedialog (springt zum Kapitel mit der ID des Hilfeabschnitts, z. B. `build`, sonst zum ersten).

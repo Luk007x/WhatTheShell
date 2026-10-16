@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { expect, test, type Page } from "@playwright/test";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startServer } from "./server";
@@ -215,6 +215,26 @@ test.describe.serial("smoke", () => {
     await expect(page.getByRole("cell", { name: "Strg+Z" })).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page.locator("dialog[open]")).toHaveCount(0);
+  });
+
+  test("i3) Handbuch: öffnen, Kapitel, Suche, Zurück", async () => {
+    const chapters = existsSync("../docs/manual") ? readdirSync("../docs/manual").filter((f) => /^\d+-.+\.md$/.test(f)) : [];
+    await page.getByRole("button", { name: "Handbuch", exact: true }).click();
+    const toc = page.getByRole("navigation", { name: "Kapitel" });
+    if (chapters.length === 0) {
+      await expect(page.getByText("Noch keine Kapitel")).toBeVisible();
+    } else {
+      await expect(toc.getByRole("button").first()).toBeVisible();
+      const word = /[A-Za-zÄÖÜäöüß]{6,}/.exec(readFileSync(`../docs/manual/${chapters[0]}`, "utf8").replace(/^#.*$/m, ""))?.[0] ?? "";
+      const before = await toc.getByRole("listitem").count();
+      await page.getByRole("searchbox", { name: "Im Handbuch suchen" }).fill(word);
+      await expect(toc.getByRole("listitem").first()).toBeVisible();
+      await page.getByRole("searchbox", { name: "Im Handbuch suchen" }).fill("qqqqxyzzy");
+      await expect(page.getByText("Nichts gefunden.")).toBeVisible();
+      expect(before).toBeGreaterThan(0);
+    }
+    await page.getByRole("button", { name: /Zurück/ }).click();
+    await expect(page.getByRole("button", { name: "Hinzufügen: grep" })).toBeVisible();
   });
 
   test("j) Sprache", async () => {

@@ -16,6 +16,7 @@ from whattheshell.engine.template import Context, render, render_value
 from whattheshell.models.common import Safety
 from whattheshell.models.workflow import (
     AbortStep,
+    AskStep,
     CommandStep,
     Condition,
     ForeachStep,
@@ -114,6 +115,13 @@ def plan(prepared: Prepared) -> list[PlannedLine]:
                     lines.append(PlannedLine(indent, "wait", step.id, f"{step.seconds:g} s"))
                 case MessageStep():
                     lines.append(PlannedLine(indent, "message", step.id, soft(step.text)))
+                case AskStep():
+                    text = f"Abfrage „{step.title}“: {', '.join(step.fields)}, "
+                    lines.append(
+                        PlannedLine(
+                            indent, "ask", step.id, text + f"Knöpfe: {', '.join(step.buttons)}"
+                        )
+                    )
                 case AbortStep():
                     text = f"{soft(step.text or '')} (exit {step.exit_code})"
                     lines.append(PlannedLine(indent, "abort", step.id, text))

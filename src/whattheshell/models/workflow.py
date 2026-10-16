@@ -192,6 +192,30 @@ class MessageStep(_Step):
     text: str
 
 
+class AskStep(_Step):
+    """Ask the user for values of declared variables and/or a button press."""
+
+    kind: Literal["ask"]
+    title: str = ""
+    text: str = ""
+    fields: list[Annotated[str, Field(pattern=ID_PATTERN)]] = []
+    buttons: list[Annotated[str, Field(min_length=1, max_length=40)]] = Field(
+        default=["OK"], min_length=1, max_length=6
+    )
+    button_variable: str | None = Field(default=None, pattern=ID_PATTERN)
+    timeout: float | None = Field(default=None, gt=0)
+
+    @model_validator(mode="after")
+    def _unique(self) -> AskStep:
+        if len(set(self.fields)) != len(self.fields):
+            raise ValueError("ask: fields enthält doppelte Namen")
+        if len(set(self.buttons)) != len(self.buttons):
+            raise ValueError("ask: buttons enthält doppelte Einträge")
+        if self.button_variable in self.fields:
+            raise ValueError("ask: button_variable darf nicht auch in fields stehen")
+        return self
+
+
 class AbortStep(_Step):
     """End the workflow."""
 
@@ -208,6 +232,7 @@ Step = Annotated[
     | SetStep
     | WaitStep
     | MessageStep
+    | AskStep
     | AbortStep,
     Field(discriminator="kind"),
 ]
@@ -289,6 +314,16 @@ class Workflow(_Model):
     steps: Steps
     layout: Layout | None = None
 
+    def asked_variables(self) -> set[str]:
+        """Names set by an `ask` step (fields and button_variable), nested steps included."""
+        names: set[str] = set()
+        for step in iter_steps(self.steps):
+            if isinstance(step, AskStep):
+                names.update(step.fields)
+                if step.button_variable is not None:
+                    names.add(step.button_variable)
+        return names
+
     @model_validator(mode="after")
     def _check(self) -> Workflow:
         ids: set[str] = set()
@@ -300,6 +335,14 @@ class Workflow(_Model):
             if isinstance(step, ForeachStep) and step.as_ in ids:
                 raise ValueError(f"Schritt '{step.id}': as '{step.as_}' überdeckt eine Schritt-id")
         _check_steps(self.steps, set(), frozenset(), set(self.variables), ids)
+        for step in iter_steps(self.steps):
+            if isinstance(step, AskStep) and step.button_variable is not None:
+                spec = self.variables.get(step.button_variable)
+                if spec is None or spec.type not in (ValueType.string, ValueType.enum):
+                    raise ValueError(
+                        f"Schritt '{step.id}': button_variable '{step.button_variable}' muss eine "
+                        "deklarierte Variable vom Typ string oder enum sein"
+                    )
         terminals = {s.id for s in iter_steps(self.steps) if isinstance(s, TerminalStep)}
         for step in iter_steps(self.steps):
             if isinstance(step, CommandStep) and step.stdin and step.stdin.pipe in terminals:
@@ -372,6 +415,12 @@ def _check_refs(
 
     if isinstance(step, SetStep) and step.variable not in variables:
         raise ValueError(f"Schritt '{step.id}' setzt undeklarierte Variable '{step.variable}'")
+    if isinstance(step, AskStep):
+        for name in step.fields:
+            if name not in variables:
+                raise ValueError(
+                    f"Schritt '{step.id}': Feld '{name}' ist keine deklarierte Variable"
+                )
     if isinstance(step, IfStep):
         resolve(step.condition.source, allow_file=True)
     elif isinstance(step, ForeachStep):

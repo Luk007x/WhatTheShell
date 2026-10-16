@@ -23,6 +23,8 @@ from whattheshell.api.terminal import MAX_TERMINALS as MAX_TERMINALS  # defined 
 from whattheshell.api.terminal import TerminalHub, terminal_hub
 from whattheshell.catalog import Catalog
 from whattheshell.engine import (
+    AskAnswer,
+    AskRequest,
     ConfirmRequest,
     Controller,
     Event,
@@ -86,6 +88,21 @@ class WsConfirm(StrictModel):
     ok: bool
 
 
+class AnswerBody(StrictModel):
+    """Request body of `POST /api/runs/{id}/answer` and WS message `answer` (without `type`)."""
+
+    step_id: str
+    values: dict[str, str | int | float | bool] = {}
+    button: str = ""
+    cancel: bool = False
+
+
+class WsAnswer(AnswerBody):
+    """WebSocket message: answer to an `ask_request`."""
+
+    type: Literal["answer"]
+
+
 class WsControl(StrictModel):
     """WebSocket message: run control."""
 
@@ -93,13 +110,16 @@ class WsControl(StrictModel):
     action: Literal["abort", "pause", "resume", "step"]
 
 
-_WS_MESSAGE: TypeAdapter[WsConfirm | WsControl] = TypeAdapter(WsConfirm | WsControl)
+_WS_MESSAGE: TypeAdapter[WsConfirm | WsAnswer | WsControl] = TypeAdapter(
+    WsConfirm | WsAnswer | WsControl
+)
 
 
 class _Pending:
     def __init__(self) -> None:
         self.event = threading.Event()
         self.answer = False
+        self.reply: AskAnswer | None = None  # asks only; None = cancelled
 
 
 @dataclass
@@ -119,6 +139,7 @@ class RunInfo:
     status: Literal["created", "running", "success", "failed", "aborted"] = "created"
     events: list[dict[str, Any]] = field(default_factory=list)
     pending: dict[str, _Pending] = field(default_factory=dict)
+    questions: dict[str, _Pending] = field(default_factory=dict)
     subscribers: list[tuple[asyncio.AbstractEventLoop, asyncio.Queue[dict[str, Any]]]] = field(
         default_factory=list
     )
@@ -183,6 +204,45 @@ class RunInfo:
         pending.event.set()
         return True
 
+    def question(self, request: AskRequest) -> AskAnswer | None:
+        """Runner-thread asker: publish the form and wait; None = cancelled, aborted or timeout."""
+        if self.controller.abort.is_set():
+            return None
+        pending = _Pending()
+        self.questions[request.step_id] = pending
+        self.publish(
+            {
+                "type": "ask_request",
+                "step_id": request.step_id,
+                "title": request.title,
+                "text": request.text,
+                "fields": [
+                    {"name": name, **spec.model_dump(mode="json")}
+                    for name, spec in request.fields.items()
+                ],
+                "current": request.current,
+                "buttons": request.buttons,
+                "timeout": request.timeout,
+                "error": request.error,
+            }
+        )
+        if self.controller.abort.is_set():  # abort raced with registration
+            pending.event.set()
+        answered = pending.event.wait(
+            request.timeout
+        )  # runner owns the deadline, abort sets the event
+        self.questions.pop(request.step_id, None)
+        return pending.reply if answered else None
+
+    def reply(self, body: AnswerBody) -> bool:
+        """Resolve an open question; False if none is waiting for `body.step_id`."""
+        pending = self.questions.get(body.step_id)
+        if pending is None:
+            return False
+        pending.reply = None if body.cancel else AskAnswer(dict(body.values), body.button)
+        pending.event.set()
+        return True
+
     def control(self, action: str) -> None:
         """Apply abort/pause/resume/step; abort also declines open confirmations."""
         ctl = self.controller
@@ -191,6 +251,9 @@ class RunInfo:
                 ctl.abort.set()
                 for pending in list(self.pending.values()):
                     pending.answer = False
+                    pending.event.set()
+                for pending in list(self.questions.values()):
+                    pending.reply = None
                     pending.event.set()
             case "pause":
                 ctl.pause.set()
@@ -285,6 +348,7 @@ class RunManager:
         runner = Runner(
             catalog,
             confirm=lambda request: holder[0].ask(request),
+            ask=lambda request: holder[0].question(request),
             on_event=lambda event: holder[0]._on_event(event),  # noqa: SLF001
             controller=controller,
             cwd=cwd,
@@ -470,6 +534,19 @@ def confirm_run(run_id: str, body: ConfirmBody, request: Request) -> Response:
     return Response(status_code=204)
 
 
+@router.post("/api/runs/{run_id}/answer", status_code=202)
+def answer_run(run_id: str, body: AnswerBody, request: Request) -> Response:
+    """Answer an `ask_request`; the runner validates the values and may ask again."""
+    info = run_manager(request.app).get(run_id)
+    if info is None:
+        return _unknown(run_id)
+    if not info.reply(body):
+        return error_response(
+            404, "no_question", f"Keine offene Abfrage für Schritt '{body.step_id}'"
+        )
+    return JSONResponse({"status": "answered"}, status_code=202)
+
+
 async def _send(
     websocket: WebSocket, queue: asyncio.Queue[dict[str, Any]], history: list[dict[str, Any]]
 ) -> None:
@@ -492,14 +569,22 @@ async def _receive(websocket: WebSocket, info: RunInfo) -> None:
         try:
             message = _WS_MESSAGE.validate_json(text)  # bad JSON is a ValidationError, too
         except ValidationError as err:
-            logger.warning("WS: ungültige Nachricht %.200r", text)
             reason = err.errors()[0]["msg"]
+            logger.warning("WS: ungültige Nachricht (%s)", reason)  # no body: may hold a secret
             await websocket.send_json(
                 {"type": "error", "message": f"Ungültige Nachricht: {reason}"}
             )
             continue
         if isinstance(message, WsControl):
             info.control(message.action)
+        elif isinstance(message, WsAnswer):
+            if not info.reply(message):
+                await websocket.send_json(
+                    {
+                        "type": "error",
+                        "message": f"Keine offene Abfrage für Schritt '{message.step_id}'",
+                    }
+                )
         elif not info.answer(message.step_id, message.ok):
             await websocket.send_json(
                 {
