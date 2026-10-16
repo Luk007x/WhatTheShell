@@ -66,7 +66,7 @@ Zustand: `$XDG_RUNTIME_DIR/whattheshell/gui.json`, Log des Hintergrundservers: `
 ## Release
 
 `git tag vX.Y.Z && git push --tags` baut das Wheel und hängt es an das GitHub-Release.
-Veröffentlichen auf PyPI lokal: `scripts/build_wheel.sh && uv publish dist/*`.
+Veröffentlichen auf PyPI lokal: `scripts/build_wheel.sh && uv publish dist/*`. Schritt für Schritt: `docs/RELEASING.md`.
 
 ## Entwicklung
 
