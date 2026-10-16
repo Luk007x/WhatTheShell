@@ -7,3 +7,6 @@ gui/node_modules/
 gui/e2e-results/
 gui/playwright-report/
 gui/package-lock.json
+
+# English manual is a translation of docs/manual/de (no new knowledge)
+docs/manual/en/
