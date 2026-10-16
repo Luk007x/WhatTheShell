@@ -364,14 +364,17 @@ textarea.rawyaml { width: 100%; font: 0.85rem/1.45 var(--mono); tab-size: 2; }
 .terminal-end { margin: var(--space-2) 0; }
 
 /* ---------- Help dialog ---------- */
-.help { display: flex; gap: var(--space-4); align-items: flex-start; }
+/* fixed size: the content column scrolls, tabs and footer stay put */
+dialog.modal--help { width: min(56rem, 92vw); height: min(38rem, 88vh); }
+dialog.modal--help .modal__body { display: flex; flex-direction: column; }
+.help { flex: 1; min-height: 0; display: flex; gap: var(--space-4); align-items: stretch; }
 .help-tabs { display: flex; flex-direction: column; gap: var(--space-1); flex: 0 0 11rem; }
-.help-tabs button { text-align: left; }
-.help-tabs button[aria-selected="true"] { background: var(--surface-2); border-color: var(--accent, var(--border)); font-weight: 700; }
-.help-content { flex: 1; min-width: 0; }
+.help-tabs button { text-align: left; font-weight: 600; }
+.help-tabs button[aria-selected="true"] { background: var(--surface-2); border-color: var(--accent, var(--border)); }
+.help-content { flex: 1; min-width: 0; min-height: 0; overflow: auto; }
 .help-content h3 { margin-top: 0; }
 .help-content ul { padding-left: 1.2rem; }
 .help-content li { margin-bottom: var(--space-2); }
-@media (max-width: 40rem) { .help { flex-direction: column; } .help-tabs { flex: none; flex-direction: row; flex-wrap: wrap; } }
+@media (max-width: 40rem) { dialog.modal--help { height: auto; max-height: 88vh; } .help { flex-direction: column; } .help-tabs { flex: none; flex-direction: row; flex-wrap: wrap; } }
 .canvas-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: var(--space-4); pointer-events: none; z-index: 4; }
 .hhead { display: flex; align-items: center; gap: var(--space-2); } .hhead h3 { margin: 0; }

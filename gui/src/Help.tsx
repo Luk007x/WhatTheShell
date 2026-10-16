@@ -58,7 +58,7 @@ function Content({ section }: { section: HelpSection }) {
 /** Help dialog: section list on the left, content on the right (stacked on narrow screens). `section` null = closed. */
 export function Help({ section, onSection, onClose }: { section: HelpSection | null; onSection: (s: HelpSection) => void; onClose: () => void }) {
   return (
-    <Modal open={section !== null} title={t("help.title")} onCancel={onClose}>
+    <Modal open={section !== null} title={t("help.title")} onCancel={onClose} className="modal--help">
       {section !== null && (
         <>
           <div className="help">

@@ -2,7 +2,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 
 /** Native modal <dialog>: focus trap and focus restore by the browser, Escape calls onCancel. */
-export function Modal({ open, title, onCancel, children }: { open: boolean; title: string; onCancel: () => void; children: ReactNode }) {
+export function Modal({ open, title, onCancel, className, children }: { open: boolean; title: string; onCancel: () => void; className?: string; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -14,7 +14,7 @@ export function Modal({ open, title, onCancel, children }: { open: boolean; titl
     if (!open && d.open) d.close();
   }, [open]);
   return (
-    <dialog ref={ref} className="nokey" aria-label={title} onCancel={(e) => { e.preventDefault(); onCancel(); }}>
+    <dialog ref={ref} className={className ? `nokey ${className}` : "nokey"} aria-label={title} onCancel={(e) => { e.preventDefault(); onCancel(); }}>
       {open && (
         <>
           <header className="modal__head"><h2>{title}</h2></header>
