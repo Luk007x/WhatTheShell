@@ -87,6 +87,9 @@ export const listWorkflows = () => api.get<WorkflowListItem[]>("/api/workflows")
 export const getWorkflow = (id: string) => api.get<WorkflowDoc>(`/api/workflows/${enc(id)}`);
 export const putWorkflow = (id: string, document: Workflow) =>
   api.put<{ id: string; path: string }>(`/api/workflows/${enc(id)}`, { document });
+export const importWorkflow = (filename: string, content: string, overwrite = false) =>
+  api.post<WorkflowListItem>("/api/workflows/import", { filename, content, ...(overwrite ? { overwrite } : {}) });
+export const acceptWorkflow = (id: string) => api.post<WorkflowListItem>(`/api/workflows/${enc(id)}/accept`);
 export const deleteWorkflow = (id: string) => api.del<void>(`/api/workflows/${enc(id)}`);
 export const validateWorkflow = (document: Workflow) =>
   api.post<ValidationResult>("/api/workflows/validate", { document });

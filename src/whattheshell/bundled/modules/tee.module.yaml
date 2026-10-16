@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: tee
+display_name: "tee – Eingabe in Dateien schreiben"
+category: Dateien
+summary: "Schreibt den Text aus stdin in eine Datei (und gibt ihn aus)."
+override_mode: merge
+safety: caution
+
+inputs:
+  - id: file
+    label: Dateien
+    type: path
+    multiple: true
+    required: true
+    position: 0
+    help: "Zieldateien. Vorhandene Dateien werden überschrieben."

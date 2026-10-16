@@ -6,17 +6,25 @@ import re
 from typing import Any
 
 from fastapi import APIRouter, Request, Response
+from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from ruamel.yaml import YAML
 
+from whattheshell import integrity
 from whattheshell.api.errors import validation_errors
 from whattheshell.api.rest import fail
 from whattheshell.api.runs import create_run_response
 from whattheshell.models.common import StrictModel
 from whattheshell.models.workflow import Workflow
 from whattheshell.modules.loader import DocumentError, load_workflow_file
-from whattheshell.modules.store import user_dir, write_user_file
-from whattheshell.workflows import WorkflowEntry, WorkflowIndex
+from whattheshell.modules.store import (
+    IMPORT_NAME,
+    MAX_IMPORT_BYTES,
+    user_dir,
+    validate_workflow_text,
+    write_user_file,
+)
+from whattheshell.workflows import WorkflowEntry, WorkflowIndex, integrity_of, shadow_message
 
 router = APIRouter(prefix="/api/workflows")
 SUFFIX = ".workflow.yaml"
@@ -45,15 +53,9 @@ def _index(request: Request) -> WorkflowIndex:
 
 
 def _refuse_if_shadowed(request: Request, workflow_id: str) -> None:
-    """A project file wins over the user folder: writing there would change nothing visible."""
-    entry = _index(request).get(workflow_id)
-    if entry is not None and entry.source == "project":
-        raise fail(
-            409,
-            "shadowed",
-            f"'{workflow_id}' wird von der Projektdatei {entry.path} (Quelle project) überdeckt. "
-            "Dort von Hand ändern oder entfernen.",
-        )
+    message = shadow_message(_index(request), workflow_id)
+    if message is not None:
+        raise fail(409, "shadowed", message)
 
 
 def _find(request: Request, workflow_id: str) -> WorkflowEntry:
@@ -73,30 +75,33 @@ def _validate(document: dict[str, Any]) -> Workflow:
         ) from err
 
 
+def _item(e: WorkflowEntry) -> dict[str, Any]:
+    return {
+        "id": e.id,
+        "name": e.name,
+        "description": e.description,
+        "source": e.source,
+        "path": str(e.path),
+        "variables": {k: v.model_dump(mode="json") for k, v in e.variables.items()},
+        "steps": e.steps,
+        "error": e.error,
+        "shadows": e.shadows,
+        "writable": e.source != "project",
+        "integrity": integrity_of(e),
+    }
+
+
 @router.get("")
 def list_workflows(request: Request) -> list[dict[str, Any]]:
     """Index entries; the highest-priority file of an id wins, `shadows` names the others."""
-    return [
-        {
-            "id": e.id,
-            "name": e.name,
-            "description": e.description,
-            "source": e.source,
-            "path": str(e.path),
-            "variables": {k: v.model_dump(mode="json") for k, v in e.variables.items()},
-            "steps": e.steps,
-            "error": e.error,
-            "shadows": e.shadows,
-            "writable": e.source != "project",
-        }
-        for e in sorted(_index(request).all(), key=lambda e: e.id)
-    ]
+    return [_item(e) for e in sorted(_index(request).all(), key=lambda e: e.id)]
 
 
 @router.get("/{workflow_id}")
 def get_workflow(workflow_id: str, request: Request) -> dict[str, Any]:
     """Document and raw text of one workflow."""
-    path = _find(request, workflow_id).path
+    entry = _find(request, workflow_id)
+    path = entry.path
     try:
         workflow = load_workflow_file(path)
         raw = path.read_text(encoding="utf-8")
@@ -105,6 +110,9 @@ def get_workflow(workflow_id: str, request: Request) -> dict[str, Any]:
     return {
         "id": workflow_id,
         "path": str(path),
+        "source": entry.source,
+        "integrity": integrity_of(entry),
+        "error": entry.error,
         "document": workflow.model_dump(mode="json"),
         "raw": raw,
     }
@@ -170,14 +178,89 @@ class RunWorkflowBody(StrictModel):
 @router.post("/{workflow_id}/run")
 def run_workflow(workflow_id: str, body: RunWorkflowBody, request: Request) -> Response:
     """Shortcut for `POST /api/runs` with the indexed document; same answer."""
-    path = _find(request, workflow_id).path
+    entry = _find(request, workflow_id)
     try:
-        document = load_workflow_file(path).model_dump(mode="json")
+        document = load_workflow_file(entry.path).model_dump(mode="json")
     except DocumentError as err:
         raise fail(422, "workflow", str(err)) from err
+    state = integrity_of(entry)
+    if state in ("modified", "unstamped") and not body.dry_run:  # a plan runs nothing
+        return JSONResponse(
+            {"error": "integrity", "status": state, "message": integrity.REFUSAL}, 409
+        )
     return create_run_response(
         request.app, document, body.variables, body.cwd, body.dry_run, body.transcript
     )
+
+
+class ImportBody(StrictModel):
+    """Request body of `POST /api/workflows/import`."""
+
+    filename: str
+    content: str
+    overwrite: bool = False
+
+
+@router.post("/import", status_code=201)
+def import_workflow(body: ImportBody, request: Request) -> dict[str, Any]:
+    """Validate YAML text like a file and write it into the user folder (stamped)."""
+    if not IMPORT_NAME.fullmatch(body.filename):
+        raise fail(
+            400,
+            "filename",
+            f"Ungültiger Dateiname '{body.filename}'. Erwartet: id{SUFFIX} "
+            "(Kleinbuchstaben, Ziffern, _ und -, ohne Pfad).",
+        )
+    try:
+        size = len(body.content.encode("utf-8", "surrogatepass"))
+        body.content.encode("utf-8")  # lone surrogates cannot be written
+    except UnicodeEncodeError as err:
+        raise fail(422, "encoding", f"Inhalt ist kein gültiges UTF-8: {err.reason}.") from err
+    if size > MAX_IMPORT_BYTES:
+        raise fail(413, "too_large", f"Datei größer als {MAX_IMPORT_BYTES} Byte.")
+    workflow_id = body.filename.removesuffix(SUFFIX)
+    _refuse_if_shadowed(request, workflow_id)
+    workflow, lines = validate_workflow_text(body.content)
+    if workflow is None:
+        raise fail(
+            422,
+            "validation",
+            "Workflow ist ungültig.",
+            errors=[{"path": "", "message": line} for line in lines],
+        )
+    if (user_dir("workflow") / body.filename).exists() and not body.overwrite:
+        raise fail(
+            409,
+            "exists",
+            f"'{body.filename}' gibt es im Nutzerordner schon. Mit overwrite=true ersetzen.",
+        )
+    try:
+        target = write_user_file("workflow", body.filename, body.content)
+    except OSError as err:
+        raise fail(
+            500,
+            "write",
+            f"Workflow nicht schreibbar: {err}. Prüfe Rechte auf {user_dir('workflow')}.",
+        ) from err
+    _index(request).reload(target)
+    return _item(_find(request, workflow_id))
+
+
+@router.post("/{workflow_id}/accept")
+def accept_workflow(workflow_id: str, request: Request) -> dict[str, Any]:
+    """Re-validate the current file and stamp it: the user vouches for the outside edit."""
+    entry = _find(request, workflow_id)
+    if entry.source == "bundled":
+        return _item(entry)  # read-only package data, always ok
+    try:
+        load_workflow_file(entry.path)
+        integrity.stamp(entry.path)
+    except DocumentError as err:
+        raise fail(422, "workflow", str(err)) from err
+    except OSError as err:
+        raise fail(500, "write", f"Stempel nicht schreibbar: {err}.") from err
+    _index(request).reload(entry.path)
+    return _item(_find(request, workflow_id))
 
 
 @router.post("/validate")

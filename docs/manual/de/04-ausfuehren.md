@@ -99,6 +99,8 @@ wts run ID
 
 Das Argument ist eine Workflow-Datei oder die id aus `wts workflows`. Existiert eine Datei mit diesem Namen, hat der Pfad Vorrang vor der id.
 
+Eine lose Datei `x.workflow.yaml` als Pfad an `wts run` braucht jetzt `--accept`, weil sie keinen Stempel hat; mit einer id aus der Bibliothek gilt das nur nach einer Änderung außerhalb der App (`wts workflows accept ID`).
+
 | Option | Wirkung |
 |---|---|
 | `--dry-run` | Nur den Plan zeigen, nichts ausführen |

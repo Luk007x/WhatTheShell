@@ -90,6 +90,7 @@ export interface PreviewResult {
 }
 
 export type WorkflowSource = "bundled" | "user" | "project";
+export type WorkflowIntegrity = "ok" | "modified" | "unstamped" | "invalid";
 
 /** Library index entry of `GET /api/workflows`. */
 export interface WorkflowListItem {
@@ -101,6 +102,7 @@ export interface WorkflowListItem {
   variables: Record<string, VariableSpec>;
   steps: number;
   error: string | null;
+  integrity: WorkflowIntegrity;
   shadows: WorkflowSource[];
   /** false when a project file wins: PUT/DELETE answer 409 `shadowed`. */
   writable: boolean;
@@ -109,6 +111,9 @@ export interface WorkflowListItem {
 export interface WorkflowDoc {
   id: string;
   path: string;
+  source: WorkflowSource;
+  integrity: WorkflowIntegrity;
+  error: string | null;
   document: Workflow;
   raw: string;
 }

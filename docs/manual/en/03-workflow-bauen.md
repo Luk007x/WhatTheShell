@@ -243,6 +243,10 @@ Bundled:
 | `log_errors` | Fehler in Logs zählen (Count errors in logs) | Searches for `ERROR` in all log files, counts matches and writes `bericht.txt` if there are any |
 | `wlan-5ghz` | WLAN auf 5 GHz fixieren (Pin Wi-Fi to 5 GHz) | Binds a NetworkManager connection to the BSSID of the 5 GHz access point |
 | `wlan-5ghz-loesen` | WLAN-5-GHz-Bindung lösen (Release Wi-Fi 5 GHz binding) | Counterpart: removes the fixed BSSID again |
+| `appimage-install-fedora` | AppImage installieren (Install AppImage, Fedora) | Copies an AppImage to the target folder, makes it executable and adds an application menu entry with icon |
+| `appimage-install-mint` | AppImage installieren (Install AppImage, Linux Mint) | Same as Fedora, but checks for `libfuse2` instead of `fuse`/`fuse-libs` |
+
+The AppImage workflows never use the package manager: if prerequisites are missing (Fedora: `fuse`, `fuse-libs`; Linux Mint: `libfuse2`), the workflow reports the matching `sudo` command for you to run yourself and stops. You provide `appimage` (the file), `name` (menu name, also used for file names), optionally `icon` (PNG or SVG; empty = default icon), `categories` and `target_dir` (empty = `Applications` in your home folder). The workflow copies the file there, makes it executable and writes `~/.local/share/applications/NAME.desktop`. All steps run without a shell; copying, permissions and writing ask for confirmation. If the entry does not show up in the menu at once, log out and in again.
 
 The module `grep` comes with the template "Count matches" (`grep_count`). A tool's templates appear under "Templates"; "Insert" adds them to the workflow.
 

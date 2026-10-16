@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: chmod
+display_name: "chmod – Rechte ändern"
+category: Dateien
+summary: "Ändert die Zugriffsrechte einer Datei."
+override_mode: merge
+safety: caution
+
+inputs:
+  - id: mode
+    label: Rechte
+    type: string
+    required: true
+    position: 0
+    help: "Zum Beispiel +x (ausführbar machen) oder 644."
+  - id: file
+    label: Dateien
+    type: path
+    multiple: true
+    required: true
+    position: 1
+    help: "Dateien, deren Rechte geändert werden."

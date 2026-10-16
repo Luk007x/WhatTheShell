@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: mkdir
+display_name: "mkdir – Ordner anlegen"
+category: Dateien
+summary: "Legt Ordner an."
+override_mode: merge
+safety: caution
+
+inputs:
+  - id: directory
+    label: Ordner
+    type: path
+    multiple: true
+    required: true
+    position: 0
+    help: "Ordner, die angelegt werden."
+options:
+  - id: parents
+    flags: ["-p", "--parents"]
+    label: Zwischenordner mit anlegen
+    type: bool
+    help: "Legt fehlende Oberordner an und meldet keinen Fehler, wenn der Ordner schon existiert."

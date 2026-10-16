@@ -58,7 +58,7 @@ export function VariablesPanel({ variables, onChange }: { variables: Workflow["v
             <tr key={name}>
               <td><input aria-label={t("vars.name")} defaultValue={name} onBlur={(e) => rename(name, e.target.value)} /></td>
               <td>
-                <select aria-label={t("vars.type")} value={v.type ?? "string"} onChange={(e) => setVar(name, { type: e.target.value as (typeof TYPES)[number], ...(e.target.value === "enum" ? {} : { choices: undefined }), ...(e.target.value === "string" ? {} : { pattern: undefined }) })}>
+                <select aria-label={t("vars.type")} value={v.type ?? "string"} onChange={(e) => setVar(name, { type: e.target.value as (typeof TYPES)[number], ...(e.target.value === "enum" ? {} : { choices: undefined }), ...(e.target.value === "string" || e.target.value === "path" ? {} : { pattern: undefined }) })}>
                   {TYPES.map((x) => <option key={x}>{x}</option>)}
                 </select>
               </td>
@@ -66,7 +66,7 @@ export function VariablesPanel({ variables, onChange }: { variables: Workflow["v
                 onChange={(e) => setVar(name, { default: e.target.value === "" ? undefined : v.type === "int" || v.type === "float" ? Number(e.target.value) : e.target.value })} /></td>
               <td><input aria-label={t("vars.label")} value={v.label ?? ""} onChange={(e) => setVar(name, { label: e.target.value || undefined })} /></td>
               <td>
-                {v.type === "string" && <PatternInput value={patternOf(v) ?? ""} onChange={(p) => setVar(name, { pattern: p || undefined })} />}
+                {(v.type === "string" || v.type === "path") && <PatternInput value={patternOf(v) ?? ""} onChange={(p) => setVar(name, { pattern: p || undefined })} />}
               </td>
               <td><input type="checkbox" aria-label={t("vars.required")} checked={v.required === true} onChange={(e) => setVar(name, { required: e.target.checked || undefined })} /></td>
               <td><input aria-label={t("vars.help")} value={v.help ?? ""} onChange={(e) => setVar(name, { help: e.target.value || undefined })} /></td>

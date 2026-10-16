@@ -2,6 +2,7 @@
 from pathlib import Path
 from typing import Any
 
+import pytest
 from ruamel.yaml import YAML
 
 from whattheshell.bundled import MODULES_DIR, WORKFLOWS_DIR
@@ -21,3 +22,13 @@ def test_grep_module() -> None:
 
 def test_log_errors_workflow() -> None:
     Workflow.model_validate(_load(WORKFLOWS_DIR / "log_errors.workflow.yaml"))
+
+
+@pytest.mark.parametrize("system", ["fedora", "mint"])
+def test_appimage_install_workflows(system: str) -> None:
+    Workflow.model_validate(_load(WORKFLOWS_DIR / f"appimage-install-{system}.workflow.yaml"))
+
+
+@pytest.mark.parametrize("tool", ["test", "mkdir", "cp", "chmod", "tee"])
+def test_appimage_install_modules(tool: str) -> None:
+    Module.model_validate(_load(MODULES_DIR / f"{tool}.module.yaml"))

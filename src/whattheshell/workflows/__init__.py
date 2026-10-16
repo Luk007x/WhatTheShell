@@ -6,7 +6,9 @@ import threading
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
+from typing import Literal
 
+from whattheshell import integrity
 from whattheshell.models.workflow import VariableSpec
 from whattheshell.modules.loader import WORKFLOW_SUFFIXES, DocumentError, load_workflow_file
 
@@ -98,4 +100,25 @@ def _entry(path: Path, workflow_id: str, source: str) -> WorkflowEntry:
         source,
         workflow.variables,
         len(workflow.steps),
+    )
+
+
+def integrity_of(entry: WorkflowEntry) -> Literal["ok", "modified", "unstamped", "invalid"]:
+    """Integrity of an entry: `invalid` if it fails to load, else the hash comparison."""
+    if entry.error:
+        return "invalid"
+    try:
+        return integrity.status(entry.path)
+    except OSError:
+        return "invalid"
+
+
+def shadow_message(index: WorkflowIndex, workflow_id: str) -> str | None:
+    """Why a write into the user folder would change nothing: a project file wins."""
+    entry = index.get(workflow_id)
+    if entry is None or entry.source != "project":
+        return None
+    return (
+        f"'{workflow_id}' wird von der Projektdatei {entry.path} (Quelle project) überdeckt. "
+        "Dort von Hand ändern oder entfernen."
     )

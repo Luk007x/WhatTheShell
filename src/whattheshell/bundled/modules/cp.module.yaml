@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: cp
+display_name: "cp – Dateien kopieren"
+category: Dateien
+summary: "Kopiert eine Datei an einen neuen Ort."
+override_mode: merge
+safety: caution
+
+inputs:
+  - id: source
+    label: Quelle
+    type: path
+    required: true
+    position: 0
+    help: "Datei, die kopiert wird."
+  - id: destination
+    label: Ziel
+    type: path
+    required: true
+    position: 1
+    help: "Zieldatei oder Zielordner. Eine vorhandene Zieldatei wird überschrieben."

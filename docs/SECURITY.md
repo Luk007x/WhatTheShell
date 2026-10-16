@@ -62,6 +62,8 @@ WhatTheShell startet beliebige Befehle des Nutzers; ein Fehler hat damit sofort 
 | Test | `test_engine_plan.py`, `test_cli_run.py`, `test_modules_loader.py`. |
 | Grenzen | Die Zusammenfassung erscheint im CLI automatisch, aber nur bei `caution`/`dangerous` wird zusätzlich ausdrücklich gefragt. Eine Herkunftsmarkierung („fremde Datei, noch nie bestätigt“) gibt es nicht: **nicht umgesetzt**. In der Web-UI liefert `POST /api/runs` den Plan vor `/start` (Abschnitt 4). |
 
+Änderungserkennung: Nutzer- und Projekt-Workflows tragen einen Hash-Stempel (`.wts-integrity.json`, FORMATS §8). Eine außerhalb der App geänderte oder ungestempelte Datei läuft erst nach ausdrücklicher Übernahme (`accept`, `--accept`). Das ist Änderungserkennung, kein Manipulationsschutz: Wer die Datei ändern kann, kann auch den Stempel ändern; die Bestätigungen aus 2.4 bleiben unabhängig davon. Ein Import (`import`) gilt als Übernahme und stempelt die Datei.
+
 ### 2.7 Template-Ausdrücke ohne Codeausführung
 
 | | |

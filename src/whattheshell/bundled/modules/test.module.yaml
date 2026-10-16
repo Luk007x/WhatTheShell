@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: test
+display_name: "test – Datei oder Bedingung prüfen"
+category: Dateien
+summary: "Prüft Dateien (Exit 0 = ja, 1 = nein)."
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: expression
+    label: Ausdruck
+    type: string
+    multiple: true
+    required: true
+    position: 0
+    help: "Zum Beispiel -e DATEI (existiert), -f DATEI (normale Datei) oder -x DATEI (ausführbar)."

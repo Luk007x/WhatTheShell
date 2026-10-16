@@ -99,6 +99,8 @@ wts run ID
 
 The argument is a workflow file or the id from `wts workflows`. If a file with this name exists, the path takes precedence over the id.
 
+A loose `x.workflow.yaml` path given to `wts run` now needs `--accept`, because it has no integrity stamp; with a library id this only applies after an edit outside the app (`wts workflows accept ID`).
+
 | Option | Effect |
 |---|---|
 | `--dry-run` | Only show the plan, execute nothing |

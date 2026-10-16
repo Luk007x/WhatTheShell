@@ -22,6 +22,8 @@ from whattheshell.modules.registry import ModuleRegistry
 
 Kind = Literal["module", "workflow"]
 NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]*$")
+IMPORT_NAME = re.compile(r"^[a-z0-9][a-z0-9_-]*\.workflow\.yaml$")  # id + suffix, no path
+MAX_IMPORT_BYTES = 1024 * 1024
 T = TypeVar("T", bound=BaseModel)
 
 
@@ -103,7 +105,7 @@ def atomic_write(path: Path, text: str, mode: int) -> None:
 
 
 def write_user_file(kind: Kind, name: str, raw: str) -> Path:
-    """Write `raw` (mode 0600) into the user's module or workflow folder.
+    """Write `raw` (mode 0600) into the user's module or workflow folder; workflows get stamped.
 
     Raises:
         ValueError: Bad `name`.
@@ -111,6 +113,10 @@ def write_user_file(kind: Kind, name: str, raw: str) -> Path:
     """
     target = user_path(kind, name)
     atomic_write(target, raw, 0o600)
+    if kind == "workflow":
+        from whattheshell import integrity  # late: integrity itself uses atomic_write
+
+        integrity.stamp(target)
     return target
 
 

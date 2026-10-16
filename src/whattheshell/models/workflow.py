@@ -280,8 +280,8 @@ class VariableSpec(_Model):
         ):
             raise ValueError("min und max sind nur bei type int oder float erlaubt")
         if self.pattern is not None:
-            if self.type != ValueType.string:
-                raise ValueError("pattern ist nur bei type string erlaubt")
+            if self.type not in (ValueType.string, ValueType.path):
+                raise ValueError("pattern ist nur bei type string oder path erlaubt")
             if len(self.pattern) > 500:
                 raise ValueError("pattern: höchstens 500 Zeichen erlaubt")
             try:

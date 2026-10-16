@@ -243,6 +243,10 @@ Mitgeliefert werden:
 | `log_errors` | Fehler in Logs zählen | Sucht `ERROR` in allen Logdateien, zählt Treffer und schreibt bei Treffern `bericht.txt` |
 | `wlan-5ghz` | WLAN auf 5 GHz fixieren | Bindet eine NetworkManager-Verbindung an die BSSID des 5-GHz-Zugangspunkts |
 | `wlan-5ghz-loesen` | WLAN-5-GHz-Bindung lösen | Gegenstück: entfernt die feste BSSID wieder |
+| `appimage-install-fedora` | AppImage installieren (Fedora) | Kopiert eine AppImage in den Zielordner, macht sie ausführbar und legt einen Menüeintrag mit Icon an |
+| `appimage-install-mint` | AppImage installieren (Linux Mint) | Wie Fedora, prüft aber `libfuse2` statt `fuse`/`fuse-libs` |
+
+Die AppImage-Workflows installieren nichts über den Paketmanager: Fehlen Voraussetzungen (Fedora: `fuse`, `fuse-libs`; Linux Mint: `libfuse2`), meldet der Workflow den passenden `sudo`-Befehl zum selbst Ausführen und bricht ab. Angegeben werden `appimage` (Datei), `name` (Menüname, auch Dateiname), optional `icon` (PNG oder SVG; leer = Standard-Icon), `categories` und `target_dir` (leer = `Applications` im Home-Verzeichnis). Der Workflow kopiert die Datei dorthin, macht sie ausführbar und schreibt `~/.local/share/applications/NAME.desktop`. Alle Schritte laufen ohne Shell; Kopieren, Rechte und Schreiben verlangen eine Bestätigung. Erscheint der Eintrag nicht sofort im Menü, einmal ab- und anmelden.
 
 Zum Modul `grep` gehört die Vorlage „Treffer zählen“ (`grep_count`). Vorlagen eines Werkzeugs erscheinen unter „Vorlagen“; „Einfügen“ übernimmt sie in den Workflow.
 

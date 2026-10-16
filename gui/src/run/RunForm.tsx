@@ -19,7 +19,7 @@ export function VariableFields({ prefix, variables, values, errors = {}, onValue
       const id = `${prefix}-${name}`;
       const value = values[name];
       const err = errors[name];
-      const pattern = v.type === "string" ? patternOf(v) : undefined;
+      const pattern = v.type === "string" || v.type === "path" ? patternOf(v) : undefined;
       const help = [v.help, v.type === "path" ? t("runform.path") : null, pattern ? t("runform.pattern", { pattern }) : null].filter(Boolean).join(" ");
       const describedBy = [help && `${id}-help`, err && `${id}-err`].filter(Boolean).join(" ") || undefined;
       const label = <>{v.label ?? name}{v.required && <span className="req" aria-hidden="true"> *</span>}</>;

@@ -23,7 +23,7 @@ from typing import Any, Literal
 
 from pydantic import ValidationError
 
-from whattheshell import APP_NAME, __version__, instance, paths
+from whattheshell import APP_NAME, __version__, instance, integrity, paths
 from whattheshell.ai import AiDisabled, require_enabled
 from whattheshell.ai import tasks as ai_tasks
 from whattheshell.ai.approve import apply, propose, target_path
@@ -66,17 +66,20 @@ from whattheshell.modules.loader import (
 from whattheshell.modules.registry import ModuleRegistry
 from whattheshell.modules.scaffold import scaffold_module
 from whattheshell.modules.store import (
+    IMPORT_NAME,
+    MAX_IMPORT_BYTES,
     atomic_write,
     registry_module_text,
     user_dir,
     validate_module_text,
     validate_workflow_text,
+    write_user_file,
 )
 from whattheshell.modules.watch import watch_modules
 from whattheshell.sandbox import ExampleResult, run_example, self_test
 from whattheshell.settings import Settings, load_settings, save_settings
 from whattheshell.subproc import printable
-from whattheshell.workflows import WorkflowIndex
+from whattheshell.workflows import WorkflowIndex, integrity_of, shadow_message
 
 
 def _registry() -> ModuleRegistry:
@@ -169,6 +172,11 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("file", type=Path, help="Workflow-Datei oder id aus `wts workflows`")
     run.add_argument("--dry-run", action="store_true", help="Nur den Plan zeigen")
     run.add_argument(
+        "--accept",
+        action="store_true",
+        help="Geänderte oder ungestempelte Datei prüfen, übernehmen und ausführen",
+    )
+    run.add_argument(
         "--yes",
         "-y",
         action="store_true",
@@ -184,7 +192,18 @@ def main(argv: list[str] | None = None) -> int:
     example.add_argument("tool")
     example.add_argument("number", nargs="?", type=int, help="Nur dieses Beispiel (1-basiert)")
     example.add_argument("--all", action="store_true", help="Alle Beispiele (Standard)")
-    commands.add_parser("workflows", help="Workflow-Bibliothek auflisten")
+    workflows = commands.add_parser("workflows", help="Workflow-Bibliothek (Standard: auflisten)")
+    workflow_actions = workflows.add_subparsers(dest="workflows_action")
+    workflow_actions.add_parser("list", help="Bibliothek mit Quelle und Integrität auflisten")
+    import_cmd = workflow_actions.add_parser(
+        "import", help="Workflow-Datei prüfen und in den Nutzerordner übernehmen"
+    )
+    import_cmd.add_argument("file", type=Path)
+    import_cmd.add_argument("--overwrite", action="store_true", help="Vorhandene Datei ersetzen")
+    accept_cmd = workflow_actions.add_parser(
+        "accept", help="Außerhalb der App geänderte Datei prüfen und übernehmen"
+    )
+    accept_cmd.add_argument("id")
     modules = commands.add_parser("modules", help="Geladene Module auflisten")
     modules.add_argument("--watch", action="store_true", help="Änderungen live neu laden")
     gui = commands.add_parser("gui", help="Oberfläche starten (nur 127.0.0.1, mit Sitzungstoken)")
@@ -293,7 +312,7 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
     if args.command == "modules":
         return _modules(args.watch)
     if args.command == "workflows":
-        return _workflows()
+        return _workflows(args)
     if args.command == "run":
         return _run(args)
     if args.command == "sandbox":
@@ -1117,13 +1136,100 @@ def _transcripts(delete: str | None) -> int:
     return 0
 
 
-def _workflows() -> int:
+def _workflows(args: argparse.Namespace) -> int:
+    if args.workflows_action == "import":
+        return _workflow_import(args.file, overwrite=args.overwrite)
+    if args.workflows_action == "accept":
+        return _workflow_accept(args.id)
     for entry in sorted(_workflow_index().all(), key=lambda e: e.id):
         if entry.error:
             print(f"FEHLER {entry.error}", file=sys.stderr)
         else:
-            print(f"{entry.source}\t{entry.id}\t{entry.name}\t{entry.steps}\t{entry.path}")
+            print(
+                f"{entry.source}\t{integrity_of(entry)}\t{entry.id}\t{entry.name}"
+                f"\t{entry.steps}\t{entry.path}"
+            )
     return 0
+
+
+def _workflow_import(file: Path, *, overwrite: bool) -> int:
+    if not IMPORT_NAME.fullmatch(file.name):
+        print(
+            f"Ungültiger Dateiname '{file.name}'. Erwartet: id.workflow.yaml "
+            "(Kleinbuchstaben, Ziffern, _ und -). Datei vorher umbenennen.",
+            file=sys.stderr,
+        )
+        return 3
+    try:
+        if file.stat().st_size > MAX_IMPORT_BYTES:
+            print(f"{file} ist größer als {MAX_IMPORT_BYTES} Byte.", file=sys.stderr)
+            return 3
+        text = file.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as err:
+        print(f"{file} nicht lesbar: {err}", file=sys.stderr)
+        return 1
+    shadowed = shadow_message(_workflow_index(), file.name.removesuffix(".workflow.yaml"))
+    if shadowed is not None:
+        print(shadowed, file=sys.stderr)
+        return 3
+    workflow, lines = validate_workflow_text(text)
+    if workflow is None:
+        print("\n".join(lines), file=sys.stderr)
+        return 3
+    if (user_dir("workflow") / file.name).exists() and not overwrite:
+        print(
+            f"{file.name} gibt es im Nutzerordner schon. Mit --overwrite ersetzen.", file=sys.stderr
+        )
+        return 3
+    try:
+        target = write_user_file("workflow", file.name, text)
+    except OSError as err:
+        print(f"Nicht schreibbar: {err}. Prüfe Rechte auf {user_dir('workflow')}.", file=sys.stderr)
+        return 1
+    print(f"Importiert: {target}")
+    return 0
+
+
+def _workflow_accept(workflow_id: str) -> int:
+    entry = _workflow_index().get(workflow_id)
+    if entry is None:
+        print(f"Workflow '{workflow_id}' gibt es nicht. Siehe `wts workflows`.", file=sys.stderr)
+        return 1
+    if entry.error:
+        print(entry.error, file=sys.stderr)
+        return 3
+    try:
+        if entry.source != "bundled":
+            integrity.stamp(entry.path)
+    except OSError as err:
+        print(f"Stempel nicht schreibbar: {err}", file=sys.stderr)
+        return 1
+    print(f"Übernommen: {entry.path}")
+    return 0
+
+
+def _integrity_refusal(file: Path, args: argparse.Namespace) -> int | None:
+    """Exit code if a modified or unstamped file may not run; `--accept` stamps it first."""
+    if args.dry_run:  # a plan runs nothing
+        return None
+    try:
+        state = integrity.status(file)
+    except OSError as err:
+        print(f"{file} nicht lesbar: {err}", file=sys.stderr)
+        return 1
+    if state == "ok":
+        return None
+    if not args.accept:
+        print(
+            f"{integrity.REFUSAL} ({file}, Status {state})\n"
+            f"Hinweis: `wts workflows accept ID` oder `wts run --accept`.",
+            file=sys.stderr,
+        )
+        return 3
+    # ponytail: files outside the workflow folders run once, without a stamp next to them
+    if file.parent.resolve() in [d.resolve() for d in paths.workflow_dirs(Path.cwd())]:
+        integrity.stamp(file)
+    return None
 
 
 def _run(args: argparse.Namespace) -> int:
@@ -1143,6 +1249,9 @@ def _run(args: argparse.Namespace) -> int:
                 file=sys.stderr,
             )
         return 3
+    refusal = _integrity_refusal(file, args)
+    if refusal is not None:
+        return refusal
     overrides = _parse_vars(args.var)
     if overrides is None:
         print("--var erwartet NAME=WERT, z. B. --var logdir=./logs", file=sys.stderr)

@@ -52,7 +52,7 @@ export function validate(entry: Entry, values: FormValues): Record<string, Field
     else if (v.type === "enum" && v.choices && v.choices.length > 0 && !v.choices.includes(text)) errors[name] = "choice";
     else if ((v.type === "int" || v.type === "float") && v.min != null && Number(text) < v.min) errors[name] = "min";
     else if ((v.type === "int" || v.type === "float") && v.max != null && Number(text) > v.max) errors[name] = "max";
-    else if (v.type === "string" && patternOf(v) !== undefined && !matchesPattern(patternOf(v) ?? "", text)) errors[name] = "pattern";
+    else if ((v.type === "string" || v.type === "path") && patternOf(v) !== undefined && !matchesPattern(patternOf(v) ?? "", text)) errors[name] = "pattern";
   }
   return errors;
 }

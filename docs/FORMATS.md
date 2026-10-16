@@ -105,7 +105,7 @@ variables:
   anzahl: { type: int }                                            # von `set` gesetzt, muss hier deklariert sein
   stufe: { type: enum, choices: [debug, info], default: info }     # `choices` nur bei enum
   tiefe: { type: int, min: 1, max: 5 }                             # `min`/`max` nur bei int/float
-  kennung: { type: string, pattern: "[a-z][a-z0-9-]*" }            # `pattern`: Regex, ganzer Wert muss passen (fullmatch), nur bei string
+  kennung: { type: string, pattern: "[a-z][a-z0-9-]*" }            # `pattern`: Regex, ganzer Wert muss passen (fullmatch), nur bei string und path
 steps:
   - id: finde                      # Pflicht, eindeutig im gesamten Workflow (auch in Teilfolgen)
     kind: command                  # Standard, darf entfallen wenn `tool` gesetzt ist
@@ -201,7 +201,7 @@ Ein literales `{{` (z. B. `docker --format '{{.Names}}'`) wird als `\{{` geschri
 ### Validierungsregeln (Pydantic-Validatoren)
 
 - Alle `id`s eindeutig im gesamten Baum, Muster `^[a-z][a-z0-9_]*$`. `var` und `item` sind reserviert, auch für `foreach.as`. `foreach.as` darf keine id überdecken.
-- `variables.*`: `choices` nur bei `type: enum`, `min`/`max` nur bei `int`/`float`, `pattern` (Regex, höchstens 500 Zeichen, nur bei `string`; der ganze Wert muss passen, `re.fullmatch`) (Modellfehler sonst); der Lauf prüft Wert gegen `choices`, Grenzen und `pattern` (`RunError` mit Hinweis).
+- `variables.*`: `choices` nur bei `type: enum`, `min`/`max` nur bei `int`/`float`, `pattern` (Regex, höchstens 500 Zeichen, nur bei `string` und `path`; der ganze Wert muss passen, `re.fullmatch`) (Modellfehler sonst); der Lauf prüft Wert gegen `choices`, Grenzen und `pattern` (`RunError` mit Hinweis).
 - Ein Dokument muss ein Objekt sein; Listen oder Skalare auf oberster Ebene sind ein Fehler mit Hinweis.
 - `tool` (Workflow und Modul) folgt `^[A-Za-z0-9][A-Za-z0-9._+-]*$`: kein führendes `-`, kein Pfad.
 - Regex-Felder (`condition.regex`, `expect.stdout_regex`) müssen kompilierbar sein.
@@ -242,3 +242,16 @@ Aus `args` wird eine **argv-Liste**, nie ein Shell-String: Eingaben nach Listenr
 Vor dem ersten echten Lauf zeigt die App alle Befehle mit Gefahrenklasse (`dry-run`); `caution` und `dangerous` verlangen je Schritt eine Bestätigung mit dem Klartextbefehl. Die Klasse wird zur Laufzeit auf den gerenderten Werten noch einmal bestimmt (Maximum). Schritte mit `env`, mit `cwd` außerhalb des Workflow-Ordners oder mit `stdin.file` außerhalb gelten mindestens als `caution`; der Bestätigungstext zeigt `env K=V …`, `(in /pfad)` und `< datei`.
 
 `command` (Subbefehl-Pfad) besteht aus Wörtern `^[A-Za-z][A-Za-z0-9_-]*$`. Ein Subbefehl, den weder Katalog noch Modul kennen, wird **nicht** per `--help` abgefragt; der Schritt läuft dann ohne erkannte Optionen (Werte über `extra_args`). Vorbereiten und `--dry-run` starten nie einen Prozess.
+
+## 8. Integrität
+
+Je Workflow-Ordner (Nutzer, Projekt) liegt `.wts-integrity.json` (0600, atomar geschrieben): Dateiname → `{"sha256": hex, "stamped": ISO-Zeit}`. Jeder Schreibweg der App stempelt (Speichern, Import, KI-Freigabe, `accept`). Der Status einer Datei:
+
+- `ok`: Hash passt. Mitgelieferte Workflows sind immer `ok` (Paketdaten, kein Stempel).
+- `modified`: Datei weicht vom Stempel ab (außerhalb der App geändert).
+- `unstamped`: kein Stempel (von Hand abgelegt, oder Datei aus der Zeit vor dieser Funktion).
+- `invalid`: Datei besteht die Schema-Prüfung nicht (`error` nennt die erste Meldung).
+
+`modified` und `unstamped` laufen nicht (API 409, CLI Exit 3), bis der Nutzer sie übernimmt: GUI-Knopf bzw. `POST /api/workflows/{id}/accept`, `wts workflows accept ID`, `wts run --accept`. Ein Plan (`dry_run`, `--dry-run`) läuft ohne Übernahme. Dateien außerhalb der Workflow-Ordner (`wts run PFAD`) gelten als `unstamped` und brauchen `--accept`; sie bekommen dabei keinen Stempel. Bestehende Nutzerdateien sind nach dem Update einmalig `unstamped`.
+
+Das ist Änderungserkennung, kein Manipulationsschutz: Wer die Datei ändern darf, kann auch den Stempel ändern.

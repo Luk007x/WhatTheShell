@@ -23,3 +23,8 @@ Punkte, die bewusst zurückgestellt sind. Jeder Eintrag nennt Auslöser und Bedi
 
 - **Server- und CLI-Meldungen auf Englisch:** Meldungen aus `cli.py`, Runner und API sind deutsch; für die englische Oberfläche fehlt eine Übersetzungsschicht im Backend.
 - **Codex ohne Shell-Werkzeug:** sobald die Codex-CLI eine Option bietet, das Shell-Werkzeug abzuschalten, als Pflichtflag in die Allowlist aufnehmen.
+
+## Nach D-021 (2026-10-16)
+
+- **Engine-Komfort:** `~`-Auflösung in Pfad-Variablen, `basename`/`dirname` als Vorlagenfilter, `not`-Operator in Bedingungen, Variablenpfad als `tool` (für `--appimage-extract`).
+- **Playwright-Fixture:** `gui/e2e/server.ts` soll `XDG_CONFIG_HOME` herausgeben, damit Import/Integrität end-to-end testbar werden.

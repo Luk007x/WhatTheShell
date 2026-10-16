@@ -7,7 +7,7 @@ import { Modal } from "./Modal";
 /** Help sections with their number of paragraphs (p) and bullets (b); texts live in i18n as `help.<section>.p1..`/`.b1..`. */
 const SECTIONS = {
   start: { p: 0, b: 6 },
-  build: { p: 0, b: 6 },
+  build: { p: 0, b: 7 },
   run: { p: 0, b: 6 },
   modules: { p: 0, b: 4 },
   terminal: { p: 0, b: 5 },

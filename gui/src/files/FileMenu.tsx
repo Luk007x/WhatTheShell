@@ -72,7 +72,7 @@ export function FileMenu({ wf, fileId, dirty, onLoad, onSaved, onDeleted, onNew,
 
       <Modal open={mode === "open"} title={t("file.open")} onCancel={() => setMode(null)}>
         {err && <p role="alert" className="error">{err.message}</p>}
-        <Library items={list} onPick={load} onRemove={remove} />
+        <Library items={list} onPick={load} onRemove={remove} onChanged={() => { void refresh(); }} />
         <div className="actions"><button onClick={() => setMode(null)}>{t("run.cancel")}</button></div>
       </Modal>
 

@@ -2,9 +2,10 @@
 // Mode "Ausführen": workflow library, input form from `variables`, confirmation, live output, recent runs.
 // Stays mounted while another mode is shown (`active` false), so a running run keeps its socket and dialogs.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getWorkflow, listRuns, listWorkflows, runWorkflowById } from "../api";
-import { Library } from "../files/Library";
+import { ApiError, getWorkflow, listRuns, listWorkflows, runWorkflowById } from "../api";
+import { AcceptButton, Library } from "../files/Library";
 import { getLang, t } from "../i18n";
+import { needsAccept } from "../files/libraryImport";
 import { Icon } from "../icons";
 import type { RunListItem, WorkflowListItem } from "../types/api";
 import type { Workflow } from "../types/workflow";
@@ -50,7 +51,10 @@ export function RunView({ active, onOpenInEditor }: { active: boolean; onOpenInE
   const pr = usePlanThenRun(run, (dry) => {
     if (!entry) return Promise.reject(new Error(t("runview.pick")));
     if (!dry) setRanId(entry.id);
-    return runWorkflowById(entry.id, body(dry));
+    return runWorkflowById(entry.id, body(dry)).catch((e: unknown) => {
+      if (e instanceof ApiError && e.error === "integrity") reload(); // the list shows the badge and the accept button
+      throw e;
+    });
   }, transcript);
 
   const reloadRuns = useCallback(() => { listRuns().then(setRuns, setLibError); }, []);
@@ -101,7 +105,7 @@ export function RunView({ active, onOpenInEditor }: { active: boolean; onOpenInE
             <button className="btn--sm" onClick={reload}>{t("lib.refresh")}</button>
           </div>
           {libError !== null && <Problem error={libError} />}
-          <Library items={items} selected={selId} onPick={pick} />
+          <Library items={items} selected={selId} onPick={pick} onChanged={(x) => { reload(); if (x) pick(x); }} />
         </section>
         <section className="panel" aria-labelledby="runform-h">
           <div className="panel__header"><h2 id="runform-h">{t("runview.form")}</h2></div>
@@ -114,6 +118,9 @@ export function RunView({ active, onOpenInEditor }: { active: boolean; onOpenInE
                 <RunForm prefix="rf" hidden={Object.keys(picked?.variables ?? {}).length - Object.keys(entry.variables).length} variables={entry.variables} values={values} errors={errors} cwd={cwd}
                   onValues={(v) => { setValues(v); save(v, cwd); }} onCwd={(c) => { setCwd(c); save(values, c); }}
                   transcript={withTerminal ? transcript : undefined} onTranscript={setTranscript} />
+                {picked && needsAccept(picked) && (
+                  <p role="alert" className="error">{t("lib.integrity.refused")} <AcceptButton id={picked.id} onDone={() => { setFormError(null); reload(); }} onError={setFormError} /></p>
+                )}
                 {formError !== null && <Problem error={formError} />}
                 <div className="tb-group">
                   <button type="button" onClick={dryRun} disabled={!loaded}>{t("run.dry")}</button>

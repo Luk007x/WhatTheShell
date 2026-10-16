@@ -1,0 +1,109 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+name: "AppImage installieren (Fedora)"
+description: "Legt eine AppImage-Datei nach ~/Applications (oder Zielordner), macht sie ausführbar und erzeugt einen Menüeintrag mit Icon. Prüft nur die Voraussetzungen (fuse, fuse-libs), installiert nichts. Für Linux Mint: Workflow „AppImage installieren (Linux Mint)“."
+variables:
+  appimage: { type: path, required: true, pattern: '/[^\n"$`%\\]*\.[Aa]pp[Ii]mage', label: "AppImage-Datei", help: "Die heruntergeladene Datei, Endung .AppImage." }
+  name: { type: string, required: true, label: "Name im Menü", help: "Erscheint im Anwendungsmenü und bestimmt Dateinamen. Erlaubt: Buchstaben, Ziffern, Leerzeichen, Punkt, Plus, Minus.", pattern: "[A-Za-z0-9][A-Za-z0-9 ._+-]*" }
+  icon: { type: path, default: "", pattern: '(/[^\n"$`%\\]*)?', label: "Icon (optional)", help: "PNG oder SVG. Leer lassen für das Standard-Icon (application-x-executable)." }
+  categories: { type: enum, choices: [Utility, Development, Graphics, Network, Office, AudioVideo, Game, System], default: Utility, label: "Menü-Kategorie" }
+  target_dir: { type: path, default: "", pattern: '(/[^\n"$`%\\]*)?', label: "Zielordner", help: "Wohin die AppImage kopiert wird. Leer lassen für den Ordner Applications im Home-Verzeichnis (~ wird nicht aufgelöst, daher hier einen absoluten Pfad angeben)." }
+  icon_ref: { type: string, default: application-x-executable, label: "Icon-Eintrag (intern)", help: "Wird vom Workflow gesetzt; nicht ändern." }
+steps:
+  - id: home
+    label: "Home-Verzeichnis ermitteln"
+    tool: printenv
+    extra_args: [HOME]
+  - id: ziel_leer
+    kind: if
+    label: "Zielordner leer?"
+    condition: { source: var.target_dir, is_empty: true }
+    then:
+      - { id: ziel_standard, kind: set, variable: target_dir, value: "{{ home.lines }}/Applications" }
+  - id: pruefe_datei
+    label: "AppImage-Datei vorhanden?"
+    tool: test
+    args: { expression: ["-f", "{{ var.appimage }}"] }
+    on_error:
+      action: fallback
+      steps:
+        - { id: fehlt_datei, kind: message, text: "Datei nicht gefunden: {{ var.appimage }}" }
+        - { id: abbruch_datei, kind: abort, text: "AppImage-Datei fehlt.", exit_code: 1 }
+  - id: pruefe_endung
+    kind: if
+    label: "Endung .AppImage?"
+    condition: { source: var.appimage, regex: '.*\.[Aa]pp[Ii]mage$' }
+    then:
+      - { id: endung_ok, kind: message, text: "AppImage erkannt: {{ var.appimage }}" }
+    else:
+      - { id: endung_falsch, kind: abort, text: "Die Datei muss auf .AppImage enden: {{ var.appimage }}", exit_code: 1 }
+  - id: pruefe_fusermount
+    label: "Voraussetzung prüfen: fuse (fusermount)"
+    tool: test
+    args: { expression: ["-x", "/usr/bin/fusermount"] }
+    on_error:
+      action: fallback
+      steps:
+        - { id: fehlt_fuse, kind: message, text: "fuse fehlt. Bitte selbst installieren: sudo dnf install fuse fuse-libs" }
+        - { id: abbruch_fuse, kind: abort, text: "Voraussetzung fehlt: fuse.", exit_code: 1 }
+  - id: pruefe_fuse_libs
+    label: "Voraussetzung prüfen: fuse-libs (libfuse.so.2)"
+    tool: test
+    args: { expression: ["-e", "/usr/lib64/libfuse.so.2"] }
+    on_error:
+      action: fallback
+      steps:
+        - { id: fehlt_libs, kind: message, text: "fuse-libs fehlt. Bitte selbst installieren: sudo dnf install fuse fuse-libs" }
+        - { id: abbruch_libs, kind: abort, text: "Voraussetzung fehlt: fuse-libs.", exit_code: 1 }
+  - id: ordner
+    label: "Zielordner und Menü-Ordner anlegen"
+    tool: mkdir
+    args: { parents: true, directory: ["{{ var.target_dir }}", "{{ home.lines }}/.local/share/applications"] }
+  - id: kopieren
+    label: "AppImage in den Zielordner kopieren"
+    tool: cp
+    args: { source: "{{ var.appimage }}", destination: "{{ var.target_dir }}/{{ var.name }}.AppImage" }
+  - id: ausfuehrbar
+    label: "Ausführbar machen"
+    tool: chmod
+    args: { mode: "+x", file: ["{{ var.target_dir }}/{{ var.name }}.AppImage"] }
+  - id: icon_leer
+    kind: if
+    label: "Icon angegeben?"
+    condition: { source: var.icon, is_empty: true }
+    then:
+      - { id: kein_icon, kind: message, text: "Kein Icon angegeben, es wird application-x-executable verwendet." }
+    else:
+      - id: icon_svg
+        kind: if
+        label: "SVG-Icon?"
+        condition: { source: var.icon, regex: '.*\.[Ss][Vv][Gg]$' }
+        then:
+          - { id: icon_ordner_svg, kind: command, tool: mkdir, args: { parents: true, directory: ["{{ home.lines }}/.local/share/icons/hicolor/scalable/apps"] } }
+          - { id: icon_kopie_svg, kind: command, tool: cp, args: { source: "{{ var.icon }}", destination: "{{ home.lines }}/.local/share/icons/hicolor/scalable/apps/{{ var.name }}.svg" } }
+          - { id: icon_ref_svg, kind: set, variable: icon_ref, value: "{{ home.lines }}/.local/share/icons/hicolor/scalable/apps/{{ var.name }}.svg" }
+        else:
+          - { id: icon_ordner_png, kind: command, tool: mkdir, args: { parents: true, directory: ["{{ home.lines }}/.local/share/icons/hicolor/256x256/apps"] } }
+          - { id: icon_kopie_png, kind: command, tool: cp, args: { source: "{{ var.icon }}", destination: "{{ home.lines }}/.local/share/icons/hicolor/256x256/apps/{{ var.name }}.png" } }
+          - { id: icon_ref_png, kind: set, variable: icon_ref, value: "{{ home.lines }}/.local/share/icons/hicolor/256x256/apps/{{ var.name }}.png" }
+  - id: eintrag
+    label: "Menüeintrag (.desktop-Datei) schreiben"
+    tool: tee
+    args: { file: ["{{ home.lines }}/.local/share/applications/{{ var.name }}.desktop"] }
+    stdin:
+      text: |
+        [Desktop Entry]
+        Type=Application
+        Name={{ var.name }}
+        Exec="{{ var.target_dir }}/{{ var.name }}.AppImage" %U
+        Icon={{ var.icon_ref }}
+        Categories={{ var.categories }};
+        Terminal=false
+  - id: datenbank
+    label: "Menü-Datenbank aktualisieren"
+    tool: update-desktop-database
+    extra_args: ["{{ home.lines }}/.local/share/applications"]
+    on_error: { action: continue }
+  - id: fertig
+    kind: message
+    text: "Fertig: {{ var.name }} liegt in {{ var.target_dir }} und steht im Anwendungsmenü (Kategorie {{ var.categories }}). Falls der Eintrag fehlt, einmal ab- und anmelden."
