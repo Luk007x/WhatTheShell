@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { ApiError, errMsg, createRun, getRun } from "../api";
 import { AiDialog, useAi } from "../ai/AiDialog";
 import { stepFromEvents, stripOutputs, type Step } from "../ai/aiFlow";
+import { HelpButton } from "../Help";
 import { useDebounced } from "../hooks";
 import { t } from "../i18n";
 import { Icon } from "../icons";
@@ -158,18 +159,20 @@ export function RunPanel({ wf, onCapture, onEvaluate, onSelectStep }: {
     <section aria-label={t("output.title")} className="run">
       <div className="toolbar">
         <h2>{t("output.title")}</h2>
-        <button onClick={trockenlauf} disabled={running}>{t("run.dry")}</button>
+        <HelpButton section="run" topic={t("output.title")} />
+        <button onClick={trockenlauf} disabled={running} aria-describedby="run-help">{t("run.dry")}</button>
         <button className="btn--primary" disabled={running} onClick={() => { setValues(initialValues(entry, values)); setPlan(null); pr.plan(); }}>
           <Icon name="play" filled />{t("run.execute")}
         </button>
         <RunControls run={run} />
       </div>
+      <p className="muted" id="run-help">{t("run.dry.help")} {t("run.step.help")}{view.blocks.length > 0 && ` ${t("run.capture.help")} ${t("run.evaluate.help")}`}</p>
       {plan !== null && <><h3>{t("run.plan")}</h3><pre className="plan" data-testid="plan">{plan}</pre></>}
       {view.status === "idle" && plan === null && <p className="muted">{t("output.placeholder")}</p>}
       <RunOutput run={run} onSelect={onSelectStep} extra={(b) => (
         <>
-          <button className="btn--sm" onClick={() => onCapture(b.id)}>{t("run.capture")}</button>
-          <button className="btn--sm" onClick={() => onEvaluate(b.id)}>{t("run.evaluate")}</button>
+          <button className="btn--sm" title={t("run.capture.help")} onClick={() => onCapture(b.id)}>{t("run.capture")}</button>
+          <button className="btn--sm" title={t("run.evaluate.help")} onClick={() => onEvaluate(b.id)}>{t("run.evaluate")}</button>
           {aiOn && b.finish && !b.finish.ok && <button className="btn--sm" onClick={() => diagnose(b.id)}>{t("ai.diagnose")}</button>}
         </>
       )} />

@@ -163,3 +163,13 @@ Fragen des Auftraggebers nach der Start/Stop-Runde.
 - **Verlauf:** Läufe liegen nur im Speicher des Servers (die letzten 50), nicht auf Platte. Ein persistenter Verlauf (Workflow, Start, Ergebnis, Exit-Code, ohne Ausgaben und Secrets) ist Backlog, Umfang nach Freigabe.
 - **KI-Erkennung:** Die Einstellungen zeigten eine feste Liste „claude, codex" ohne Prüfung; der eigentliche Check (`wts ai check`) prüft nur die gewählte Quelle. Neu: `GET /api/ai/agents` (nur `shutil.which`, kein Fremdprozess, auch bei ausgeschalteter KI erreichbar) und Kennzeichnung „gefunden / nicht installiert" im Auswahlfeld.
 - **Oberfläche:** Zahnrad statt Strahlensymbol (war mit der Sonne des Theme-Schalters verwechselbar); gedrückte Segmente ändern die Schriftstärke nicht mehr (Layoutsprung); Kontrast der Farbtoken auf 4,5:1 (Text) bzw. 3:1 (Symbole, Rahmen) in beiden Themes geprüft und nachgezogen.
+
+## D-018 Erklärungen in der Oberfläche, 2026-10-16
+
+Auftraggeber: „Generell braucht das gesamte Tool Erklärungen." Bestandsaufnahme: rund 70 Bedienelemente mit technischem Feldnamen ohne Hilfetext, zwei kleine Hilfedialoge nur über die Taste `?` bzw. im Graph, kein Erststart-Hinweis.
+
+- **Feldhilfen** als sichtbarer Satz unter dem Feld (`<small>`, per `aria-describedby` verknüpft), nicht als Tooltip: Tooltips sind per Tastatur und auf Touch nicht erreichbar. Einstellungen zeigen deutsche Beschriftungen statt `model`, `base_url`, `key_env`, `command`; der KI-Anbieter wird mit Klartext erklärt, „Befehlsausgaben senden" nennt den Datenabfluss.
+- **Hilfe-Dialog** (`gui/src/Help.tsx`) mit Abschnitten Erste Schritte, Workflow bauen, Ausführen und Sicherheit, Module, Terminal, KI, Tastenkürzel; `?`-Knopf im Kopf, `?`-Taste, `?`-Knöpfe in den Panel-Köpfen springen zum Abschnitt (`HelpContext`). Beim ersten Start öffnet er sich einmal (`localStorage` `wts.helpseen`). Texte liegen vollständig in `i18n.ts` (de/en), nicht in Komponenten.
+- **Variablen-Editor** kann jetzt Pflicht, Hilfetext und Auswahlliste (enum) setzen; Typwechsel löscht nicht mehr passende Felder (`choices`, `pattern`), sonst lehnt der Validator das Dokument ab.
+- **Korrekturen aus dem Review:** Laufordner liegt unter `~/.config/whattheshell/runs/<id>`, nicht im Cache; Agent-CLIs laufen „ohne Schreibzugriff" (Codex `--sandbox read-only` kann lesen), nur Claude zusätzlich ohne Werkzeuge; `dangerous` unterscheidet sich von `caution` nur durch den roten Bestätigungsknopf.
+- **Nicht gemacht:** keine geführte Tour, keine Tooltips, keine Hilfe als Markdown-Dateien im Paket (Backlog, falls die Texte für die Doku wiederverwendet werden sollen).

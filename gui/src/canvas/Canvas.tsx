@@ -4,12 +4,12 @@ import {
   applyNodeChanges, Background, Controls, Handle, MiniMap, Panel, Position, ReactFlow, useReactFlow,
   type Connection, type NodeChange, type NodeProps, type OnConnectEnd, type ReactFlowInstance,
 } from "@xyflow/react";
-import { Fragment, useEffect, useMemo, useRef, useState, type DragEvent, type MutableRefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent, type MutableRefObject } from "react";
 import { categoryClass } from "../catalog/groupTools";
 import { t } from "../i18n";
 import type { Theme } from "../theme";
 import { Icon } from "../icons";
-import { Modal } from "../Modal";
+import { HelpButton } from "../Help";
 import { commandStep, CONTROL_KINDS, controlStep, MIME_KIND, MIME_TOOL } from "../model/blocks";
 import { connectionKind, connectionProblem, handlesOf, toGraph, type FlowEdge, type HandleSpec, type StepNode } from "../model/graph";
 import {
@@ -76,22 +76,6 @@ function AutoFit({ count }: { count: number }) {
   const { fitView } = useReactFlow();
   useEffect(() => { void fitView(FIT); }, [count, fitView]);
   return null;
-}
-
-/** "?" button with the explanation of what flows along the edges (D-012). */
-export function FlowHelp() {
-  const [open, setOpen] = useState(false);
-  const title = t("help.flow.title");
-  return (
-    <>
-      <button className="btn--icon" aria-label={title} title={title} onClick={() => setOpen(true)}><Icon name="help" /></button>
-      <Modal open={open} title={title} onCancel={() => setOpen(false)}>
-        {/* backticks in the text mark code */}
-        <p className="help-text">{t("help.flow.text").split("`").map((part, i) => (i % 2 ? <code key={i}>{part}</code> : <Fragment key={i}>{part}</Fragment>))}</p>
-        <div className="actions"><button data-autofocus onClick={() => setOpen(false)}>{t("settings.close")}</button></div>
-      </Modal>
-    </>
-  );
 }
 
 function Legend() {
@@ -236,9 +220,10 @@ export function Canvas(props: {
         </span>
         <button className="btn--danger" disabled={!selected} onClick={() => selected && edit((w) => removeStep(w, selected))}><Icon name="trash" />{t("canvas.delete")}</button>
         <span className="tb-spacer" />
-        <FlowHelp />
+        <HelpButton section="build" topic={t("canvas.title")} />
       </div>
       <div className="flow">
+        {nodes.length === 0 && <p className="canvas-empty muted">{t("canvas.empty")}</p>}
         <ReactFlow<StepNode, FlowEdge>
           nodes={nodes}
           edges={edges}

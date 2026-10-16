@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Block view (D-010): the same step tree as nested, stackable cards. Pure presentation; every change is an op from model/ops.ts.
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { FlowHelp, headClass, type Edit } from "../canvas/Canvas";
+import { headClass, type Edit } from "../canvas/Canvas";
+import { HelpButton } from "../Help";
 import { Icon } from "../icons";
 import { t } from "../i18n";
 import { canDrop, commandStep, CONTROL_KINDS, controlStep, dropIndex, MIME_KIND, MIME_TOOL, moveTargets, placeOf, placeOfPath, toBlocks, type Block, type Move } from "../model/blocks";
@@ -193,7 +194,7 @@ export function BlockView(props: {
       <div className="toolbar" role="toolbar" aria-label={t("canvas.toolbar")}>
         <label className="tb-field">{t("canvas.name")} <input value={wf.name} onChange={(e) => edit((w) => ({ ...w, name: e.target.value }), "name")} /></label>
         <span className="tb-spacer" />
-        <FlowHelp />
+        <HelpButton section="build" topic={t("canvas.title")} />
       </div>
       <div className="blocks" onClick={() => onSelect(null)} onKeyDown={(e) => { if (e.key === "Escape") { setAdding(null); setMenu(null); } }}>{seq(tree, [], true)}</div>
       <div aria-live="polite" className="sr-only">{live}</div>

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { useEffect, useState, type ReactNode } from "react";
 import { ApiError, errMsg, getAiAgents, getSettings, postShutdown, putSettings } from "./api";
+import { HelpButton } from "./Help";
 import { getLang, t, type Lang } from "./i18n";
 import { Modal } from "./Modal";
 import type { Settings as ServerSettings } from "./types/api";
@@ -61,17 +62,17 @@ function AiSettings({ onChanged }: { onChanged: (enabled: boolean) => void }) {
   const text = (id: string, label: string, value: string, set: (v: string) => void, help?: string) => (
     <div className="field">
       <label htmlFor={id}>{label}</label>
-      <input id={id} value={value} onChange={(e) => set(e.target.value)} />
-      {help && <small className="muted">{help}</small>}
+      <input id={id} value={value} aria-describedby={help ? `${id}-h` : undefined} onChange={(e) => set(e.target.value)} />
+      {help && <small className="muted" id={`${id}-h`}>{help}</small>}
     </div>
   );
   const choice = <K extends string>(id: string, label: string, value: K, values: readonly K[], set: (v: K) => void, show: (v: K) => string = (v) => v, help?: ReactNode) => (
     <div className="field">
       <label htmlFor={id}>{label}</label>
-      <select id={id} value={value} onChange={(e) => { const v = values.find((x) => x === e.target.value); if (v) set(v); }}>
+      <select id={id} value={value} aria-describedby={help ? `${id}-h` : undefined} onChange={(e) => { const v = values.find((x) => x === e.target.value); if (v) set(v); }}>
         {values.map((v) => <option key={v} value={v}>{show(v)}</option>)}
       </select>
-      {help}
+      {help && <div id={`${id}-h`}>{help}</div>}
     </div>
   );
   const save = () => {
@@ -81,51 +82,52 @@ function AiSettings({ onChanged }: { onChanged: (enabled: boolean) => void }) {
   const { local, api, agent } = ai;
   return (
     <section aria-labelledby="ai-set-h">
-      <h3 id="ai-set-h">{t("ai.settings")}</h3>
+      <div className="hhead"><h3 id="ai-set-h">{t("ai.settings")}</h3><HelpButton section="ai" topic={t("ai.settings")} /></div>
       <div className="field">
         <label><input type="checkbox" checked={ai.enabled} onChange={(e) => edit({ enabled: e.target.checked })} /> {t("ai.enable")}</label>
         <small className="muted">{t("ai.enable.hint")}</small>
       </div>
       {ai.enabled && (
         <>
-          {choice("ai-provider", t("ai.provider"), ai.provider, ["local", "api", "agent"], (provider) => edit({ provider }))}
+          {choice("ai-provider", t("ai.provider"), ai.provider, ["local", "api", "agent"], (provider) => edit({ provider }), (v) => t(`ai.provider.${v}`), <small className="muted">{t("ai.provider.help")}</small>)}
           {ai.provider === "local" && (
             <>
-              {text("ai-l-url", "base_url", local.base_url, (base_url) => edit({ local: { ...local, base_url } }))}
-              {text("ai-l-model", "model", local.model, (model) => edit({ local: { ...local, model } }))}
+              {text("ai-l-url", t("ai.l.url"), local.base_url, (base_url) => edit({ local: { ...local, base_url } }), t("ai.l.url.help"))}
+              {text("ai-l-model", t("ai.model"), local.model, (model) => edit({ local: { ...local, model } }), t("ai.model.local.help"))}
             </>
           )}
           {ai.provider === "api" && (
             <>
-              {choice("ai-a-kind", "kind", api.kind, ["anthropic", "openai"], (kind) => edit({ api: { ...api, kind } }))}
-              {text("ai-a-url", "base_url", api.base_url ?? "", (v) => edit({ api: { ...api, base_url: v === "" ? null : v } }), t("ai.optional"))}
-              {text("ai-a-model", "model", api.model, (model) => edit({ api: { ...api, model } }))}
-              {text("ai-a-env", "key_env", api.key_env, (key_env) => edit({ api: { ...api, key_env } }), t("ai.keyenv.help"))}
+              {choice("ai-a-kind", t("ai.a.kind"), api.kind, ["anthropic", "openai"], (kind) => edit({ api: { ...api, kind } }), undefined, <small className="muted">{t("ai.a.kind.help")}</small>)}
+              {text("ai-a-url", t("ai.a.url"), api.base_url ?? "", (v) => edit({ api: { ...api, base_url: v === "" ? null : v } }), t("ai.a.url.help"))}
+              {text("ai-a-model", t("ai.model"), api.model, (model) => edit({ api: { ...api, model } }), t("ai.model.api.help"))}
+              {text("ai-a-env", t("ai.keyenv"), api.key_env, (key_env) => edit({ api: { ...api, key_env } }), t("ai.keyenv.help"))}
               <p role="status">{t("ai.keystatus")}: <strong>{t(`ai.key.${doc.key_status ?? "missing"}`)}</strong></p>
-              {choice("ai-a-src", "key_source", api.key_source, ["env", "keyring"], (key_source) => edit({ api: { ...api, key_source } }))}
+              {choice("ai-a-src", t("ai.keysrc"), api.key_source, ["env", "keyring"], (key_source) => edit({ api: { ...api, key_source } }), (v) => t(`ai.keysrc.${v}`), <small className="muted">{t("ai.keysrc.help")}</small>)}
             </>
           )}
           {ai.provider === "agent" && (
             <>
-              {choice("ai-g-kind", "kind", agent.kind, ["claude", "codex"], (kind) => edit({ agent: { ...agent, kind } }),
+              {choice("ai-g-kind", t("ai.g.kind"), agent.kind, ["claude", "codex"], (kind) => edit({ agent: { ...agent, kind } }),
                 (k) => (agents ? `${k} – ${t(agents[k] ? "ai.agent.found" : "ai.agent.missing")}` : k),
                 <>
                   {agents && <small className="muted">{agents[agent.kind] ?? t("ai.agent.hint")}</small>}
                   {agentsError !== null && <small role="alert" className="error">{errMsg(agentsError)}</small>}
                 </>)}
               <div className="field">
-                <label htmlFor="ai-g-cmd">command</label>
+                <label htmlFor="ai-g-cmd">{t("ai.command")}</label>
                 <textarea id="ai-g-cmd" rows={3} value={agent.command.join("\n")} onChange={(e) => edit({ agent: { ...agent, command: e.target.value === "" ? [] : e.target.value.split("\n") } })} />
                 <small className="muted">{t("ai.command.help")}</small>
               </div>
               <div className="field">
-                <label htmlFor="ai-g-timeout">timeout</label>
+                <label htmlFor="ai-g-timeout">{t("ai.timeout")}</label>
                 <input id="ai-g-timeout" type="number" min={1} value={agent.timeout} onChange={(e) => edit({ agent: { ...agent, timeout: Number(e.target.value) } })} />
               </div>
             </>
           )}
           <div className="field">
             <label><input type="checkbox" checked={ai.send_outputs} onChange={(e) => edit({ send_outputs: e.target.checked })} /> {t("ai.sendoutputs")}</label>
+            <small className="muted">{t("ai.sendoutputs.help")}</small>
           </div>
         </>
       )}
@@ -186,9 +188,11 @@ export function Settings(props: {
         <select id="set-startview" value={startView} onChange={(e) => { const v = START_VIEWS.find((x) => x === e.target.value) ?? "last"; setStartView(v); saveStartView(v); }}>
           {START_VIEWS.map((v) => <option key={v} value={v}>{t(`settings.view.${v}`)}</option>)}
         </select>
+        <small className="muted">{t("settings.view.help")}</small>
       </div>
       <div className="field">
         <label><input type="checkbox" checked={props.autoPreview} onChange={(e) => props.onAutoPreview(e.target.checked)} /> {t("settings.autopreview")}</label>
+        <small className="muted">{t("settings.autopreview.help")}</small>
       </div>
       {props.open && <AiSettings onChanged={props.onAiChanged} />}
       {props.open && <QuitSection onStopped={props.onStopped} />}

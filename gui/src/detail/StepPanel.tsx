@@ -82,7 +82,7 @@ function Field({ idPrefix, spec, value, onChange }: { idPrefix: string; spec: Sp
         {spec.required && <span aria-label={t("field.required")} className="req"> *</span>}
         {flags.length > 0 && spec.label && <small className="flags"> {flags.join(", ")}</small>}
         {spec.confidence && spec.confidence !== "high" && (
-          <span className="badge badge--caution" title={t("field.guessed.title")}>{t("field.guessed")}</span>
+          <span className="badge badge--caution" title={t("field.guessed.title")}>{t("field.guessed.long")}</span>
         )}
       </label>
       {control}
@@ -215,7 +215,7 @@ function StdinAndErrors({ step, wf, update }: { step: CommandStep | TerminalStep
       {isCommand(step) && (
       <div className="field">
         <label htmlFor={`${p}-stdin`}>{t("step.stdin")}</label>
-        <select id={`${p}-stdin`} value={mode} onChange={(e) => setMode(e.target.value)}>
+        <select id={`${p}-stdin`} aria-describedby={`${p}-stdin-h`} value={mode} onChange={(e) => setMode(e.target.value)}>
           {["none", "pipe", "text", "file"].map((m) => <option key={m} value={m}>{t(`stdin.${m}`)}</option>)}
         </select>
         {mode === "pipe" && (
@@ -226,6 +226,7 @@ function StdinAndErrors({ step, wf, update }: { step: CommandStep | TerminalStep
         )}
         {mode === "text" && <textarea aria-label={t("stdin.text")} rows={3} value={stdin.text ?? ""} onChange={(e) => update({ stdin: { text: e.target.value } }, "stdin")} />}
         {mode === "file" && <input aria-label={t("stdin.file")} value={stdin.file ?? ""} placeholder={t("field.path.placeholder")} onChange={(e) => update({ stdin: { file: e.target.value } }, "stdin")} />}
+        <small className="muted" id={`${p}-stdin-h`}>{t("step.stdin.help")}</small>
       </div>
       )}
       <div className="field">
@@ -234,12 +235,13 @@ function StdinAndErrors({ step, wf, update }: { step: CommandStep | TerminalStep
       </div>
       <div className="field">
         <label htmlFor={`${p}-ok`}>{t("step.okcodes")}</label>
-        <input id={`${p}-ok`} value={okText} aria-invalid={!okValid}
+        <input id={`${p}-ok`} value={okText} aria-invalid={!okValid} aria-describedby={`${p}-ok-h`}
           onChange={(e) => {
             setOkText(e.target.value);
             const codes = e.target.value.split(",").map((x) => x.trim()).filter(Boolean).map(Number);
             if (codes.every(Number.isInteger)) update({ ok_exit_codes: codes.length > 0 && codes.join() !== "0" ? codes : undefined }, "ok");
           }} />
+        <small className="muted" id={`${p}-ok-h`}>{t("step.okcodes.help")}</small>
       </div>
       <div className="field">
         <label htmlFor={`${p}-timeout`}>{t("step.timeout")}</label>
@@ -247,12 +249,13 @@ function StdinAndErrors({ step, wf, update }: { step: CommandStep | TerminalStep
       </div>
       <div className="field">
         <label htmlFor={`${p}-err`}>{t("step.onerror")}</label>
-        <select id={`${p}-err`} value={action} onChange={(e) => setOnError(e.target.value)}>
+        <select id={`${p}-err`} aria-describedby={`${p}-err-h`} value={action} onChange={(e) => setOnError(e.target.value)}>
           {ON_ERROR.map((a) => <option key={a} value={a}>{t(`onerror.${a}`)}</option>)}
         </select>
         {action === "retry" && (
-          <input type="number" min={1} aria-label={t("onerror.retries")} value={step.on_error?.retries ?? ""} onChange={(e) => setOnError("retry", e.target.value === "" ? undefined : Number(e.target.value))} />
+          <label>{t("onerror.retries")} <input type="number" min={1} value={step.on_error?.retries ?? ""} onChange={(e) => setOnError("retry", e.target.value === "" ? undefined : Number(e.target.value))} /></label>
         )}
+        <small className="muted" id={`${p}-err-h`}>{t("step.onerror.help")}</small>
       </div>
     </>
   );
@@ -322,9 +325,10 @@ function Preview({ step, info, sandbox, onRetest, update, autoPreview }: { step:
   return (
     <section aria-label={t("prev.title")}>
       <h4>{t("prev.title")}</h4>
+      <p className="muted">{t("prev.help")}</p>
       <label>
         {t("prev.example")}{" "}
-        <select value={example ?? ""} onChange={(e) => {
+        <select aria-describedby="prev-example-h" value={example ?? ""} onChange={(e) => {
           const i = e.target.value === "" ? null : Number(e.target.value);
           setExample(i);
           const args = i === null ? undefined : examples[i]?.args;
@@ -334,6 +338,7 @@ function Preview({ step, info, sandbox, onRetest, update, autoPreview }: { step:
           {examples.map((x, i) => <option key={i} value={i}>{x.title}</option>)}
         </select>
       </label>{" "}
+      <small className="muted" id="prev-example-h">{t("prev.example.help")}</small>{" "}
       {applied && <small className="muted">{t("prev.applied")} </small>}
       <button disabled={sandbox?.available === false} onClick={() => run(body)}><Icon name="play" />{t("prev.run")}</button>
       {unavailable && (
@@ -357,11 +362,12 @@ function Preview({ step, info, sandbox, onRetest, update, autoPreview }: { step:
   );
 }
 
-function Text({ id, label, value, onChange, type = "text", list }: { id: string; label: string; value: string | number; onChange: (v: string) => void; type?: string; list?: string }) {
+function Text({ id, label, value, onChange, type = "text", list, help }: { id: string; label: string; value: string | number; onChange: (v: string) => void; type?: string; list?: string; help?: string }) {
   return (
     <div className="field">
       <label htmlFor={id}>{label}</label>
-      <input id={id} type={type} value={value} list={list} onChange={(e) => onChange(e.target.value)} />
+      <input id={id} type={type} value={value} list={list} aria-describedby={help ? `${id}-h` : undefined} onChange={(e) => onChange(e.target.value)} />
+      {help && <small className="muted" id={`${id}-h`}>{help}</small>}
     </div>
   );
 }
@@ -386,13 +392,14 @@ function ControlForm({ step, wf, update }: { step: Exclude<Step, CommandStep | T
       return (
         <>
           {list}
-          <Text id={`${p}-src-i`} label={t("cond.source")} list={`${p}-src`} value={step.condition.source} onChange={(v) => update({ condition: { ...step.condition, source: v } }, "source")} />
+          <Text id={`${p}-src-i`} label={t("cond.source")} help={t("cond.source.help")} list={`${p}-src`} value={step.condition.source} onChange={(v) => update({ condition: { ...step.condition, source: v } }, "source")} />
           <div className="field">
             <label htmlFor={`${p}-op`}>{t("cond.operator")}</label>
-            <select id={`${p}-op`} value={op} onChange={(e) => update({ condition: conditionWith(step.condition, e.target.value as OperatorName, spec?.[1] === "bool" ? true : "") })}>
+            <select id={`${p}-op`} aria-describedby={`${p}-op-h`} value={op} onChange={(e) => update({ condition: conditionWith(step.condition, e.target.value as OperatorName, spec?.[1] === "bool" ? true : "") })}>
               {/* cast: option values come from OPERATORS */}
               {OPERATORS.map(([k]) => <option key={k} value={k}>{t(`op.${k}`)}</option>)}
             </select>
+            <small className="muted" id={`${p}-op-h`}>{t("cond.operator.help")}</small>
           </div>
           {spec?.[1] === "bool" ? (
             <label><input type="checkbox" checked={raw === true} onChange={(e) => update({ condition: conditionWith(step.condition, op, e.target.checked) })} /> {t("cond.true")}</label>
@@ -406,8 +413,8 @@ function ControlForm({ step, wf, update }: { step: Exclude<Step, CommandStep | T
       return (
         <>
           {list}
-          <Text id={`${p}-src-i`} label={t("cond.source")} list={`${p}-src`} value={step.source} onChange={(v) => update({ source: v }, "source")} />
-          <Text id={`${p}-as`} label={t("foreach.as")} value={step.as ?? ""} onChange={(v) => update({ as: v || undefined }, "as")} />
+          <Text id={`${p}-src-i`} label={t("cond.source")} help={t("cond.source.help")} list={`${p}-src`} value={step.source} onChange={(v) => update({ source: v }, "source")} />
+          <Text id={`${p}-as`} label={t("foreach.as")} help={t("foreach.as.help")} value={step.as ?? ""} onChange={(v) => update({ as: v || undefined }, "as")} />
         </>
       );
     case "set":
@@ -415,12 +422,13 @@ function ControlForm({ step, wf, update }: { step: Exclude<Step, CommandStep | T
         <>
           <div className="field">
             <label htmlFor={`${p}-var`}>{t("set.variable")}</label>
-            <select id={`${p}-var`} value={step.variable} onChange={(e) => update({ variable: e.target.value })}>
+            <select id={`${p}-var`} aria-describedby={`${p}-var-h`} value={step.variable} onChange={(e) => update({ variable: e.target.value })}>
               <option value="" />
               {Object.keys(wf.variables ?? {}).map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
+            <small className="muted" id={`${p}-var-h`}>{t("set.variable.help")}</small>
           </div>
-          <Text id={`${p}-val`} label={t("set.value")} value={step.value} onChange={(v) => update({ value: v }, "value")} />
+          <Text id={`${p}-val`} label={t("set.value")} help={t("set.value.help")} value={step.value} onChange={(v) => update({ value: v }, "value")} />
         </>
       );
     case "wait":
@@ -431,7 +439,7 @@ function ControlForm({ step, wf, update }: { step: Exclude<Step, CommandStep | T
       return (
         <>
           <Text id={`${p}-text`} label={t("message.text")} value={step.text ?? ""} onChange={(v) => update({ text: v || undefined }, "text")} />
-          <Text id={`${p}-exit`} type="number" label={t("abort.exit")} value={step.exit_code ?? 1} onChange={(v) => update({ exit_code: Number(v) }, "exit")} />
+          <Text id={`${p}-exit`} type="number" label={t("abort.exit")} help={t("abort.exit.help")} value={step.exit_code ?? 1} onChange={(v) => update({ exit_code: Number(v) }, "exit")} />
         </>
       );
   }
@@ -446,7 +454,7 @@ export function StepPanel(props: {
   return (
     <div className="step-panel">
       <h3 className="step-title">{step.label ?? step.id} <span className="badge">{t(`kind.${step.kind ?? "command"}`)}</span></h3>
-      <Text id={`f-${step.id}-id`} label={t("step.id")} value={idDraft} onChange={(v) => { setIdDraft(v); }} />
+      <Text id={`f-${step.id}-id`} label={t("step.id")} help={t("step.id.help")} value={idDraft} onChange={(v) => { setIdDraft(v); }} />
       {idDraft !== step.id && <button onClick={() => props.rename(idDraft)}>{t("step.rename")}</button>}
       <Text id={`f-${step.id}-label`} label={t("step.label")} value={step.label ?? ""} onChange={(v) => props.update({ label: v || undefined }, "label")} />
       {isToolStep(step) ? (

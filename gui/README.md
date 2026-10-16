@@ -50,7 +50,7 @@ Im Modus „Erstellen“; nicht in Formularfeldern und offenen Dialogen (dort gi
 | Strg+S | Speichern (öffnet den Speichern-Dialog, ohne Datei „Speichern unter“) |
 | Esc | Auswahl aufheben, Hinweis löschen |
 | Strg+Eingabe im Katalog | Werkzeug am gewählten Ziel anhängen (Eingabe/Klick wählt nur aus) |
-| ? | Tastenkürzel-Dialog |
+| ? | Hilfe öffnen (Tastenkürzel) |
 | Ziehen | Katalog-Eintrag oder Kontrollbaustein auf die Fläche: Schritt entsteht an der Drop-Stelle |
 
 ## Ausführen
@@ -113,3 +113,10 @@ Einstellungen, Abschnitt „Programm“: „WhatTheShell beenden“ ruft `POST /
 ## E2E (Playwright)
 
 `npm run e2e` baut die GUI und startet `wts gui` auf freiem Port mit temporärem `XDG_CONFIG_HOME` (`e2e/server.ts`); Tests: `e2e/smoke.spec.ts`, `e2e/run.spec.ts` (Modus „Ausführen"), `e2e/terminal.spec.ts`, `e2e/design.spec.ts`, `e2e/a11y.spec.ts`, `e2e/ai.spec.ts` (headless Chromium, 1400×900, Sprache de). Einmalig `npx playwright install chromium`. Screenshots bei Fehlschlag: `e2e-results/`. Benötigt `uv`, `bwrap` (Vorschau) und die Systembibliotheken von Chromium.
+
+## Hilfe in der App
+
+- Der Knopf mit dem Fragezeichen in der Kopfzeile (und die Taste `?`) öffnet den Hilfedialog; links stehen die Abschnitte (Erste Schritte, Workflow bauen, Ausführen und Sicherheit, Module, Terminal, KI-Funktionen, Tastenkürzel), rechts der Inhalt.
+- Kleine `?`-Knöpfe in den Kopfzeilen von Katalog, Arbeitsfläche, Variablen, Ausführen und Modulen springen direkt zum passenden Abschnitt.
+- Beim ersten Start öffnet sich die Hilfe automatisch; danach merkt sich `localStorage` (`wts.helpseen`), dass sie gesehen wurde.
+- Texte stehen in `src/i18n.ts` unter `help.<abschnitt>.*`; neue Abschnitte in `src/Help.tsx` (`SECTIONS`) eintragen.

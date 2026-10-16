@@ -16,6 +16,7 @@ test.describe.serial("smoke", () => {
   test.beforeAll(async ({ browser }) => {
     server = await startServer();
     page = await (await browser.newContext({ viewport: { width: 1400, height: 900 }, locale: "de-DE" })).newPage();
+    await page.addInitScript(() => localStorage.setItem("wts.helpseen", "1")); // no first-start help dialog
     page.on("dialog", (d) => { void d.accept(); });
     mkdirSync(join(work, "logs"));
     writeFileSync(join(work, "logs", "app.log"), "INFO ok\nERROR disk\n");
@@ -187,9 +188,9 @@ test.describe.serial("smoke", () => {
     await expect(nodes()).toHaveCount(0);
     await page.locator("body").click({ position: { x: 5, y: 5 } }); // focus off any field
     await page.keyboard.press("Shift+?");
-    await expect(page.getByRole("dialog", { name: "Tastenkürzel" })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Hilfe" }).getByRole("heading", { name: "Tastenkürzel" })).toBeVisible();
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog", { name: "Tastenkürzel" })).toBeHidden();
+    await expect(page.getByRole("dialog", { name: "Hilfe" })).toBeHidden();
   });
 
   test("o) Blockansicht: Drop aus Katalog, Entf ohne Rückfrage", async () => {
@@ -205,6 +206,15 @@ test.describe.serial("smoke", () => {
     await expect(page.locator(".blocks .blk")).toHaveCount(0);
     expect(dialogs).toBe(0);
     await page.getByRole("button", { name: "Graph", exact: true }).click();
+  });
+
+  test("i2) Hilfe: Kopfzeilenknopf, Abschnitt Tastenkürzel, Esc", async () => {
+    await page.getByRole("button", { name: "Hilfe", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Hilfe", level: 2 })).toBeVisible();
+    await page.getByRole("tab", { name: "Tastenkürzel" }).click();
+    await expect(page.getByRole("cell", { name: "Strg+Z" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.locator("dialog[open]")).toHaveCount(0);
   });
 
   test("j) Sprache", async () => {

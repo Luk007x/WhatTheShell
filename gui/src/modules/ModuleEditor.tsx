@@ -3,6 +3,7 @@
 import { useEffect, useState, type KeyboardEvent, type MutableRefObject } from "react";
 import { ApiError, deleteModule, errMsg, putModule } from "../api";
 import { AiDialog, useAi } from "../ai/AiDialog";
+import { HelpButton } from "../Help";
 import { t } from "../i18n";
 import type { AiTaskName } from "../types/api";
 import { flagsToText, parseRaw, setField, setRowField, str, textToFlags, toRaw, exampleTitles, validRows, type Doc, type RowList } from "./moduleForm";
@@ -129,7 +130,7 @@ export function ModuleEditor({ init, categories, onSaved, onDeleted, dirtyRef }:
 
   return (
     <div className="mod-editor">
-      <h3>{tool} <span className="muted">{source ? t(`mod.source.${source}`) : t("mod.unsaved")}</span></h3>
+      <div className="hhead"><h3>{tool} <span className="muted">{source ? t(`mod.source.${source}`) : t("mod.unsaved")}</span></h3><HelpButton section="modules" topic={t("mod.title")} /></div>
       <div className="toolbar" role="toolbar" aria-label={t("canvas.toolbar")}>
         <div role="tablist" aria-label={t("mod.title")} className="segmented">
           {(["form", "raw"] as const).map((k) => (
@@ -138,7 +139,7 @@ export function ModuleEditor({ init, categories, onSaved, onDeleted, dirtyRef }:
         </div>
         <button className="btn--primary" onClick={save}>{t("file.save")}</button>
         <button onClick={download}>{t("mod.export")}</button>
-        <button className="btn--danger" disabled={source !== "user"} onClick={remove}>{t("file.delete")}</button>
+        <button className="btn--danger" disabled={source !== "user"} title={source !== "user" ? t("mod.delete.disabled") : undefined} onClick={remove}>{t("file.delete")}</button>
         {aiOn ? (
           <>
             <button onClick={() => setAiTask("improve-module")}>{t("ai.improve")}</button>
@@ -158,8 +159,11 @@ export function ModuleEditor({ init, categories, onSaved, onDeleted, dirtyRef }:
         </ul>
       )}
       {tab === "raw" ? (
-        <textarea className="rawyaml" aria-label={t("mod.tab.raw")} spellCheck={false} rows={28} value={raw}
+        <>
+        <p className="muted" id="mod-raw-hint">{t("mod.raw.hint")}</p>
+        <textarea className="rawyaml" aria-label={t("mod.tab.raw")} aria-describedby="mod-raw-hint" spellCheck={false} rows={28} value={raw}
           onChange={(e) => edit(e.target.value)} onKeyDown={onTab} />
+        </>
       ) : (
         <div role="tabpanel">
           <p className="muted">{t("mod.comments")}</p>
@@ -170,12 +174,14 @@ export function ModuleEditor({ init, categories, onSaved, onDeleted, dirtyRef }:
           {field("description", 4)}
           <div className="field">
             <label htmlFor="mf-safety">{t("mod.col.safety")}</label>
-            <select id="mf-safety" value={str(doc.safety)} onChange={(e) => patch("safety")(e.target.value)}>
+            <select id="mf-safety" aria-describedby="mf-safety-help" value={str(doc.safety)} onChange={(e) => patch("safety")(e.target.value)}>
               <option value="" />
               {SAFETY.map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
+            <small className="muted" id="mf-safety-help">{t("mod.safety.help")}</small>
           </div>
           <h4>{t("mod.options")}</h4>
+          <p className="muted">{t("mod.importance.help")}</p>
           <Rows doc={doc} list="options" onDoc={(d) => edit(toRaw(d))}
             cols={[{ key: "id", kind: "text" }, { key: "flags", kind: "flags" }, { key: "label", kind: "text" }, { key: "help", kind: "text" }, { key: "group", kind: "text" },
               { key: "importance", kind: "importance" }, { key: "safety", kind: "safety" }, { key: "type", kind: "type" }]} />

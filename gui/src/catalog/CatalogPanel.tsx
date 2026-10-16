@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { listTools } from "../api";
+import { HelpButton } from "../Help";
 import { t } from "../i18n";
 import type { ToolSummary } from "../types/api";
 import { Icon } from "../icons";
@@ -66,7 +67,7 @@ export function CatalogPanel({ selected, onSelect, onLoaded, onAdd, reloadKey = 
 
   return (
     <section className="panel catalog" aria-labelledby="catalog-h">
-      <div className="panel__header"><h2 id="catalog-h">{t("catalog.title")}</h2></div>
+      <div className="panel__header"><h2 id="catalog-h">{t("catalog.title")}</h2><HelpButton section="run" topic={t("catalog.title")} /></div>
       <div className="search">
       <Icon name="search" />
       <input

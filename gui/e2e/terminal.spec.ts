@@ -10,6 +10,7 @@ test.describe.serial("terminal step", () => {
   test.beforeAll(async ({ browser }) => {
     server = await startServer();
     page = await (await browser.newContext({ viewport: { width: 1400, height: 900 }, locale: "de-DE" })).newPage();
+    await page.addInitScript(() => localStorage.setItem("wts.helpseen", "1")); // no first-start help dialog
     page.on("dialog", (d) => { void d.accept(); });
     await page.goto(server.url);
   });

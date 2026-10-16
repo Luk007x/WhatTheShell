@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import { errMsg, getSettings, getStatus, getTool, hasToken, postSelftest, validateWorkflow } from "./api";
 import { BlockView } from "./blocks/BlockView";
 import { Canvas, type Edit } from "./canvas/Canvas";
-import { Modal } from "./Modal";
+import { Help, HelpContext, type HelpSection } from "./Help";
 import { commandStep } from "./model/blocks";
 import { AiContext } from "./ai/AiDialog";
 import { FileMenu } from "./files/FileMenu";
@@ -30,6 +30,9 @@ const MAX_HISTORY = 100;
 type View = "graph" | "blocks";
 const loadView = (): View => {
   try { return localStorage.getItem("wts.view") === "blocks" ? "blocks" : "graph"; } catch { return "graph"; }
+};
+const helpSeen = (): boolean => {
+  try { return localStorage.getItem("wts.helpseen") !== null; } catch { return true; } // no storage: never nag
 };
 const THEME_ICON = { system: "contrast", light: "sun", dark: "moon" } as const satisfies Record<Theme, string>;
 const emptyWorkflow = (): Workflow => ({ schema_version: 1, name: "", steps: [] });
@@ -126,7 +129,7 @@ export function App() {
   const [view, setViewState] = useState<View>(start.view);
   const [theme, setThemeState] = useState<Theme>(getTheme);
   const [outputOpen, setOutputOpen] = useState(true);
-  const [keysOpen, setKeysOpen] = useState(false);
+  const [helpSection, setHelpSection] = useState<HelpSection | null>(null);
   const [knownTools, setKnownTools] = useState<ReadonlySet<string>>(new Set());
   const [interactiveTools, setInteractiveTools] = useState<ReadonlySet<string>>(new Set());
   const saveRef = useRef<(() => void) | null>(null);
@@ -136,6 +139,11 @@ export function App() {
   const [validation, setValidation] = useState<{ ok: boolean; errors: { path: string; message: string }[] } | "checking" | string>("checking");
   const [state, dispatch] = useReducer(reducer, { doc: emptyWorkflow(), past: [], future: [], warnings: [], lastKey: null, epoch: 0 });
   const token = hasToken();
+  useEffect(() => { if (token && !helpSeen()) setHelpSection("start"); }, [token]); // first start
+  const closeHelp = () => {
+    setHelpSection(null);
+    try { localStorage.setItem("wts.helpseen", "1"); } catch { /* storage unavailable: the help opens again next time */ }
+  };
   const wf = state.doc;
   const dirty = useMemo(() => JSON.stringify(wf) !== savedJson, [wf, savedJson]);
 
@@ -200,7 +208,7 @@ export function App() {
       // leave native text editing alone inside form fields and while a dialog is open
       if (e.target instanceof HTMLElement && e.target.closest("input, textarea, select, dialog, [contenteditable]")) return;
       if (document.querySelector("dialog[open]")) return;
-      if (e.key === "?") { e.preventDefault(); setKeysOpen(true); return; }
+      if (e.key === "?") { e.preventDefault(); setHelpSection("keys"); return; }
       if (mode !== "build") return; // no editor shortcuts in the other modes
       if (mod && (k === "z" || k === "y")) { e.preventDefault(); dispatch({ type: k === "y" || e.shiftKey ? "redo" : "undo" }); }
       else if (e.key === "Escape") { setSelected(null); setNotice(null); } // Delete is handled by the canvas and the block view
@@ -253,6 +261,7 @@ export function App() {
 
   return (
     <AiContext.Provider value={{ enabled: aiEnabled, openSettings: () => setSettingsOpen(true) }}>
+    <HelpContext.Provider value={setHelpSection}>
     <div className={`app${outputOpen ? "" : " output-closed"}`}>
       <a className="skip" href="#main" onClick={(e) => { e.preventDefault(); document.getElementById("main")?.focus(); }}>{t("a11y.skip")}</a>
 
@@ -273,6 +282,7 @@ export function App() {
         <span className="status-pill" title={sandboxTip} role="status" data-testid="sandbox-status" data-available={sandbox?.available ?? "unknown"}>
           <span className={`dot ${sandboxClass}`} aria-hidden="true" /> {sandboxText}
         </span>
+        <button className="btn--icon" aria-label={t("help.title")} title={t("help.title")} onClick={() => setHelpSection("start")}><Icon name="help" /></button>
         <button className="btn--icon" data-testid="theme-toggle" data-theme={theme} aria-label={themeLabel} title={themeLabel} onClick={cycleTheme}><Icon name={THEME_ICON[theme]} /></button>
         <button className="btn--icon" aria-label={t("settings.title")} title={t("settings.title")} onClick={() => setSettingsOpen(true)}><Icon name="settings" /></button>
       </header>
@@ -372,22 +382,12 @@ export function App() {
             onEvaluate={(id) => { const created = newId(wf, `${id}_pruefe`); edit((w) => evaluateOutput(w, id)); setSelected(created); }} />
         </div>
       </footer>
-      <Modal open={keysOpen} title={t("keys.title")} onCancel={() => setKeysOpen(false)}>
-        <table>
-          <thead><tr><th scope="col">{t("keys.col.key")}</th><th scope="col">{t("keys.col.do")}</th></tr></thead>
-          <tbody>
-            {(["delete", "undo", "redo", "save", "esc", "enter", "help"] as const).map((r) => (
-              <tr key={r}><td><kbd>{t(`keys.${r}.key`)}</kbd></td><td>{t(`keys.${r}.do`)}</td></tr>
-            ))}
-          </tbody>
-        </table>
-        <p className="muted">{t("keys.drag")}</p>
-        <div className="actions"><button data-autofocus onClick={() => setKeysOpen(false)}>{t("settings.close")}</button></div>
-      </Modal>
+      <Help section={helpSection} onSection={setHelpSection} onClose={closeHelp} />
       <Settings open={settingsOpen} onClose={() => setSettingsOpen(false)} onStopped={() => { setSettingsOpen(false); setStopped(true); }} onAiChanged={setAiEnabled} lang={getLang()} onLang={changeLang}
         fontSize={fontSize} onFontSize={(s) => { saveFontSize(s); setFontSize(s); }}
         autoPreview={autoPreview} onAutoPreview={(on) => { saveAutoPreview(on); setAutoPreview(on); }} />
     </div>
+    </HelpContext.Provider>
     </AiContext.Provider>
   );
 }

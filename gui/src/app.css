@@ -362,3 +362,16 @@ textarea.rawyaml { width: 100%; font: 0.85rem/1.45 var(--mono); tab-size: 2; }
 .terminal__host { height: 20rem; min-height: 8rem; resize: vertical; overflow: hidden; }
 .terminal__host .xterm { height: 100%; }
 .terminal-end { margin: var(--space-2) 0; }
+
+/* ---------- Help dialog ---------- */
+.help { display: flex; gap: var(--space-4); align-items: flex-start; }
+.help-tabs { display: flex; flex-direction: column; gap: var(--space-1); flex: 0 0 11rem; }
+.help-tabs button { text-align: left; }
+.help-tabs button[aria-selected="true"] { background: var(--surface-2); border-color: var(--accent, var(--border)); font-weight: 700; }
+.help-content { flex: 1; min-width: 0; }
+.help-content h3 { margin-top: 0; }
+.help-content ul { padding-left: 1.2rem; }
+.help-content li { margin-bottom: var(--space-2); }
+@media (max-width: 40rem) { .help { flex-direction: column; } .help-tabs { flex: none; flex-direction: row; flex-wrap: wrap; } }
+.canvas-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: var(--space-4); pointer-events: none; z-index: 4; }
+.hhead { display: flex; align-items: center; gap: var(--space-2); } .hhead h3 { margin: 0; }

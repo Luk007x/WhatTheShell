@@ -64,7 +64,8 @@ export function RunForm({ prefix, variables, values, errors = {}, cwd, onValues,
       })}
       <div className="field">
         <label htmlFor={`${prefix}-cwd`}>{t("step.cwd")}</label>
-        <input id={`${prefix}-cwd`} value={cwd} placeholder={t("run.cwd.placeholder")} onChange={(e) => onCwd(e.target.value)} />
+        <input id={`${prefix}-cwd`} value={cwd} placeholder={t("run.cwd.placeholder")} aria-describedby={`${prefix}-cwd-help`} onChange={(e) => onCwd(e.target.value)} />
+        <small className="muted" id={`${prefix}-cwd-help`}>{t("run.cwd.help")}</small>
       </div>
       {transcript !== undefined && (
         <div className="field">

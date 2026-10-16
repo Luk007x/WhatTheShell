@@ -45,6 +45,7 @@ test.describe.serial("design", () => {
   test.beforeAll(async ({ browser }) => {
     server = await startServer();
     page = await (await browser.newContext({ viewport: { width: 1280, height: 720 }, locale: "de-DE" })).newPage();
+    await page.addInitScript(() => localStorage.setItem("wts.helpseen", "1")); // no first-start help dialog
     page.on("dialog", (d) => { void d.accept(); });
     await page.goto(server.url);
     await expect(page.locator("button.tool").first()).toBeVisible({ timeout: 30_000 });
@@ -72,8 +73,8 @@ test.describe.serial("design", () => {
   });
 
   test("help", async () => {
-    await page.getByRole("button", { name: "Wie Daten fließen" }).click();
-    await expect(page.getByRole("dialog", { name: "Wie Daten fließen" })).toContainText("{{ schritt.stdout }}");
+    await page.getByRole("button", { name: "Hilfe zu Arbeitsfläche" }).click();
+    await expect(page.getByRole("dialog", { name: "Hilfe" })).toContainText("{{ schritt.stdout }}");
     await shot("help");
     await page.keyboard.press("Escape");
   });
