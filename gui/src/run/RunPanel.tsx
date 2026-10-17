@@ -146,7 +146,7 @@ export function StepConfirm({ run }: { run: Run }) {
 export function RunDialog({ pr, children }: { pr: PlanThenRun; children?: ReactNode }) {
   const { prep } = pr;
   return (
-    <Modal open={pr.open} title={t("run.dialog")} onCancel={pr.cancel}>
+    <Modal className="modal--tall" open={pr.open} title={t("run.dialog")} onCancel={pr.cancel}>
       {pr.error !== null && <Problem error={pr.error} />}
       {pr.changed && <p role="alert" className="error">{t("run.plan.changed")}</p>}
       {prep ? (

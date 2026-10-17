@@ -313,6 +313,7 @@ details.block > summary { list-style: none; }
 /* ---------- Modals ---------- */
 dialog { padding: 0; width: min(40rem, 92vw); max-width: 92vw; max-height: 88vh; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-2); }
 dialog[open] { display: flex; flex-direction: column; }
+dialog.modal--tall { height: min(40rem, 88vh); }
 dialog::backdrop { background: rgb(10 14 20 / 0.5); }
 .modal__head { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); flex: none; }
 .modal__head h2 { margin: 0; font-size: 1.1rem; }
@@ -375,7 +376,7 @@ dialog.modal--help .modal__body { display: flex; flex-direction: column; }
 .help-content h3 { margin-top: 0; }
 .help-content ul { padding-left: 1.2rem; }
 .help-content li { margin-bottom: var(--space-2); }
-@media (max-width: 40rem) { dialog.modal--help { height: auto; max-height: 88vh; } .help { flex-direction: column; } .help-tabs { flex: none; flex-direction: row; flex-wrap: wrap; } }
+@media (max-width: 40rem) { dialog.modal--help, dialog.modal--tall { height: auto; max-height: 88vh; } .help { flex-direction: column; } .help-tabs { flex: none; flex-direction: row; flex-wrap: wrap; } }
 .canvas-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: var(--space-4); pointer-events: none; z-index: 4; }
 .hhead { display: flex; align-items: center; gap: var(--space-2); } .hhead h3 { margin: 0; }
 

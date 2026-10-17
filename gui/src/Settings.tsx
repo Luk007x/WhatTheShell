@@ -242,7 +242,7 @@ export function Settings(props: {
     });
   };
   return (
-    <Modal open={props.open} title={t("settings.title")} onCancel={props.onClose}>
+    <Modal className="modal--tall" open={props.open} title={t("settings.title")} onCancel={props.onClose}>
       <div className="field">
         <label htmlFor="set-lang">{t("lang.label")}</label>
         <select id="set-lang" data-autofocus value={langChoice} aria-describedby="set-lang-h" onChange={(e) => changeLang(e.target.value === "en" ? "en" : e.target.value === "de" ? "de" : "auto")}>

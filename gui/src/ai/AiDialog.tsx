@@ -61,7 +61,7 @@ export function AiDialog({ task, build, title, diagnose = false, onClose, onAppl
   const settings = () => { onClose(); openSettings(); };
 
   return (
-    <Modal open title={title} onCancel={() => { ctrl.current?.abort(); onClose(); }}>
+    <Modal className="modal--tall" open title={title} onCancel={() => { ctrl.current?.abort(); onClose(); }}>
       {error !== null && <Failure error={error} onSettings={settings} />}
       {result === null && !waiting && (
         <>

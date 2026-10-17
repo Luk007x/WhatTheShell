@@ -70,7 +70,7 @@ export function FileMenu({ wf, fileId, dirty, onLoad, onSaved, onDeleted, onNew,
       {aiOn && <button onClick={() => { setDesc(""); setDraftName(""); setMode("draft"); }}>{t("ai.draft")}</button>}
       <span className="muted docname" role="status">{wf.name || t("file.untitled")}{dirty && <strong title={t("file.dirty")}> ● {t("file.dirty")}</strong>}</span>
 
-      <Modal open={mode === "open"} title={t("file.open")} onCancel={() => setMode(null)}>
+      <Modal className="modal--tall" open={mode === "open"} title={t("file.open")} onCancel={() => setMode(null)}>
         {err && <p role="alert" className="error">{err.message}</p>}
         <Library items={list} onPick={load} onRemove={remove} onChanged={() => { void refresh(); }} />
         <div className="actions"><button onClick={() => setMode(null)}>{t("run.cancel")}</button></div>
