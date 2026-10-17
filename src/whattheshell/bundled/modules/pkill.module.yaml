@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: pkill
+display_name: "pkill – Prozesse nach Name beenden"
+category: System
+summary: "Sendet ein Signal an alle Prozesse, deren Name zum Muster passt."
+description: |
+  pkill beendet Prozesse anhand ihres Namens statt der PID, z. B. alle Instanzen von firefox. Ohne weitere Angabe wird SIGTERM gesendet.
+  Stolperfallen: Das Muster ist ein regulärer Ausdruck und trifft auch Teilnamen; "pkill sh" erwischt z. B. auch bash. Im Zweifel erst mit pgrep prüfen, was passt. Ungespeicherte Daten gehen verloren.
+override_mode: merge
+safety: dangerous
+
+inputs:
+  - id: pattern
+    label: Muster
+    type: string
+    required: true
+    position: 0
+    help: "Name oder regulärer Ausdruck für den Prozessnamen."
+
+options:
+  - id: full
+    flags: ["-f", "--full"]
+    label: Ganze Befehlszeile prüfen
+    type: bool
+    group: Auswahl
+    importance: common
+    help: "Vergleicht das Muster mit der vollständigen Befehlszeile statt nur mit dem Namen."
+  - id: euid
+    flags: ["-u", "--euid"]
+    label: Nur Prozesse eines Benutzers
+    type: string
+    metavar: ID
+    group: Auswahl
+    importance: common
+    help: "Beschränkt auf Prozesse dieser Benutzer (Name oder ID, kommagetrennt)."
+
+output:
+  stdout:
+    kind: text
+  exit_codes:
+    0: "Mindestens ein Prozess getroffen"
+    1: "Kein Prozess passt"
+
+i18n:
+  en:
+    display_name: "pkill – terminate processes by name"
+    summary: "Sends a signal to all processes whose name matches the pattern."
+    description: |
+      pkill ends processes by name instead of PID, e.g. all instances of firefox. By default it sends SIGTERM.
+      Pitfalls: the pattern is a regular expression and also matches partial names; "pkill sh" also hits bash, for example. When in doubt check with pgrep first. Unsaved data is lost.
+    category: System
+    inputs:
+      pattern: {label: "Pattern", help: "Name or regular expression for the process name."}
+    options:
+      full: {label: "Match full command line", help: "Compares the pattern with the full command line instead of only the name."}
+      euid: {label: "Only processes of a user", help: "Restricts to processes of these users (name or ID, comma-separated)."}

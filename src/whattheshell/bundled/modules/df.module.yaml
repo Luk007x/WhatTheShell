@@ -1,0 +1,95 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: df
+display_name: "df – Freier Speicherplatz"
+category: Dateien
+summary: "Zeigt freien und belegten Platz der Dateisysteme."
+description: |
+  df listet alle eingehängten Dateisysteme mit Größe, belegtem und freiem Platz. Typisch ist die Frage, ob eine Platte bald voll ist.
+  Mit "Lesbare Größen" erscheinen KB, MB oder GB. Wird ein Pfad angegeben, zeigt df nur das Dateisystem, auf dem er liegt.
+  Stolperfalle: df zeigt auch virtuelle Dateisysteme wie tmpfs; für echte Platten hilft "Dateisystemtyp".
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: file
+    label: Dateien oder Ordner
+    type: path
+    multiple: true
+    position: 0
+    help: "Zeigt das Dateisystem, auf dem der Pfad liegt (Standard: alle)."
+
+options:
+  - id: human_readable
+    flags: ["-h", "--human-readable"]
+    label: Lesbare Größen
+    group: Ausgabe
+    importance: common
+    help: "Gibt Größen als KB, MB, GB aus."
+  - id: print_type
+    flags: ["-T", "--print-type"]
+    label: Dateisystemtyp anzeigen
+    group: Ausgabe
+    importance: common
+    help: "Fügt eine Spalte mit dem Typ (z. B. ext4) hinzu."
+  - id: type
+    flags: ["-t", "--type"]
+    label: Nur dieser Typ
+    type: string
+    metavar: TYP
+    group: Auswahl
+    importance: normal
+    help: "Zeigt nur Dateisysteme dieses Typs, z. B. ext4."
+  - id: exclude_type
+    flags: ["-x", "--exclude-type"]
+    label: Typ ausschließen
+    type: string
+    metavar: TYP
+    group: Auswahl
+    importance: normal
+    help: "Blendet Dateisysteme dieses Typs aus, z. B. tmpfs."
+  - id: inodes
+    flags: ["-i", "--inodes"]
+    label: Inodes statt Platz
+    group: Ausgabe
+    importance: rare
+    help: "Zeigt die Zahl der Inodes (Dateieinträge) statt der Bytes."
+  - id: local
+    flags: ["-l", "--local"]
+    label: Nur lokale
+    group: Auswahl
+    importance: normal
+    help: "Blendet Netzwerk-Dateisysteme aus."
+  - id: total
+    flags: ["--total"]
+    label: Gesamtsumme anhängen
+    group: Ausgabe
+    importance: normal
+    help: "Fügt am Ende eine Summenzeile hinzu."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolgreich"
+    1: "Fehler, z. B. Pfad nicht vorhanden"
+
+i18n:
+  en:
+    display_name: "df – free disk space"
+    category: Files
+    summary: "Shows free and used space of file systems."
+    description: |
+      df lists all mounted file systems with size, used and free space. Typical use is checking whether a disk is about to fill up.
+      "Readable sizes" prints KB, MB or GB. If a path is given, df shows only the file system it lives on.
+      Pitfall: df also shows virtual file systems such as tmpfs; "File system type" helps to focus on real disks.
+    options:
+      human_readable: {label: "Readable sizes", help: "Prints sizes as KB, MB, GB."}
+      print_type: {label: "Show file system type", help: "Adds a column with the type (e.g. ext4)."}
+      type: {label: "Only this type", help: "Shows only file systems of this type, e.g. ext4."}
+      exclude_type: {label: "Exclude type", help: "Hides file systems of this type, e.g. tmpfs."}
+      inodes: {label: "Inodes instead of space", help: "Shows the number of inodes (file entries) instead of bytes."}
+      local: {label: "Local only", help: "Hides network file systems."}
+      total: {label: "Add grand total", help: "Appends a total line at the end."}
+    inputs:
+      file: {label: "Files or folders", help: "Shows the file system the path lives on (default: all)."}

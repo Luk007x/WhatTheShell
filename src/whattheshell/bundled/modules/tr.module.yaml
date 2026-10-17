@@ -1,0 +1,78 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: tr
+display_name: "tr – Zeichen ersetzen"
+category: Text
+summary: "Ersetzt, löscht oder verdichtet einzelne Zeichen in der Standardeingabe."
+description: |
+  tr arbeitet zeichenweise: Es ersetzt jedes Zeichen aus Menge 1 durch das entsprechende aus Menge 2 (z. B. a-z und A-Z für Großbuchstaben), löscht Zeichen oder fasst Wiederholungen zusammen.
+  Stolperfallen: tr liest nur von der Standardeingabe, nicht aus Dateien. Es ersetzt einzelne Zeichen, keine Wörter. Mengen wie [:digit:] oder a-z sind erlaubt.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: set1
+    label: Menge 1
+    type: string
+    required: true
+    position: 0
+    help: "Zeichen, die ersetzt, gelöscht oder verdichtet werden, z. B. a-z."
+  - id: set2
+    label: Menge 2
+    type: string
+    position: 1
+    help: "Zeichen, durch die Menge 1 ersetzt wird, z. B. A-Z; entfällt beim Löschen."
+
+options:
+  - id: delete
+    flags: ["-d", "--delete"]
+    label: Zeichen löschen
+    type: bool
+    group: Modus
+    importance: common
+    help: "Löscht alle Zeichen aus Menge 1, statt sie zu ersetzen."
+  - id: squeeze_repeats
+    flags: ["-s", "--squeeze-repeats"]
+    label: Wiederholungen verdichten
+    type: bool
+    group: Modus
+    importance: common
+    help: "Ersetzt mehrfach hintereinander stehende Zeichen durch ein einziges."
+  - id: complement
+    flags: ["-c", "-C", "--complement"]
+    label: Menge 1 umkehren
+    type: bool
+    group: Modus
+    importance: normal
+    help: "Verwendet alle Zeichen, die nicht in Menge 1 stehen."
+  - id: truncate_set1
+    flags: ["-t", "--truncate-set1"]
+    label: Menge 1 kürzen
+    type: bool
+    group: Modus
+    importance: rare
+    help: "Kürzt Menge 1 auf die Länge von Menge 2."
+
+output:
+  stdout:
+    kind: text
+  exit_codes:
+    0: "Erfolg"
+    1: "Fehler, z. B. ungültige Zeichenmenge"
+
+i18n:
+  en:
+    display_name: "tr – translate characters"
+    category: Text
+    summary: "Replaces, deletes or squeezes single characters from standard input."
+    description: |
+      tr works character by character: it replaces each character of set 1 with the corresponding one of set 2 (e.g. a-z and A-Z for upper case), deletes characters or squeezes repetitions.
+      Pitfalls: tr reads standard input only, not files. It replaces single characters, not words. Sets such as [:digit:] or a-z are allowed.
+    inputs:
+      set1: {label: "Set 1", help: "Characters to replace, delete or squeeze, e.g. a-z."}
+      set2: {label: "Set 2", help: "Characters that replace set 1, e.g. A-Z; omitted when deleting."}
+    options:
+      delete: {label: "Delete characters", help: "Deletes all characters of set 1 instead of replacing them."}
+      squeeze_repeats: {label: "Squeeze repetitions", help: "Replaces runs of the same character with a single one."}
+      complement: {label: "Invert set 1", help: "Uses all characters that are not in set 1."}
+      truncate_set1: {label: "Truncate set 1", help: "Truncates set 1 to the length of set 2."}

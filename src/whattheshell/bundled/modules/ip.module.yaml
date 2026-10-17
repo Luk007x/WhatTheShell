@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: ip
+display_name: "ip – Netzwerk anzeigen"
+category: Netzwerk
+summary: "Zeigt Netzwerkschnittstellen, Adressen, Routen und Nachbarn an."
+description: |
+  ip zeigt, wie das Netzwerk dieses Rechners eingerichtet ist: Adressen, Schnittstellen, Routen und bekannte Nachbargeräte.
+  Hier ist nur das Anzeigen (show) abgebildet und damit ungefährlich. ip kann das Netzwerk auch ändern; solche Befehle brauchen Root-Rechte und sind in diesem Baustein nicht modelliert.
+  Stolperfalle: "addr" zeigt IP-Adressen, "link" die Schnittstellen selbst (MAC-Adresse, Status).
+override_mode: merge
+safety: safe
+install: "Fedora: sudo dnf install iproute · Debian/Ubuntu: sudo apt install iproute2"
+
+subcommands:
+  - name: address
+    summary: "Zeigt IP-Adressen der Schnittstellen an."
+    inputs:
+      - id: action
+        label: Aktion
+        type: enum
+        choices: [show]
+        default: show
+        position: 0
+        help: "Nur Anzeigen ist hier modelliert."
+  - name: link
+    summary: "Zeigt Netzwerkschnittstellen und ihren Status an."
+    inputs:
+      - id: action
+        label: Aktion
+        type: enum
+        choices: [show]
+        default: show
+        position: 0
+        help: "Nur Anzeigen ist hier modelliert."
+  - name: route
+    summary: "Zeigt die Routen (Wege ins Netz) an."
+    inputs:
+      - id: action
+        label: Aktion
+        type: enum
+        choices: [show]
+        default: show
+        position: 0
+        help: "Nur Anzeigen ist hier modelliert."
+  - name: neighbor
+    summary: "Zeigt bekannte Nachbargeräte (ARP-/NDP-Tabelle) an."
+    inputs:
+      - id: action
+        label: Aktion
+        type: enum
+        choices: [show]
+        default: show
+        position: 0
+        help: "Nur Anzeigen ist hier modelliert."
+
+output:
+  stdout:
+    kind: lines
+
+i18n:
+  en:
+    display_name: "ip – show network"
+    category: Network
+    summary: "Shows network interfaces, addresses, routes and neighbours."
+    description: |
+      ip shows how this computer's network is set up: addresses, interfaces, routes and known neighbour devices.
+      Only showing (show) is modelled here, which is harmless. ip can also change the network; such commands need root rights and are not modelled in this block.
+      Pitfall: "addr" shows IP addresses, "link" the interfaces themselves (MAC address, state).

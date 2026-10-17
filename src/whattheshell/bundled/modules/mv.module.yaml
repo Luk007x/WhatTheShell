@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: mv
+display_name: "mv – Dateien verschieben"
+category: Dateien
+summary: "Verschiebt oder benennt Dateien und Ordner um."
+description: |
+  mv verschiebt eine Datei oder einen Ordner an einen neuen Ort. Liegen Quelle und Ziel im selben Ordner, wird nur umbenannt.
+  Typischer Einsatz: Dateien sortieren oder umbenennen.
+  Stolperfalle: Existiert das Ziel schon, wird es ohne Rückfrage überschrieben. Mit "Nicht überschreiben" bleibt es erhalten.
+override_mode: merge
+safety: caution
+
+inputs:
+  - id: source
+    label: Quelle
+    type: path
+    required: true
+    position: 0
+    help: "Datei oder Ordner, der verschoben wird."
+  - id: dest
+    label: Ziel
+    type: path
+    required: true
+    position: 1
+    help: "Neuer Name oder Zielordner."
+
+options:
+  - id: force
+    flags: ["-f", "--force"]
+    label: Ohne Rückfrage überschreiben
+    group: Überschreiben
+    importance: normal
+    help: "Überschreibt vorhandene Ziele, ohne zu fragen."
+  - id: interactive
+    flags: ["-i", "--interactive"]
+    label: Vor dem Überschreiben fragen
+    group: Überschreiben
+    importance: rare
+    help: "Fragt nach, bevor ein vorhandenes Ziel überschrieben wird (braucht ein Terminal)."
+  - id: no_clobber
+    flags: ["-n", "--no-clobber"]
+    label: Nicht überschreiben
+    group: Überschreiben
+    importance: common
+    help: "Lässt vorhandene Ziele unangetastet."
+  - id: u
+    flags: ["-u"]
+    label: Nur wenn neuer
+    group: Überschreiben
+    importance: normal
+    help: "Verschiebt nur, wenn die Quelle neuer ist als das Ziel."
+  - id: verbose
+    flags: ["-v", "--verbose"]
+    label: Ausführlich
+    group: Ausgabe
+    importance: common
+    help: "Zeigt jede durchgeführte Aktion an."
+
+i18n:
+  en:
+    display_name: "mv – move or rename files"
+    category: Files
+    summary: "Moves or renames files and folders."
+    description: |
+      mv moves a file or folder to a new location. If source and destination are in the same folder, it simply renames.
+      Typical use: sorting or renaming files.
+      Pitfall: if the destination already exists, it is overwritten without asking. "Do not overwrite" keeps it.
+    options:
+      force: {label: "Overwrite without asking", help: "Overwrites existing targets without asking."}
+      interactive: {label: "Ask before overwriting", help: "Asks before an existing target is overwritten (needs a terminal)."}
+      no_clobber: {label: "Do not overwrite", help: "Leaves existing targets untouched."}
+      u: {label: "Only if newer", help: "Moves only if the source is newer than the target."}
+      verbose: {label: "Verbose", help: "Shows every action performed."}
+    inputs:
+      source: {label: "Source", help: "File or folder to move."}
+      dest: {label: "Destination", help: "New name or target folder."}

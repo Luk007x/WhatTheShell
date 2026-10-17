@@ -1,0 +1,98 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: awk
+display_name: "awk – Text auswerten"
+category: Text
+summary: "Wertet Text zeilen- und spaltenweise mit einem kleinen Programm aus."
+description: |
+  awk teilt jede Zeile in Felder ($1, $2, …) und führt dafür ein Programm aus, z. B. {print $2} für die zweite Spalte oder $3 > 10 {print $1} für eine Auswahl nach Wert.
+  Achtung: awk-Programme sind mächtig, es ist eine vollständige Programmiersprache mit Variablen, Schleifen und der Möglichkeit, Dateien zu schreiben und Befehle zu starten. Führen Sie nur Programme aus, die Sie verstehen.
+  Stolperfalle: Das Programm in Anführungszeichen setzen, damit die Shell $1 nicht ersetzt.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: program
+    label: Programm
+    type: string
+    required: true
+    position: 0
+    help: "awk-Programm, z. B. {print $1} oder /fehler/ {n++} END {print n}."
+  - id: files
+    label: Dateien
+    type: path
+    multiple: true
+    position: 1
+    help: "Dateien, die gelesen werden; ohne Angabe wird die Standardeingabe gelesen."
+
+options:
+  - id: field_separator
+    flags: ["-F", "--field-separator"]
+    label: Feldtrenner
+    type: string
+    metavar: TRENNER
+    group: Eingabe
+    importance: common
+    help: "Zeichen oder Muster, das die Felder trennt (Standard: Leerraum), z. B. , oder :."
+  - id: assign
+    flags: ["-v", "--assign"]
+    label: Variable setzen
+    type: string
+    multiple: true
+    metavar: NAME=WERT
+    group: Programm
+    importance: common
+    help: "Setzt vor dem Start eine Variable, z. B. grenze=10."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolg"
+    1: "Fehler, z. B. Syntaxfehler im Programm oder Datei nicht lesbar"
+    2: "Schwerer Fehler"
+
+examples:
+  - title: "Zweite Spalte ausgeben"
+    description: "Gibt das zweite Feld jeder Zeile aus."
+    fixtures:
+      - path: tabelle.txt
+        content: |
+          anna 31
+          ben 42
+    args:
+      program: "{print $2}"
+      files: ["tabelle.txt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "42"
+  - title: "Spalten einer CSV-Datei summieren"
+    description: "Summiert das zweite Feld einer Datei mit Komma als Trenner."
+    fixtures:
+      - path: umsatz.csv
+        content: |
+          jan,10
+          feb,32
+    args:
+      field_separator: ","
+      program: "{s += $2} END {print s}"
+      files: ["umsatz.csv"]
+    expect:
+      exit_code: 0
+      stdout_contains: "42"
+
+i18n:
+  en:
+    display_name: "awk – analyse text"
+    category: Text
+    summary: "Analyses text line by line and column by column with a small program."
+    description: |
+      awk splits each line into fields ($1, $2, …) and runs a program on it, e.g. {print $2} for the second column or $3 > 10 {print $1} to select by value.
+      Caution: awk programs are powerful. It is a full programming language with variables, loops and the ability to write files and start commands. Only run programs you understand.
+      Pitfall: put the program in quotes so the shell does not expand $1.
+    inputs:
+      program: {label: "Program", help: "awk program, e.g. {print $1} or /error/ {n++} END {print n}."}
+      files: {label: "Files", help: "Files to read; without any, standard input is read."}
+    options:
+      field_separator: {label: "Field separator", help: "Character or pattern that separates the fields (default: whitespace), e.g. , or :."}
+      assign: {label: "Set variable", help: "Sets a variable before the start, e.g. limit=10."}

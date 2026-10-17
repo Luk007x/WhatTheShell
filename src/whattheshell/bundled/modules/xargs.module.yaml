@@ -1,0 +1,144 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: xargs
+display_name: "xargs – Befehl mit Eingaben aufrufen"
+category: Text
+summary: "Baut aus Eingabezeilen die Argumente für einen anderen Befehl."
+description: |
+  xargs liest Wörter oder Zeilen und ruft damit einen Befehl auf, z. B. um viele gefundene Dateien an einen Befehl zu übergeben. Mit "Platzhalter" wird jede Eingabe an die Stelle {} im Befehl eingesetzt.
+  Achtung: xargs startet beliebige Befehle, ein ungeprüfter Befehl kann Dateien ändern oder löschen. Stolperfallen: Namen mit Leerzeichen brauchen "Null-getrennt" (passend zu find -print0). Ohne Eingabe läuft der Befehl trotzdem einmal.
+override_mode: merge
+safety: caution
+
+inputs:
+  - id: command
+    label: Befehl
+    type: string
+    required: true
+    position: 0
+    help: "Der Befehl, der aufgerufen wird, z. B. echo oder ls."
+  - id: initial_args
+    label: Feste Argumente
+    type: string
+    multiple: true
+    position: 1
+    help: "Argumente, die vor den gelesenen Eingaben stehen."
+
+options:
+  - id: max_args
+    flags: ["-n", "--max-args"]
+    label: Argumente pro Aufruf
+    type: int
+    min: 1
+    metavar: ANZAHL
+    group: Aufruf
+    importance: common
+    help: "Übergibt höchstens so viele Eingaben pro Befehlsaufruf."
+  - id: i_upper
+    flags: ["-I"]
+    label: Platzhalter
+    type: string
+    metavar: R
+    group: Aufruf
+    importance: common
+    help: "Ersetzt diese Zeichenkette (z. B. {}) im Befehl durch jede Eingabezeile."
+  - id: "null"
+    flags: ["-0", "--null"]
+    label: Null-getrennt
+    type: bool
+    group: Eingabe
+    importance: common
+    help: "Eingaben sind durch Nullbytes getrennt, z. B. von find -print0."
+  - id: max_procs
+    flags: ["-P", "--max-procs"]
+    label: Parallele Prozesse
+    type: int
+    min: 0
+    metavar: ANZAHL
+    group: Aufruf
+    importance: normal
+    help: "Führt bis zu so viele Befehle gleichzeitig aus (0 = so viele wie möglich)."
+  - id: arg_file
+    flags: ["-a", "--arg-file"]
+    label: Eingaben aus Datei
+    type: path
+    metavar: DATEI
+    group: Eingabe
+    importance: normal
+    help: "Liest die Eingaben aus dieser Datei statt von der Standardeingabe."
+  - id: no_run_if_empty
+    flags: ["-r", "--no-run-if-empty"]
+    label: Nicht ohne Eingabe ausführen
+    type: bool
+    group: Aufruf
+    importance: normal
+    help: "Ruft den Befehl nicht auf, wenn es keine Eingaben gibt."
+  - id: verbose
+    flags: ["-t", "--verbose"]
+    label: Befehle anzeigen
+    type: bool
+    group: Aufruf
+    importance: normal
+    help: "Gibt jeden Befehl vor der Ausführung aus."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolg"
+    123: "Ein aufgerufener Befehl endete mit einem Fehler"
+    124: "Ein Befehl endete mit Status 255"
+    125: "Ein Befehl wurde durch ein Signal beendet"
+    126: "Der Befehl ist nicht ausführbar"
+    127: "Der Befehl wurde nicht gefunden"
+
+examples:
+  - title: "Zeilen als Argumente"
+    description: "Übergibt die Zeilen einer Datei als Argumente an echo."
+    fixtures:
+      - path: namen.txt
+        content: |
+          eins
+          zwei
+    args:
+      arg_file: "namen.txt"
+      command: "echo"
+      initial_args: ["Wert:"]
+    expect:
+      exit_code: 0
+      stdout_contains: "Wert: eins zwei"
+  - title: "Ein Aufruf pro Eingabe"
+    description: "Ruft echo einmal je Eingabe auf und setzt sie an die Stelle {}."
+    fixtures:
+      - path: namen.txt
+        content: |
+          eins
+          zwei
+    args:
+      arg_file: "namen.txt"
+      i_upper: "{}"
+      command: "echo"
+      initial_args: ["Name={}"]
+    expect:
+      exit_code: 0
+      stdout_contains: "Name=zwei"
+
+i18n:
+  en:
+    display_name: "xargs – run a command with input"
+    category: Text
+    summary: "Builds the arguments for another command from input lines."
+    description: |
+      xargs reads words or lines and calls a command with them, e.g. to pass many found files to a command. With "Placeholder" each input is inserted where {} stands in the command.
+      Caution: xargs starts arbitrary commands, so an unchecked command can change or delete files. Pitfalls: names with spaces need "Null-separated" (matching find -print0). Without input the command still runs once.
+    inputs:
+      command: {label: "Command", help: "The command to call, e.g. echo or ls."}
+      initial_args: {label: "Fixed arguments", help: "Arguments placed before the inputs read."}
+    options:
+      max_args: {label: "Arguments per call", help: "Passes at most this many inputs per command call."}
+      i_upper: {label: "Placeholder", help: "Replaces this string (e.g. {}) in the command with each input line."}
+      "null": {label: "Null-separated", help: "Inputs are separated by null bytes, e.g. from find -print0."}
+      max_procs: {label: "Parallel processes", help: "Runs up to this many commands at once (0 = as many as possible)."}
+      arg_file: {label: "Inputs from file", help: "Reads the inputs from this file instead of standard input."}
+      no_run_if_empty: {label: "Do not run without input", help: "Does not call the command when there is no input."}
+      verbose: {label: "Show commands", help: "Prints each command before running it."}

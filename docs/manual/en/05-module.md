@@ -4,6 +4,8 @@
 
 A module is a YAML file (`*.module.yaml`, also `.yml` or `.json`) that describes a tool: labels, groups, help texts, examples, safety class and more. Without a module, everything comes from the tool's help (`--help`); the classifier then guesses the safety class, and some options are marked as "guessed". A module supplements or replaces this auto-detection.
 
+The catalog shows only installed tools: bundled modules for tools that are not installed appear only after installation. A module's `install` field gives the install commands shown when a tool is missing.
+
 Modules are never executed on load. A module's examples only run in the sandbox.
 
 ### Where modules live

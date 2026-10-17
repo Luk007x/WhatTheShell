@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: tac
+display_name: "tac – Zeilen umkehren"
+category: Text
+summary: "Gibt die Zeilen einer Datei in umgekehrter Reihenfolge aus."
+description: |
+  tac ist das Gegenstück zu cat: Es gibt die letzte Zeile zuerst aus und die erste zuletzt. Praktisch, um die neuesten Einträge einer Logdatei oben zu sehen.
+  Stolperfalle: tac kehrt die Reihenfolge der Zeilen um, nicht die Zeichen innerhalb einer Zeile.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: files
+    label: Dateien
+    type: path
+    multiple: true
+    position: 0
+    help: "Dateien, die umgekehrt ausgegeben werden; ohne Angabe wird die Standardeingabe gelesen."
+
+options:
+  - id: separator
+    flags: ["-s", "--separator"]
+    label: Trenner
+    type: string
+    metavar: TRENNER
+    group: Trennung
+    importance: normal
+    help: "Verwendet diese Zeichenkette statt des Zeilenumbruchs als Trenner."
+  - id: before
+    flags: ["-b", "--before"]
+    label: Trenner davor
+    type: bool
+    group: Trennung
+    importance: rare
+    help: "Fügt den Trenner vor statt nach dem jeweiligen Abschnitt ein."
+  - id: regex
+    flags: ["-r", "--regex"]
+    label: Trenner als regulärer Ausdruck
+    type: bool
+    group: Trennung
+    importance: rare
+    help: "Behandelt den Trenner als regulären Ausdruck."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolg"
+    1: "Fehler, z. B. Datei nicht lesbar"
+
+examples:
+  - title: "Zeilen umkehren"
+    description: "Gibt die Zeilen einer Datei von unten nach oben aus."
+    fixtures:
+      - path: liste.txt
+        content: |
+          erste
+          zweite
+          dritte
+    args:
+      files: ["liste.txt"]
+    expect:
+      exit_code: 0
+      stdout_regex: "(?s)dritte\\nzweite\\nerste"
+
+i18n:
+  en:
+    display_name: "tac – reverse lines"
+    category: Text
+    summary: "Prints the lines of a file in reverse order."
+    description: |
+      tac is the counterpart of cat: it prints the last line first and the first line last. Handy to see the newest entries of a log file at the top.
+      Pitfall: tac reverses the order of the lines, not the characters within a line.
+    inputs:
+      files: {label: "Files", help: "Files to print reversed; without any, standard input is read."}
+    options:
+      separator: {label: "Separator", help: "Uses this string as separator instead of the newline."}
+      before: {label: "Separator before", help: "Attaches the separator before instead of after each section."}
+      regex: {label: "Separator as regular expression", help: "Treats the separator as a regular expression."}

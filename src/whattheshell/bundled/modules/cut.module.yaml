@@ -1,0 +1,122 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: cut
+display_name: "cut – Spalten ausschneiden"
+category: Text
+summary: "Schneidet Felder oder Zeichen aus jeder Zeile heraus."
+description: |
+  cut gibt aus jeder Zeile nur bestimmte Teile aus, etwa die zweite Spalte einer CSV-Datei (Trenner "," und Feld 2). Felder und Zeichen werden ab 1 gezählt; Listen wie 1,3 oder 2-4 sind erlaubt.
+  Stolperfallen: Ohne Trenner gilt der Tabulator, nicht das Leerzeichen. Genau eine der Angaben Felder, Zeichen oder Bytes ist nötig. Zeilen ohne Trenner gibt cut unverändert aus, außer bei "Nur Zeilen mit Trenner".
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: files
+    label: Dateien
+    type: path
+    multiple: true
+    position: 0
+    help: "Dateien, die bearbeitet werden; ohne Angabe wird die Standardeingabe gelesen."
+
+options:
+  - id: fields
+    flags: ["-f", "--fields"]
+    label: Felder
+    type: string
+    metavar: LISTE
+    group: Auswahl
+    importance: common
+    help: "Nummern der Felder, z. B. 1,3 oder 2-4."
+  - id: delimiter
+    flags: ["-d", "--delimiter"]
+    label: Trennzeichen
+    type: string
+    metavar: TRENN
+    group: Auswahl
+    importance: common
+    help: "Zeichen, das die Felder trennt (Standard: Tabulator)."
+  - id: characters
+    flags: ["-c", "--characters"]
+    label: Zeichen
+    type: string
+    metavar: LISTE
+    group: Auswahl
+    importance: common
+    help: "Nummern der Zeichen, z. B. 1-5."
+  - id: complement
+    flags: ["--complement"]
+    label: Auswahl umkehren
+    type: bool
+    group: Auswahl
+    importance: normal
+    help: "Gibt alles außer den gewählten Feldern oder Zeichen aus."
+  - id: only_delimited
+    flags: ["-s", "--only-delimited"]
+    label: Nur Zeilen mit Trenner
+    type: bool
+    group: Auswahl
+    importance: normal
+    help: "Überspringt Zeilen, die kein Trennzeichen enthalten."
+  - id: output_delimiter
+    flags: ["--output-delimiter"]
+    label: Trennzeichen der Ausgabe
+    type: string
+    metavar: ZEICHENKETTE
+    group: Ausgabe
+    importance: normal
+    help: "Trennt die ausgegebenen Felder mit dieser Zeichenkette."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolg"
+    1: "Fehler, z. B. ungültige Liste oder Datei nicht lesbar"
+
+examples:
+  - title: "Zweite Spalte einer CSV-Datei"
+    description: "Gibt das zweite Feld jeder Zeile aus, Trenner ist das Komma."
+    fixtures:
+      - path: daten.csv
+        content: |
+          name,stadt,alter
+          Anna,Berlin,31
+          Ben,Hamburg,42
+    args:
+      delimiter: ","
+      fields: "2"
+      files: ["daten.csv"]
+    expect:
+      exit_code: 0
+      stdout_contains: "Hamburg"
+  - title: "Erste Zeichen jeder Zeile"
+    description: "Gibt nur die ersten drei Zeichen aus."
+    fixtures:
+      - path: wörter.txt
+        content: |
+          Apfel
+          Birne
+    args:
+      characters: "1-3"
+      files: ["wörter.txt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "Apf"
+
+i18n:
+  en:
+    display_name: "cut – cut out columns"
+    category: Text
+    summary: "Cuts fields or characters out of each line."
+    description: |
+      cut prints only certain parts of each line, for example the second column of a CSV file (delimiter "," and field 2). Fields and characters are counted from 1; lists such as 1,3 or 2-4 are allowed.
+      Pitfalls: without a delimiter the tab character is used, not the space. Exactly one of fields, characters or bytes is required. cut prints lines without a delimiter unchanged unless "Only lines with delimiter" is set.
+    inputs:
+      files: {label: "Files", help: "Files to process; without any, standard input is read."}
+    options:
+      fields: {label: "Fields", help: "Numbers of the fields, e.g. 1,3 or 2-4."}
+      delimiter: {label: "Delimiter", help: "Character that separates the fields (default: tab)."}
+      characters: {label: "Characters", help: "Numbers of the characters, e.g. 1-5."}
+      complement: {label: "Invert selection", help: "Prints everything except the chosen fields or characters."}
+      only_delimited: {label: "Only lines with delimiter", help: "Skips lines that contain no delimiter."}
+      output_delimiter: {label: "Output delimiter", help: "Separates the printed fields with this string."}

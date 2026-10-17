@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: scp
+display_name: "scp – Dateien per SSH kopieren"
+category: Netzwerk
+summary: "Kopiert Dateien verschlüsselt zwischen Rechnern."
+description: |
+  scp kopiert Dateien von oder zu einem anderen Rechner über eine SSH-Verbindung. Entfernte Orte schreibt man als benutzer@rechner:pfad, z. B. alice@example.org:/tmp/datei.txt.
+  Stolperfallen: Vorhandene Dateien am Ziel werden ohne Nachfrage überschrieben. Ordner werden nur mit "Ordner rekursiv" kopiert. Beachte den Unterschied: bei scp heißt der Port -P (groß), bei ssh -p.
+override_mode: merge
+safety: caution
+install: "Fedora: sudo dnf install openssh-clients · Debian/Ubuntu: sudo apt install openssh-client"
+
+inputs:
+  - id: source
+    label: Quelle
+    type: string
+    required: true
+    position: 0
+    help: "Lokale Datei oder entfernter Ort, z. B. benutzer@rechner:pfad."
+  - id: destination
+    label: Ziel
+    type: string
+    required: true
+    position: 1
+    help: "Zielordner oder -datei, lokal oder entfernt (benutzer@rechner:pfad)."
+
+options:
+  - id: r
+    flags: ["-r"]
+    label: Ordner rekursiv
+    group: Auswahl
+    importance: common
+    help: "Kopiert Ordner samt allen Unterordnern."
+  - id: p_upper
+    flags: ["-P"]
+    label: Port
+    type: int
+    min: 1
+    max: 65535
+    metavar: PORT
+    group: Verbindung
+    importance: normal
+    help: "Netzwerk-Port des Servers; Standard ist 22."
+  - id: i
+    flags: ["-i"]
+    label: Schlüsseldatei
+    type: path
+    metavar: DATEI
+    group: Anmeldung
+    importance: normal
+    help: "Private Schlüsseldatei für die Anmeldung statt eines Passworts."
+
+i18n:
+  en:
+    display_name: "scp – copy files over SSH"
+    category: Network
+    summary: "Copies files encrypted between computers."
+    description: |
+      scp copies files from or to another computer over an SSH connection. Remote locations are written as user@host:path, e.g. alice@example.org:/tmp/file.txt.
+      Pitfalls: Existing files at the destination are overwritten without asking. Folders are only copied with "Folders recursively". Note the difference: scp uses -P (capital) for the port, ssh uses -p.
+    inputs:
+      source: {label: "Source", help: "Local file or remote location, e.g. user@host:path."}
+      destination: {label: "Destination", help: "Target folder or file, local or remote (user@host:path)."}
+    options:
+      r: {label: "Folders recursively", help: "Copies folders including all subfolders."}
+      p_upper: {label: "Port", help: "Network port of the server; default is 22."}
+      i: {label: "Key file", help: "Private key file for login instead of a password."}

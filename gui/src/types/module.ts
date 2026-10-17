@@ -83,6 +83,7 @@ export type StderrContains = string | null;
 export type StdoutRegex = string | null;
 export type Examples = Example[];
 export type DisplayName2 = string | null;
+export type Category2 = string | null;
 export type Summary2 = string | null;
 export type Description3 = string | null;
 export type Label2 = string | null;
@@ -92,6 +93,7 @@ export type Subcommands = Subcommand[];
 export type Examples1 = Example[];
 export type SchemaVersion = 1;
 export type Tool = string;
+export type Install = string | null;
 export type OverrideMode = "merge" | "replace";
 export type Title1 = string;
 export type Workflow = string;
@@ -115,6 +117,7 @@ export interface Module {
   i18n?: I18N1;
   schema_version: SchemaVersion;
   tool: Tool;
+  install?: Install;
   override_mode?: OverrideMode;
   templates?: Templates;
 }
@@ -234,6 +237,7 @@ export interface I18N {
  */
 export interface Translation {
   display_name?: DisplayName2;
+  category?: Category2;
   summary?: Summary2;
   description?: Description3;
   options?: Options2;

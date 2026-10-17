@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: unzip
+display_name: "unzip – ZIP-Archiv entpacken"
+category: Archive
+summary: "Entpackt ein ZIP-Archiv oder zeigt dessen Inhalt."
+description: |
+  unzip entpackt .zip-Dateien in den aktuellen oder einen anderen Ordner. Mit "Nur auflisten" sieht man den Inhalt, ohne etwas zu schreiben.
+  Stolperfallen: Gleichnamige Dateien werden ohne "Immer überschreiben" erst nach Nachfrage ersetzt, was im Baukasten zum Warten führen kann. Entpackte Dateien landen sonst direkt im aktuellen Ordner; ein Zielordner schafft Ordnung.
+override_mode: merge
+safety: caution
+install: "Fedora: sudo dnf install unzip · Debian/Ubuntu: sudo apt install unzip"
+
+inputs:
+  - id: archive
+    label: Archiv
+    type: path
+    required: true
+    position: 0
+    help: "Die ZIP-Datei, z. B. backup.zip."
+
+options:
+  - id: d
+    flags: ["-d"]
+    label: Zielordner
+    type: path
+    metavar: ORDNER
+    group: Ablauf
+    importance: common
+    help: "Entpackt in diesen Ordner statt in den aktuellen."
+  - id: l
+    flags: ["-l"]
+    label: Nur auflisten
+    group: Ausgabe
+    importance: common
+    help: "Zeigt den Inhalt des Archivs, ohne zu entpacken."
+  - id: o
+    flags: ["-o"]
+    label: Immer überschreiben
+    group: Ablauf
+    importance: normal
+    help: "Ersetzt vorhandene Dateien ohne Nachfrage."
+  - id: q
+    flags: ["-q"]
+    label: Still
+    group: Ausgabe
+    importance: normal
+    help: "Unterdrückt die Meldungen zu jeder entpackten Datei."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolgreich"
+    1: "Warnung, z. B. Dateien übersprungen"
+    9: "Archiv nicht gefunden"
+
+i18n:
+  en:
+    display_name: "unzip – unpack ZIP archive"
+    category: Archives
+    summary: "Unpacks a ZIP archive or shows its contents."
+    description: |
+      unzip unpacks .zip files into the current or another folder. With "List only" you can see the contents without writing anything.
+      Pitfalls: Files with the same name are only replaced after asking unless "Always overwrite" is set, which can make the builder wait. Otherwise unpacked files land directly in the current folder; a target folder keeps things tidy.
+    inputs:
+      archive: {label: "Archive", help: "The ZIP file, e.g. backup.zip."}
+    options:
+      d: {label: "Target folder", help: "Unpacks into this folder instead of the current one."}
+      l: {label: "List only", help: "Shows the archive contents without unpacking."}
+      o: {label: "Always overwrite", help: "Replaces existing files without asking."}
+      q: {label: "Quiet", help: "Suppresses the message for each unpacked file."}

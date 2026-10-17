@@ -1,0 +1,83 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: gzip
+display_name: "gzip – Dateien komprimieren"
+category: Archive
+summary: "Komprimiert Dateien zu .gz oder entpackt sie wieder."
+description: |
+  gzip verkleinert einzelne Dateien und hängt .gz an den Namen an. Typisch ist das Komprimieren großer Logdateien; mit "Entpacken" geht es zurück.
+  Stolperfalle: Standardmäßig ersetzt gzip die Originaldatei durch die komprimierte. Mit "Original behalten" bleibt sie erhalten. Für mehrere Dateien in einem Archiv ist tar oder zip besser.
+override_mode: merge
+safety: caution
+
+inputs:
+  - id: file
+    label: Dateien
+    type: path
+    multiple: true
+    position: 0
+    help: "Dateien, die komprimiert, entpackt oder aufgelistet werden."
+
+options:
+  - id: keep
+    flags: ["-k", "--keep"]
+    label: Original behalten
+    group: Ablauf
+    importance: common
+    help: "Löscht die Eingabedatei nach dem Komprimieren nicht."
+  - id: decompress
+    flags: ["-d", "--decompress"]
+    label: Entpacken
+    group: Ablauf
+    importance: normal
+    help: "Entpackt .gz-Dateien statt zu komprimieren."
+  - id: best
+    flags: ["-9", "--best"]
+    label: Stärkste Kompression
+    group: Ablauf
+    importance: normal
+    help: "Komprimiert besser, braucht aber mehr Zeit."
+  - id: list
+    flags: ["-l", "--list"]
+    label: Inhalt auflisten
+    group: Ausgabe
+    importance: normal
+    help: "Zeigt Größen und Kompressionsrate einer .gz-Datei, ohne sie zu entpacken."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolgreich"
+    1: "Fehler, z. B. Datei nicht gefunden"
+    2: "Warnung, z. B. Datei bereits komprimiert"
+
+examples:
+  - title: "Datei komprimieren und Original behalten"
+    description: "Erzeugt notizen.txt.gz neben der Originaldatei."
+    fixtures:
+      - path: notizen.txt
+        content: |
+          erste Zeile
+          zweite Zeile
+    args:
+      keep: true
+      file: ["notizen.txt"]
+    expect:
+      exit_code: 0
+
+i18n:
+  en:
+    display_name: "gzip – compress files"
+    category: Archives
+    summary: "Compresses files to .gz or unpacks them again."
+    description: |
+      gzip shrinks single files and appends .gz to the name. It is typically used to compress large log files; "Decompress" reverses it.
+      Pitfall: By default gzip replaces the original file with the compressed one. With "Keep original" it stays. For several files in one archive, tar or zip is better.
+    inputs:
+      file: {label: "Files", help: "Files to compress, decompress or list."}
+    options:
+      keep: {label: "Keep original", help: "Does not delete the input file after compressing."}
+      decompress: {label: "Decompress", help: "Unpacks .gz files instead of compressing."}
+      best: {label: "Strongest compression", help: "Compresses better but takes more time."}
+      list: {label: "List contents", help: "Shows sizes and compression ratio of a .gz file without unpacking it."}

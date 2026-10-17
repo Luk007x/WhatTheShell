@@ -209,9 +209,28 @@ examples:
 
 i18n:
   en:
+    inputs:
+      "src": {label: "Source", help: "One or more sources; a trailing slash copies only the contents."}
+      "dest": {label: "Destination", help: "Target folder or target on another machine (user@host:path)."}
     display_name: "rsync – Synchronize files"
+    category: Files
     summary: "Copies and synchronizes files and folders, locally or over the network."
     options:
+      "recursive": {label: "Include subfolders", help: "Copies folders with their contents."}
+      "human_readable": {label: "Readable sizes", help: "Prints sizes in KB, MB and GB instead of bytes."}
+      "stats": {label: "Statistics at the end", help: "Prints a summary of the transfer."}
+      "itemize_changes": {label: "List changes", help: "Shows per file exactly what changed."}
+      "partial": {label: "Keep partial files", help: "Keeps interrupted transfers so they can be resumed later."}
+      "bwlimit": {label: "Limit speed", help: "Limits the transfer rate, e.g. 1m for 1 MB/s."}
+      "rsh": {label: "Remote shell", help: "Sets the command used for the connection, e.g. \"ssh -p 2222\"."}
+      "include": {label: "Include", help: "Includes files despite an exclude rule."}
+      "update": {label: "Do not overwrite newer target files", help: "Skips files that are newer in the target than in the source."}
+      "ignore_existing": {label: "Skip existing files", help: "Does not update files that already exist in the target."}
+      "checksum": {label: "Compare by checksum", help: "Compares files by checksums instead of size and time (slower, more accurate)."}
+      "max_size": {label: "Maximum file size", help: "Skips files that are larger, e.g. 10m."}
+      "delete": {label: "Delete extra files in target", help: "Deletes files in the target that no longer exist in the source."}
+      "remove_source_files": {label: "Delete source files after copying", help: "Removes each successfully transferred file from the source (move instead of copy)."}
+      "backup": {label: "Back up overwritten files", help: "Renames overwritten or deleted target files instead of losing them."}
       archive: {label: "Archive mode", help: "Copies recursively and keeps permissions, times, owners and links."}
       dry_run: {label: "Dry run", help: "Shows what would happen without changing anything."}
       verbose: {label: "Verbose", help: "Lists the transferred files."}

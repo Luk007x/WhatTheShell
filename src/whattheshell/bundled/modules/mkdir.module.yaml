@@ -21,3 +21,13 @@ options:
     label: Zwischenordner mit anlegen
     type: bool
     help: "Legt fehlende Oberordner an und meldet keinen Fehler, wenn der Ordner schon existiert."
+
+i18n:
+  en:
+    display_name: "mkdir – create folders"
+    category: Files
+    summary: "Creates folders."
+    inputs:
+      directory: {label: "Folder", help: "Folders to be created."}
+    options:
+      parents: {label: "Create intermediate folders", help: "Creates missing parent folders and does not report an error if the folder already exists."}

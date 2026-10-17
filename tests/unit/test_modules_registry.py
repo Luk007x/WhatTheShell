@@ -24,6 +24,19 @@ def test_priority_order(tmp_path: Path) -> None:
     assert len(registry.all()) == 2
 
 
+def test_install_hint_falls_back_to_lower_priority(tmp_path: Path) -> None:
+    low, high = tmp_path / "low", tmp_path / "high"
+    write(high, "grep.module.yaml", "high")
+    low.mkdir()
+    (low / "grep.module.yaml").write_text(
+        "schema_version: 1\ntool: grep\ninstall: 'sudo dnf install grep'\n", encoding="utf-8"
+    )
+    registry = ModuleRegistry([low, high])
+    registry.scan()
+    assert registry.install_hint("grep") == "sudo dnf install grep"
+    assert registry.install_hint("unknown") is None
+
+
 def test_broken_file_only_in_errors(tmp_path: Path) -> None:
     write(tmp_path, "ls.module.yaml", tool="ls")
     bad = tmp_path / "bad.module.yaml"

@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: lsblk
+display_name: "lsblk – Datenträger auflisten"
+category: System
+summary: "Listet Festplatten, Partitionen und andere Blockgeräte als Baum."
+description: |
+  lsblk zeigt alle Datenträger und ihre Partitionen mit Größe, Typ und Einhängepunkt. Typisch, um vor dem Formatieren oder Einhängen den richtigen Datenträger zu erkennen.
+  Stolperfalle: Die Namen (sda, nvme0n1) können sich beim nächsten Start ändern; für feste Zuordnung hilft "Dateisysteme anzeigen" mit UUID.
+override_mode: merge
+safety: safe
+
+options:
+  - id: fs
+    flags: ["-f", "--fs"]
+    label: Dateisysteme anzeigen
+    type: bool
+    group: Ausgabe
+    importance: common
+    help: "Zeigt Dateisystemtyp, Label, UUID und Einhängepunkt."
+  - id: output
+    flags: ["-o", "--output"]
+    label: Spalten festlegen
+    type: string
+    metavar: LIST
+    group: Ausgabe
+    importance: common
+    help: "Kommagetrennte Spaltenliste, z. B. NAME,SIZE,MOUNTPOINT."
+  - id: all
+    flags: ["-a", "--all"]
+    label: Auch leere Geräte
+    type: bool
+    group: Auswahl
+    importance: normal
+    help: "Zeigt auch Geräte ohne Medium und RAM-Disks."
+
+output:
+  stdout:
+    kind: lines
+
+i18n:
+  en:
+    display_name: "lsblk – list block devices"
+    summary: "Lists disks, partitions and other block devices as a tree."
+    description: |
+      lsblk shows all drives and their partitions with size, type and mount point. Typical use is identifying the right drive before formatting or mounting.
+      Pitfall: names (sda, nvme0n1) can change on the next boot; "Show file systems" with the UUID helps for a stable identification.
+    category: System
+    options:
+      fs: {label: "Show file systems", help: "Shows file system type, label, UUID and mount point."}
+      output: {label: "Choose columns", help: "Comma-separated column list, e.g. NAME,SIZE,MOUNTPOINT."}
+      all: {label: "Include empty devices", help: "Also shows devices without media and RAM disks."}

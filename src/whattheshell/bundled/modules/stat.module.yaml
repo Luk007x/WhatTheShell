@@ -1,0 +1,86 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: stat
+display_name: "stat – Dateidetails"
+category: Dateien
+summary: "Zeigt Größe, Rechte, Besitzer und Zeitstempel einer Datei."
+description: |
+  stat gibt alle Metadaten einer Datei oder eines Ordners aus: Größe, Rechte, Besitzer, Inode und die drei Zeitstempel.
+  Typischer Einsatz: genau prüfen, wann eine Datei zuletzt geändert wurde oder wem sie gehört.
+  Mit einem Format lässt sich gezielt ein Wert ausgeben, z. B. nur die Größe.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: file
+    label: Dateien
+    type: path
+    multiple: true
+    required: true
+    position: 0
+    help: "Dateien oder Ordner, deren Details angezeigt werden."
+
+options:
+  - id: format
+    flags: ["-c", "--format"]
+    label: Ausgabeformat
+    type: string
+    metavar: FORMAT
+    group: Ausgabe
+    importance: common
+    help: "Gibt nur die gewünschten Felder aus, z. B. %s für die Größe oder %n für den Namen."
+  - id: terse
+    flags: ["-t", "--terse"]
+    label: Kurzform
+    group: Ausgabe
+    importance: normal
+    help: "Gibt alle Angaben knapp in einer Zeile aus."
+  - id: dereference
+    flags: ["-L", "--dereference"]
+    label: Links folgen
+    group: Auswahl
+    importance: normal
+    help: "Zeigt die Details der Zieldatei statt des Links."
+  - id: file_system
+    flags: ["-f", "--file-system"]
+    label: Dateisystem statt Datei
+    group: Auswahl
+    importance: rare
+    help: "Zeigt Informationen zum Dateisystem statt zur Datei."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolgreich"
+    1: "Fehler, z. B. Datei nicht vorhanden"
+
+examples:
+  - title: "Größe einer Datei"
+    description: "Gibt nur Name und Größe in Bytes aus."
+    fixtures:
+      - path: daten.txt
+        content: "12345\n"
+    args:
+      format: "%n %s"
+      file: ["daten.txt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "daten.txt 6"
+
+i18n:
+  en:
+    display_name: "stat – file details"
+    category: Files
+    summary: "Shows size, permissions, owner and timestamps of a file."
+    description: |
+      stat prints all metadata of a file or folder: size, permissions, owner, inode and the three timestamps.
+      Typical use: checking exactly when a file was last changed or who owns it.
+      With a format, you can print a specific value, e.g. only the size.
+    options:
+      format: {label: "Output format", help: "Prints only the requested fields, e.g. %s for size or %n for the name."}
+      terse: {label: "Terse", help: "Prints all information compactly on one line."}
+      dereference: {label: "Follow links", help: "Shows the details of the target instead of the link."}
+      file_system: {label: "File system instead of file", help: "Shows information about the file system instead of the file."}
+    inputs:
+      file: {label: "Files", help: "Files or folders whose details are shown."}

@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: ss
+display_name: "ss – Netzwerkverbindungen anzeigen"
+category: Netzwerk
+summary: "Listet offene Netzwerkverbindungen und lauschende Dienste auf."
+description: |
+  ss zeigt, welche Verbindungen dieser Rechner gerade offen hat und welche Ports von Diensten belegt sind. Typisch ist die Frage "Welches Programm lauscht auf Port 8080?".
+  Stolperfallen: Ohne "Nur lauschende Sockets" zeigt ss nur bestehende Verbindungen. Prozessnamen werden für fremde Prozesse nur mit Root-Rechten angezeigt.
+override_mode: merge
+safety: safe
+install: "Fedora: sudo dnf install iproute · Debian/Ubuntu: sudo apt install iproute2"
+
+options:
+  - id: tcp
+    flags: ["-t", "--tcp"]
+    label: Nur TCP
+    group: Art
+    importance: common
+    help: "Zeigt nur TCP-Verbindungen."
+  - id: udp
+    flags: ["-u", "--udp"]
+    label: Nur UDP
+    group: Art
+    importance: common
+    help: "Zeigt nur UDP-Sockets."
+  - id: listening
+    flags: ["-l", "--listening"]
+    label: Nur lauschende Sockets
+    group: Filter
+    importance: common
+    help: "Zeigt Dienste, die auf eingehende Verbindungen warten."
+  - id: numeric
+    flags: ["-n", "--numeric"]
+    label: Zahlen statt Namen
+    group: Ausgabe
+    importance: common
+    help: "Zeigt Portnummern statt Dienstnamen und löst nichts auf."
+  - id: processes
+    flags: ["-p", "--processes"]
+    label: Prozesse anzeigen
+    group: Ausgabe
+    importance: common
+    help: "Zeigt, welches Programm den Socket benutzt (fremde nur mit Root)."
+
+output:
+  stdout:
+    kind: lines
+
+i18n:
+  en:
+    display_name: "ss – show network connections"
+    category: Network
+    summary: "Lists open network connections and listening services."
+    description: |
+      ss shows which connections this computer currently has open and which ports are used by services. It is typically used to answer "Which program listens on port 8080?".
+      Pitfalls: Without "Only listening sockets" ss shows established connections only. Process names of other users' processes are only shown with root rights.
+    options:
+      tcp: {label: "TCP only", help: "Shows TCP connections only."}
+      udp: {label: "UDP only", help: "Shows UDP sockets only."}
+      listening: {label: "Only listening sockets", help: "Shows services waiting for incoming connections."}
+      numeric: {label: "Numbers instead of names", help: "Shows port numbers instead of service names and resolves nothing."}
+      processes: {label: "Show processes", help: "Shows which program uses the socket (others only with root)."}

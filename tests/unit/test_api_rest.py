@@ -205,10 +205,74 @@ def test_workflow_rejections(client: TestClient) -> None:
 
 def test_workflow_validate(client: TestClient) -> None:
     ok = client.post("/api/workflows/validate", json={"document": WORKFLOW}).json()
-    assert ok == {"ok": True, "errors": []}
+    assert ok == {"ok": True, "errors": [], "missing_tools": []}
     bad = client.post("/api/workflows/validate", json={"document": {"name": "x"}}).json()
     assert bad["ok"] is False
     assert bad["errors"]
+    assert bad["missing_tools"] == []
+
+
+def test_workflow_validate_reports_missing_tool(client: TestClient, tmp_path: Path) -> None:
+    (tmp_path / "modules" / "ghost.module.yaml").write_text(
+        "schema_version: 1\ntool: definitely-not-a-tool-xyz\n"
+        "install: 'Fedora: sudo dnf install x'\n"
+    )
+    client.app.state.registry.scan()  # type: ignore[attr-defined]
+    document = {
+        "schema_version": 1,
+        "name": "x",
+        "steps": [{"id": "s", "tool": "definitely-not-a-tool-xyz"}],
+    }
+    result = client.post("/api/workflows/validate", json={"document": document}).json()
+    assert result["missing_tools"] == [
+        {"step": "s", "tool": "definitely-not-a-tool-xyz", "install": "Fedora: sudo dnf install x"}
+    ]
+
+
+def test_workflow_validate_missing_tool_without_module(client: TestClient) -> None:
+    document = {
+        "schema_version": 1,
+        "name": "x",
+        "steps": [{"id": "s", "tool": "definitely-not-a-tool-abc"}],
+    }
+    result = client.post("/api/workflows/validate", json={"document": document}).json()
+    assert result["ok"] is True
+    assert result["missing_tools"] == [
+        {"step": "s", "tool": "definitely-not-a-tool-abc", "install": None}
+    ]
+
+
+def test_workflow_validate_missing_tool_nested(client: TestClient) -> None:
+    document = {
+        "schema_version": 1,
+        "name": "x",
+        "steps": [
+            {
+                "id": "f",
+                "kind": "foreach",
+                "source": "file:x",
+                "body": [{"id": "inner", "tool": "definitely-not-a-tool-abc"}],
+            }
+        ],
+    }
+    result = client.post("/api/workflows/validate", json={"document": document}).json()
+    assert result["errors"] == []
+    assert [m["step"] for m in result["missing_tools"]] == ["inner"]
+
+
+def test_workflow_validate_install_hint_has_no_escapes(client: TestClient, tmp_path: Path) -> None:
+    (tmp_path / "modules" / "ghost.module.yaml").write_text(
+        "schema_version: 1\ntool: definitely-not-a-tool-xyz\n"
+        'install: "sudo dnf install x\\x1b[31m"\n'
+    )
+    client.app.state.registry.scan()  # type: ignore[attr-defined]
+    document = {
+        "schema_version": 1,
+        "name": "x",
+        "steps": [{"id": "s", "tool": "definitely-not-a-tool-xyz"}],
+    }
+    result = client.post("/api/workflows/validate", json={"document": document}).json()
+    assert "\x1b" not in result["missing_tools"][0]["install"]
 
 
 def test_user_file_shadows_bundled(client: TestClient, tmp_path: Path) -> None:
@@ -260,12 +324,28 @@ def test_lang_en_translates_tool_and_list(client: TestClient) -> None:
     assert en["display_name"] == "grep – search text"
     labels = {o["id"]: o["label"] for o in en["options"]}
     assert labels["ignore_case"] == "Ignore case"
-    assert labels["word_regexp"] == "Nur ganze Wörter"  # no translation: original stays
+    assert labels["word_regexp"] == "Whole words only"
     entry = next(
         t for t in client.get("/api/tools", params={"lang": "en"}).json() if t["name"] == "grep"
     )
     assert entry["display_name"] == "grep – search text"
     assert client.get("/api/tools/grep", params={"lang": "../x"}).status_code == 422
+
+
+def test_lang_en_untranslated_option_keeps_original(client: TestClient, tmp_path: Path) -> None:
+    (tmp_path / "bin" / "fallback").write_text(DEMO)
+    (tmp_path / "bin" / "fallback").chmod(0o755)
+    (tmp_path / "modules" / "fallback.module.yaml").write_text(
+        "schema_version: 1\ntool: fallback\ndisplay_name: Eins\n"
+        "options:\n"
+        "  - {id: a, flags: ['-a'], label: Alpha}\n"
+        "  - {id: b, flags: ['-b'], label: Beta}\n"
+        "i18n:\n  en:\n    display_name: One\n    options:\n      a: {label: Alpha EN}\n"
+    )
+    client.app.state.registry.scan()  # type: ignore[attr-defined]
+    en = client.get("/api/tools/fallback", params={"lang": "en"}).json()["command"]
+    assert en["display_name"] == "One"
+    assert {o["id"]: o["label"] for o in en["options"]} == {"a": "Alpha EN", "b": "Beta"}
 
 
 def test_workflow_index_fields_and_run_shortcut(client: TestClient, tmp_path: Path) -> None:

@@ -14,9 +14,10 @@ from whattheshell import integrity
 from whattheshell.api.errors import validation_errors
 from whattheshell.api.rest import fail
 from whattheshell.api.runs import create_run_response
+from whattheshell.catalog.catalog import find_executable
 from whattheshell.i18n import _
 from whattheshell.models.common import StrictModel
-from whattheshell.models.workflow import Workflow
+from whattheshell.models.workflow import CommandStep, TerminalStep, Workflow, iter_steps
 from whattheshell.modules.loader import DocumentError, load_workflow_file
 from whattheshell.modules.store import (
     IMPORT_NAME,
@@ -300,10 +301,15 @@ def accept_workflow(workflow_id: str, request: Request) -> dict[str, Any]:
 
 
 @router.post("/validate")
-def validate_workflow(body: DocumentBody) -> dict[str, Any]:
-    """Check a document without saving it."""
+def validate_workflow(body: DocumentBody, request: Request) -> dict[str, Any]:
+    """Check a document without saving it; also lists tools missing on this machine."""
     try:
-        Workflow.model_validate(body.document)
+        workflow = Workflow.model_validate(body.document)
     except ValidationError as err:
-        return {"ok": False, "errors": validation_errors(err)}
-    return {"ok": True, "errors": []}
+        return {"ok": False, "errors": validation_errors(err), "missing_tools": []}
+    missing = []
+    for step in iter_steps(workflow.steps):
+        if isinstance(step, CommandStep | TerminalStep) and find_executable(step.tool) is None:
+            install = request.app.state.registry.install_hint(step.tool)
+            missing.append({"step": step.id, "tool": step.tool, "install": install})
+    return {"ok": True, "errors": [], "missing_tools": missing}

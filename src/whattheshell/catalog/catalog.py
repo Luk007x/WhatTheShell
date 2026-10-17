@@ -115,6 +115,13 @@ def _probe_version(path: str) -> str | None:
     return lines[0].strip()[:200] if lines else None
 
 
+def find_executable(name: str) -> str | None:
+    """Path of an executable by name (PATH lookup) or path (contains ``/``), else None."""
+    if "/" in name:
+        return name if os.access(name, os.X_OK) and os.path.isfile(name) else None
+    return shutil.which(name)
+
+
 class Catalog:
     """Resolves tools and builds `ToolInfo` entries with an on-disk cache."""
 
@@ -136,18 +143,17 @@ class Catalog:
         return self._tools
 
     def _resolve(self, name: str) -> str:
-        if "/" in name:
-            found = name if os.access(name, os.X_OK) and os.path.isfile(name) else None
-        else:
-            found = shutil.which(name)
+        found = find_executable(name)
         if found is None:
-            raise ToolNotFound(
-                _(
-                    "Tool '{name}' nicht auf PATH gefunden. Prüfe die Schreibweise "
-                    "oder installiere es.",
-                    name=name,
-                )
+            message = _(
+                "Tool '{name}' nicht auf PATH gefunden. Prüfe die Schreibweise "
+                "oder installiere es.",
+                name=name,
             )
+            hint = self._registry.install_hint(name) if self._registry else None
+            if hint:
+                message += " " + _("Installation: {install}", install=hint)
+            raise ToolNotFound(message)
         return found
 
     def get(

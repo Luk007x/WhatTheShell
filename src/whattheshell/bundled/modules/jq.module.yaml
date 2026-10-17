@@ -171,9 +171,24 @@ examples:
 
 i18n:
   en:
+    inputs:
+      "filter": {label: "Filter", help: "jq expression, e.g. . for everything or .name for a field."}
+      "file": {label: "JSON files", help: "Files containing JSON; without any, standard input is read."}
     display_name: "jq – Process JSON"
+    category: Text
     summary: "Reads, filters and formats JSON data."
     options:
+      "sort_keys": {label: "Sort keys", help: "Sorts the fields of objects alphabetically."}
+      "tab": {label: "Indent with tabs", help: "Uses tabs instead of spaces for indentation."}
+      "indent": {label: "Indentation", help: "Number of spaces for indentation (0 to 7)."}
+      "join_output": {label: "Output without newline", help: "Like -r, but without a newline after each value."}
+      "ascii_output": {label: "ASCII output only", help: "Writes special characters as \\uXXXX escapes."}
+      "color_output": {label: "Colored output", help: "Colors the output even when it does not go to a terminal."}
+      "raw_input": {label: "Read input as text", help: "Treats each line as a string instead of JSON."}
+      "from_file": {label: "Filter from file", help: "Reads the filter from a file."}
+      "arg": {label: "Set variable (text)", help: "Creates a variable $name with a text value (format: name value)."}
+      "argjson": {label: "Set variable (JSON)", help: "Creates a variable $name with a JSON value (format: name value)."}
+      "stream": {label: "Read as path-value stream", help: "Splits large JSON documents into single path-value pairs."}
       raw_output: {label: "Strings without quotes", help: "Prints strings as-is, without quotation marks."}
       compact_output: {label: "Compact output", help: "Writes each JSON value on a single line."}
       slurp: {label: "Collect all inputs into a list", help: "Reads all JSON values of the input into one array."}

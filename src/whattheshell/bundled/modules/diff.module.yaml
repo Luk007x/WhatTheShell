@@ -1,0 +1,145 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: diff
+display_name: "diff – Dateien vergleichen"
+category: Dateien
+summary: "Zeigt die Unterschiede zwischen zwei Dateien oder Ordnern."
+description: |
+  diff vergleicht zwei Dateien Zeile für Zeile und zeigt, was hinzugekommen, entfallen oder geändert ist. Mit "Unified-Format" entsteht die gewohnte Patch-Darstellung mit + und -.
+  Mit "Rekursiv" werden ganze Ordner verglichen, mit "Nur melden, ob verschieden" nur ein Hinweis ausgegeben.
+  Stolperfalle: Exit-Code 1 bedeutet nur "Unterschiede gefunden", nicht Fehler.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: file1
+    label: Erste Datei
+    type: path
+    required: true
+    position: 0
+    help: "Datei oder Ordner, der als Ausgangspunkt dient."
+  - id: file2
+    label: Zweite Datei
+    type: path
+    required: true
+    position: 1
+    help: "Datei oder Ordner, der damit verglichen wird."
+
+options:
+  - id: unified
+    flags: ["-u", "--unified"]
+    label: Unified-Format
+    type: bool
+    group: Format
+    importance: common
+    help: "Zeigt Unterschiede im Patch-Format mit Kontext."
+  - id: side_by_side
+    flags: ["-y", "--side-by-side"]
+    label: Nebeneinander
+    group: Format
+    importance: normal
+    help: "Zeigt beide Dateien in zwei Spalten."
+  - id: recursive
+    flags: ["-r", "--recursive"]
+    label: Rekursiv
+    group: Ordner
+    importance: common
+    help: "Vergleicht Ordner samt Unterordnern."
+  - id: brief
+    flags: ["-q", "--brief"]
+    label: Nur melden, ob verschieden
+    group: Ausgabe
+    importance: common
+    help: "Gibt nur aus, ob sich die Dateien unterscheiden."
+  - id: ignore_case
+    flags: ["-i", "--ignore-case"]
+    label: Groß-/Kleinschreibung ignorieren
+    group: Ignorieren
+    importance: normal
+    help: "Behandelt Groß- und Kleinbuchstaben gleich."
+  - id: ignore_space_change
+    flags: ["-b", "--ignore-space-change"]
+    label: Leerzeichenmenge ignorieren
+    group: Ignorieren
+    importance: normal
+    help: "Ignoriert Unterschiede in der Anzahl von Leerzeichen."
+  - id: ignore_all_space
+    flags: ["-w", "--ignore-all-space"]
+    label: Alle Leerzeichen ignorieren
+    group: Ignorieren
+    importance: normal
+    help: "Ignoriert Leerzeichen und Tabulatoren komplett."
+  - id: ignore_blank_lines
+    flags: ["-B", "--ignore-blank-lines"]
+    label: Leerzeilen ignorieren
+    group: Ignorieren
+    importance: rare
+    help: "Ignoriert Änderungen, die nur Leerzeilen betreffen."
+  - id: new_file
+    flags: ["-N", "--new-file"]
+    label: Fehlende Dateien als leer
+    group: Ordner
+    importance: rare
+    help: "Behandelt nicht vorhandene Dateien wie leere."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Keine Unterschiede"
+    1: "Unterschiede gefunden"
+    2: "Fehler, z. B. Datei nicht lesbar"
+
+examples:
+  - title: "Unterschiede im Patch-Format"
+    description: "Vergleicht zwei Fassungen einer Datei."
+    fixtures:
+      - path: alt.txt
+        content: "eins\nzwei\n"
+      - path: neu.txt
+        content: "eins\ndrei\n"
+    args:
+      unified: true
+      file1: "alt.txt"
+      file2: "neu.txt"
+    expect:
+      exit_code: 1
+      stdout_contains: "+drei"
+  - title: "Ordner vergleichen"
+    description: "Meldet nur, welche Dateien sich unterscheiden."
+    fixtures:
+      - path: a/x.txt
+        content: "1\n"
+      - path: b/x.txt
+        content: "2\n"
+    args:
+      recursive: true
+      brief: true
+      file1: "a"
+      file2: "b"
+    expect:
+      exit_code: 1
+      stdout_contains: "differ"
+
+i18n:
+  en:
+    display_name: "diff – compare files"
+    category: Files
+    summary: "Shows the differences between two files or folders."
+    description: |
+      diff compares two files line by line and shows what was added, removed or changed. "Unified format" produces the familiar patch view with + and -.
+      "Recursive" compares whole folders; "Only report whether different" prints just a notice.
+      Pitfall: exit code 1 only means "differences found", not an error.
+    options:
+      unified: {label: "Unified format", help: "Shows differences in patch format with context."}
+      side_by_side: {label: "Side by side", help: "Shows both files in two columns."}
+      recursive: {label: "Recursive", help: "Compares folders including subfolders."}
+      brief: {label: "Only report whether different", help: "Only prints whether the files differ."}
+      ignore_case: {label: "Ignore case", help: "Treats upper and lower case alike."}
+      ignore_space_change: {label: "Ignore changes in whitespace", help: "Ignores differences in the amount of whitespace."}
+      ignore_all_space: {label: "Ignore all whitespace", help: "Ignores spaces and tabs entirely."}
+      ignore_blank_lines: {label: "Ignore blank lines", help: "Ignores changes that only affect blank lines."}
+      new_file: {label: "Treat missing files as empty", help: "Treats absent files as empty."}
+    inputs:
+      file1: {label: "First file", help: "File or folder used as the baseline."}
+      file2: {label: "Second file", help: "File or folder compared against it."}

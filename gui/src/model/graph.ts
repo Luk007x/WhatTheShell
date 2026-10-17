@@ -15,6 +15,7 @@ export interface StepNodeData extends Record<string, unknown> {
   safety?: string | null;
   /** Catalog category of the tool, filled in by the canvas. */
   category?: string | null;
+  missing?: boolean;
 }
 export type StepNode = Node<StepNodeData, "step">;
 /** `port` is the source handle of a flow edge (`next` or a branch port). */

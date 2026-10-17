@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: lscpu
+display_name: "lscpu – Prozessor-Info"
+category: System
+summary: "Zeigt Informationen über den Prozessor."
+description: |
+  lscpu fasst Modell, Architektur, Kernzahl, Taktfrequenz und Cache-Größen des Prozessors zusammen. Typisch, um die Hardware eines Rechners oder Servers kennenzulernen.
+  In virtuellen Maschinen zeigt lscpu die Werte der virtuellen CPU.
+override_mode: merge
+safety: safe
+
+output:
+  stdout:
+    kind: lines
+
+examples:
+  - title: "Prozessor anzeigen"
+    description: "Zeigt die CPU-Informationen."
+    expect:
+      exit_code: 0
+      stdout_contains: "Architecture"
+
+i18n:
+  en:
+    display_name: "lscpu – processor info"
+    summary: "Shows information about the processor."
+    description: |
+      lscpu summarizes model, architecture, core count, clock speed and cache sizes of the processor. Typical use is getting to know the hardware of a computer or server.
+      In virtual machines lscpu shows the values of the virtual CPU.
+    category: System

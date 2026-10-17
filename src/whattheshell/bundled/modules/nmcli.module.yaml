@@ -6,10 +6,18 @@ category: Netzwerk
 subcommands:
   - name: connection
     summary: "NetworkManager-Verbindungen anzeigen und ändern"
+    i18n:
+      en:
+        summary: "Show and change NetworkManager connections"
     subcommands:
-      - { name: show, summary: "Verbindungen anzeigen", safety: safe }
-      - { name: modify, summary: "Verbindungseinstellungen ändern", safety: caution }
-      - { name: up, summary: "Verbindung aktivieren", safety: caution }
-      - { name: down, summary: "Verbindung trennen", safety: caution }
-      - { name: add, summary: "Verbindung anlegen", safety: caution }
-      - { name: delete, summary: "Verbindung löschen", safety: caution }
+      - { name: show, summary: "Verbindungen anzeigen", safety: safe, i18n: { en: { summary: "Show connections" } } }
+      - { name: modify, summary: "Verbindungseinstellungen ändern", safety: caution, i18n: { en: { summary: "Change connection settings" } } }
+      - { name: up, summary: "Verbindung aktivieren", safety: caution, i18n: { en: { summary: "Activate a connection" } } }
+      - { name: down, summary: "Verbindung trennen", safety: caution, i18n: { en: { summary: "Disconnect a connection" } } }
+      - { name: add, summary: "Verbindung anlegen", safety: caution, i18n: { en: { summary: "Create a connection" } } }
+      - { name: delete, summary: "Verbindung löschen", safety: caution, i18n: { en: { summary: "Delete a connection" } } }
+
+i18n:
+  en:
+    display_name: "nmcli – control NetworkManager"
+    category: Network

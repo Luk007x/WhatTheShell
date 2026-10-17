@@ -4,6 +4,8 @@
 
 Ein Modul ist eine YAML-Datei (`*.module.yaml`, auch `.yml` oder `.json`), die ein Werkzeug beschreibt: deutsche Beschriftungen, Gruppen, Hilfetexte, Beispiele, Sicherheitsklasse und mehr. Ohne Modul kommt alles aus der Hilfe des Werkzeugs (`--help`); der Klassifizierer rät dann die Sicherheitsklasse, und manche Optionen sind als „geraten“ markiert. Ein Modul ergänzt oder ersetzt diese Auto-Erkennung.
 
+Der Katalog zeigt nur installierte Werkzeuge: Mitgelieferte Module für nicht installierte Werkzeuge erscheinen erst nach der Installation. Das Feld `install` eines Moduls nennt die Installationsbefehle, die bei einem fehlenden Werkzeug angezeigt werden.
+
 Module werden beim Laden nie ausgeführt. Die Beispiele eines Moduls laufen nur in der Sandbox.
 
 ### Wo Module liegen

@@ -1,0 +1,112 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: uniq
+display_name: "uniq – Doppelte Zeilen"
+category: Text
+summary: "Fasst aufeinanderfolgende gleiche Zeilen zusammen oder zählt sie."
+description: |
+  uniq entfernt doppelte Zeilen oder zeigt, wie oft jede Zeile vorkommt. Typisch ist die Kombination sort | uniq -c, um Häufigkeiten zu zählen.
+  Stolperfalle: uniq erkennt nur Zeilen, die direkt aufeinander folgen. Die Eingabe muss deshalb meist vorher sortiert werden.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: input_file
+    label: Eingabedatei
+    type: path
+    position: 0
+    help: "Datei, die gefiltert wird; ohne Angabe wird die Standardeingabe gelesen."
+
+options:
+  - id: count
+    flags: ["-c", "--count"]
+    label: Vorkommen zählen
+    type: bool
+    group: Ausgabe
+    importance: common
+    help: "Stellt jeder Zeile die Anzahl ihrer Wiederholungen voran."
+  - id: repeated
+    flags: ["-d", "--repeated"]
+    label: Nur doppelte Zeilen
+    type: bool
+    group: Auswahl
+    importance: common
+    help: "Gibt nur Zeilen aus, die mehrfach vorkommen (je eine)."
+  - id: unique
+    flags: ["-u", "--unique"]
+    label: Nur einmalige Zeilen
+    type: bool
+    group: Auswahl
+    importance: common
+    help: "Gibt nur Zeilen aus, die genau einmal vorkommen."
+  - id: ignore_case
+    flags: ["-i", "--ignore-case"]
+    label: Groß-/Kleinschreibung ignorieren
+    type: bool
+    group: Vergleich
+    importance: common
+    help: "Behandelt Groß- und Kleinbuchstaben als gleich."
+  - id: skip_fields
+    flags: ["-f", "--skip-fields"]
+    label: Felder überspringen
+    type: int
+    min: 0
+    metavar: N
+    group: Vergleich
+    importance: normal
+    help: "Ignoriert beim Vergleich die ersten N Felder jeder Zeile."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolg"
+    1: "Fehler, z. B. Datei nicht lesbar"
+
+examples:
+  - title: "Wiederholungen zählen"
+    description: "Zählt, wie oft jede aufeinanderfolgende Zeile vorkommt."
+    fixtures:
+      - path: farben.txt
+        content: |
+          rot
+          rot
+          blau
+    args:
+      count: true
+      input_file: "farben.txt"
+    expect:
+      exit_code: 0
+      stdout_regex: "2 rot"
+  - title: "Nur einmalige Zeilen"
+    description: "Zeigt Zeilen, die genau einmal vorkommen, ohne auf Groß-/Kleinschreibung zu achten."
+    fixtures:
+      - path: farben.txt
+        content: |
+          rot
+          ROT
+          blau
+    args:
+      unique: true
+      ignore_case: true
+      input_file: "farben.txt"
+    expect:
+      exit_code: 0
+      stdout_contains: "blau"
+
+i18n:
+  en:
+    display_name: "uniq – duplicate lines"
+    category: Text
+    summary: "Merges or counts adjacent identical lines."
+    description: |
+      uniq removes duplicate lines or shows how often each line occurs. A typical use is sort | uniq -c to count frequencies.
+      Pitfall: uniq only detects lines that directly follow each other, so the input usually has to be sorted first.
+    inputs:
+      input_file: {label: "Input file", help: "File to filter; without one, standard input is read."}
+    options:
+      count: {label: "Count occurrences", help: "Prefixes each line with the number of its repetitions."}
+      repeated: {label: "Only duplicated lines", help: "Prints only lines that occur more than once (one each)."}
+      unique: {label: "Only unique lines", help: "Prints only lines that occur exactly once."}
+      ignore_case: {label: "Ignore case", help: "Treats upper and lower case as equal."}
+      skip_fields: {label: "Skip fields", help: "Ignores the first N fields of each line when comparing."}

@@ -207,9 +207,27 @@ examples:
 
 i18n:
   en:
+    inputs:
+      "paths": {label: "Files or folders", help: "What goes into the archive (when creating) or which entries to extract (optional)."}
     display_name: "tar – create and extract archives"
+    category: Archives
     summary: "Packs files into an archive, lists or extracts archives."
     options:
+      "append": {label: "Append to archive", help: "Appends files to the end of an existing uncompressed archive."}
+      "directory": {label: "Change to folder", help: "Changes to this folder before working, e.g. as target folder when extracting."}
+      "bzip2": {label: "bzip2 compression", help: "Compresses with bzip2 (.tar.bz2)."}
+      "xz": {label: "xz compression", help: "Compresses with xz (.tar.xz), small but slower."}
+      "zstd": {label: "zstd compression", help: "Compresses with zstd (.tar.zst), fast and good."}
+      "auto_compress": {label: "Compression by file extension", help: "Selects the method from the archive file extension (.tar.gz, .tar.xz ...)."}
+      "exclude": {label: "Exclude files", help: "Leaves out entries whose name matches the pattern, e.g. *.tmp."}
+      "strip_components": {label: "Strip leading folders", help: "Removes this many folder levels from each file path when extracting."}
+      "keep_old_files": {label: "Do not overwrite existing", help: "Aborts with an error instead of replacing existing files."}
+      "skip_old_files": {label: "Skip existing", help: "Skips files that already exist without an error."}
+      "overwrite": {label: "Overwrite existing", help: "Replaces existing files when extracting without asking."}
+      "absolute_names": {label: "Keep absolute paths", help: "Keeps a leading /, which can overwrite arbitrary system paths when extracting."}
+      "to_stdout": {label: "Extract to standard output", help: "Writes the file contents to the output instead of to files."}
+      "preserve_permissions": {label: "Preserve permissions", help: "Restores the stored file permissions when extracting."}
+      "version": {label: "Show version", help: "Shows the tar version."}
       create: {label: "Create archive", help: "Packs the given files into a new archive."}
       extract: {label: "Extract archive", help: "Extracts the archive into the current or chosen folder."}
       list: {label: "List contents", help: "Lists the archive contents without extracting anything."}

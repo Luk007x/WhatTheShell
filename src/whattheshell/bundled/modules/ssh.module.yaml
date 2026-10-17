@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: ssh
+display_name: "ssh – Verbindung zu anderem Rechner"
+category: Netzwerk
+summary: "Öffnet eine verschlüsselte Terminal-Sitzung auf einem anderen Rechner."
+description: |
+  ssh verbindet sich sicher mit einem anderen Rechner und gibt dort eine Kommandozeile. Typisch ist die Wartung eines Servers aus der Ferne.
+  Stolperfallen: ssh ist interaktiv und wartet auf Eingaben wie ein Passwort; im Baukasten ist es daher nur eingeschränkt nutzbar. Befehle, die auf dem fremden Rechner ausgeführt werden, können dort Dateien und Einstellungen ändern.
+override_mode: merge
+safety: caution
+interactive: true
+install: "Fedora: sudo dnf install openssh-clients · Debian/Ubuntu: sudo apt install openssh-client"
+
+inputs:
+  - id: host
+    label: Rechner
+    type: string
+    required: true
+    position: 0
+    help: "Rechnername oder IP-Adresse, ggf. mit Benutzer: benutzer@example.org."
+
+options:
+  - id: p
+    flags: ["-p"]
+    label: Port
+    type: int
+    min: 1
+    max: 65535
+    metavar: PORT
+    group: Verbindung
+    importance: common
+    help: "Netzwerk-Port des Servers; Standard ist 22."
+  - id: i
+    flags: ["-i"]
+    label: Schlüsseldatei
+    type: path
+    metavar: DATEI
+    group: Anmeldung
+    importance: common
+    help: "Private Schlüsseldatei für die Anmeldung statt eines Passworts."
+  - id: l
+    flags: ["-l"]
+    label: Benutzername
+    type: string
+    metavar: NAME
+    group: Anmeldung
+    importance: common
+    help: "Meldet sich als dieser Benutzer auf dem fremden Rechner an."
+
+i18n:
+  en:
+    display_name: "ssh – connect to another computer"
+    category: Network
+    summary: "Opens an encrypted terminal session on another computer."
+    description: |
+      ssh connects securely to another computer and gives you a command line there. It is typically used to maintain a server remotely.
+      Pitfalls: ssh is interactive and waits for input such as a password, so it is only usable to a limited extent in the builder. Commands run on the remote computer can change files and settings there.
+    inputs:
+      host: {label: "Host", help: "Host name or IP address, optionally with user: user@example.org."}
+    options:
+      p: {label: "Port", help: "Network port of the server; default is 22."}
+      i: {label: "Key file", help: "Private key file for login instead of a password."}
+      l: {label: "User name", help: "Logs in as this user on the remote computer."}

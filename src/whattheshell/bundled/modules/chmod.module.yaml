@@ -21,3 +21,12 @@ inputs:
     required: true
     position: 1
     help: "Dateien, deren Rechte geändert werden."
+
+i18n:
+  en:
+    display_name: "chmod – change permissions"
+    category: Files
+    summary: "Changes the access permissions of a file."
+    inputs:
+      mode: {label: "Permissions", help: "For example +x (make executable) or 644."}
+      file: {label: "Files", help: "Files whose permissions are changed."}

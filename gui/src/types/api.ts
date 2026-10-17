@@ -121,6 +121,7 @@ export interface WorkflowDoc {
 export interface ValidationResult {
   ok: boolean;
   errors: { path: string; message: string }[];
+  missing_tools?: { step: string; tool: string; install: string | null }[];
 }
 
 export interface RunRequest {

@@ -1,0 +1,83 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: seq
+display_name: "seq – Zahlenfolge"
+category: Text
+summary: "Gibt eine Folge von Zahlen aus."
+description: |
+  seq zählt von einer ersten bis zu einer letzten Zahl und gibt jede Zahl in einer eigenen Zeile aus. Praktisch für Schleifen, Testdaten und nummerierte Dateinamen.
+  Stolperfalle: Ist nur eine Zahl angegeben, zählt seq von 1 bis zu dieser Zahl. Zählt man abwärts, braucht man zusätzlich eine negative Schrittweite.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: first
+    label: Erste Zahl
+    type: int
+    position: 0
+    help: "Startwert; wird nur eine Zahl angegeben, ist sie die letzte."
+  - id: last
+    label: Letzte Zahl
+    type: int
+    required: true
+    position: 1
+    help: "Endwert der Folge (eingeschlossen)."
+
+options:
+  - id: separator
+    flags: ["-s", "--separator"]
+    label: Trennzeichen
+    type: string
+    metavar: ZKETTE
+    group: Ausgabe
+    importance: common
+    help: "Trennt die Zahlen mit dieser Zeichenkette statt mit Zeilenumbrüchen."
+  - id: equal_width
+    flags: ["-w", "--equal-width"]
+    label: Gleiche Breite
+    type: bool
+    group: Ausgabe
+    importance: common
+    help: "Füllt mit führenden Nullen auf gleiche Länge auf, z. B. 01 bis 10."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolg"
+    1: "Fehler, z. B. ungültige Zahl"
+
+examples:
+  - title: "Von 1 bis 5"
+    description: "Zählt von 1 bis 5."
+    args:
+      first: 1
+      last: 5
+    expect:
+      exit_code: 0
+      stdout_regex: "(?s)1\\n2\\n3\\n4\\n5"
+  - title: "Mit Nullen und Komma"
+    description: "Gibt 08 bis 10 in einer Zeile, durch Komma getrennt, aus."
+    args:
+      equal_width: true
+      separator: ","
+      first: 8
+      last: 10
+    expect:
+      exit_code: 0
+      stdout_contains: "08,09,10"
+
+i18n:
+  en:
+    display_name: "seq – number sequence"
+    category: Text
+    summary: "Prints a sequence of numbers."
+    description: |
+      seq counts from a first to a last number and prints each number on its own line. Handy for loops, test data and numbered file names.
+      Pitfall: if only one number is given, seq counts from 1 up to it. Counting down additionally needs a negative step.
+    inputs:
+      first: {label: "First number", help: "Start value; if only one number is given, it is the last."}
+      last: {label: "Last number", help: "End value of the sequence (inclusive)."}
+    options:
+      separator: {label: "Separator", help: "Separates the numbers with this string instead of newlines."}
+      equal_width: {label: "Equal width", help: "Pads with leading zeros to equal length, e.g. 01 to 10."}

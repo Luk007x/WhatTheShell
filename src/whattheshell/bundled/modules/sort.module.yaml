@@ -179,9 +179,24 @@ examples:
 
 i18n:
   en:
+    inputs:
+      "file": {label: "Files", help: "Files to sort; without any, standard input is read."}
     display_name: "sort – Sort lines"
+    category: Text
     summary: "Sorts the lines of files or input."
     options:
+      "human_numeric_sort": {label: "Sort sizes like 2K, 1G", help: "Understands units such as K, M and G as in ls -lh or du -h."}
+      "version_sort": {label: "Sort version numbers", help: "Sorts naturally so that v1.2 comes before v1.10."}
+      "month_sort": {label: "Sort month names", help: "Sorts JAN to DEC in calendar order."}
+      "general_numeric_sort": {label: "General numeric", help: "Also understands floating-point numbers with exponent such as 1e3."}
+      "random_sort": {label: "Shuffle randomly", help: "Shuffles the lines in random order."}
+      "ignore_leading_blanks": {label: "Ignore leading blanks", help: "Skips blanks at the start of a field when comparing."}
+      "dictionary_order": {label: "Consider letters and digits only", help: "Ignores special characters when comparing."}
+      "stable": {label: "Stable sort", help: "Keeps the original order of equal lines."}
+      "check": {label: "Only check whether sorted", help: "Does not sort but reports the first unsorted line."}
+      "merge": {label: "Merge sorted files", help: "Merges already sorted files without sorting again."}
+      "output": {label: "Output file", help: "Writes the result to a file; it may be the input file."}
+      "zero_terminated": {label: "Null-separated lines", help: "Separates lines with a null byte instead of a newline."}
       numeric_sort: {label: "Sort numerically", help: "Compares the numeric value at the start of the line instead of text."}
       reverse: {label: "Reverse order", help: "Reverses the sort result."}
       unique: {label: "Remove duplicate lines", help: "Prints only the first of several equal lines."}

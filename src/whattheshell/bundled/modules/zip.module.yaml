@@ -1,0 +1,87 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: zip
+display_name: "zip – ZIP-Archiv erstellen"
+category: Archive
+summary: "Packt Dateien und Ordner in ein ZIP-Archiv."
+description: |
+  zip bündelt und komprimiert mehrere Dateien in einer .zip-Datei, die sich auch unter Windows und macOS öffnen lässt. Typisch ist das Verpacken eines Ordners zum Versenden.
+  Stolperfallen: Ordner werden nur mit "Ordner rekursiv" samt Inhalt aufgenommen. Existiert das Archiv schon, fügt zip Dateien hinzu bzw. ersetzt gleichnamige, statt neu anzulegen.
+override_mode: merge
+safety: caution
+install: "Fedora: sudo dnf install zip · Debian/Ubuntu: sudo apt install zip"
+
+inputs:
+  - id: archive
+    label: Archiv
+    type: path
+    required: true
+    position: 0
+    help: "Name der ZIP-Datei, z. B. backup.zip."
+  - id: files
+    label: Dateien
+    type: path
+    multiple: true
+    position: 1
+    help: "Dateien oder Ordner, die ins Archiv kommen."
+
+options:
+  - id: r
+    flags: ["-r"]
+    label: Ordner rekursiv
+    group: Auswahl
+    importance: common
+    help: "Nimmt Ordner samt allen Unterordnern und Dateien auf."
+  - id: q
+    flags: ["-q"]
+    label: Still
+    group: Ausgabe
+    importance: normal
+    help: "Unterdrückt die Meldungen zu jeder hinzugefügten Datei."
+  - id: e
+    flags: ["-e"]
+    label: Mit Passwort verschlüsseln
+    group: Sicherheit
+    importance: rare
+    help: "Fragt nach einem Passwort; die klassische ZIP-Verschlüsselung gilt als schwach."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolgreich"
+    12: "Nichts zu tun, z. B. keine passenden Dateien"
+    15: "Archiv konnte nicht erzeugt werden"
+
+examples:
+  - title: "Zwei Dateien packen"
+    description: "Erzeugt ein ZIP-Archiv aus zwei Textdateien."
+    fixtures:
+      - path: a.txt
+        content: |
+          eins
+      - path: b.txt
+        content: |
+          zwei
+    args:
+      archive: "texte.zip"
+      files: ["a.txt", "b.txt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "adding"
+
+i18n:
+  en:
+    display_name: "zip – create ZIP archive"
+    category: Archives
+    summary: "Packs files and folders into a ZIP archive."
+    description: |
+      zip bundles and compresses several files into one .zip file that also opens on Windows and macOS. It is typically used to pack a folder for sending.
+      Pitfalls: Folders are only included with their content when "Folders recursively" is set. If the archive already exists, zip adds files or replaces ones with the same name instead of starting fresh.
+    inputs:
+      archive: {label: "Archive", help: "Name of the ZIP file, e.g. backup.zip."}
+      files: {label: "Files", help: "Files or folders to put into the archive."}
+    options:
+      r: {label: "Folders recursively", help: "Includes folders with all subfolders and files."}
+      q: {label: "Quiet", help: "Suppresses the message for each added file."}
+      e: {label: "Encrypt with password", help: "Asks for a password; classic ZIP encryption is considered weak."}

@@ -64,6 +64,7 @@ description: |
   …
 override_mode: merge        # merge | replace
 safety: safe
+install: "Fedora: sudo dnf install jq · Debian/Ubuntu: sudo apt install jq"   # optional, Freitext, erscheint bei fehlendem Tool
 inputs: [ … InputSpec … ]
 options: [ … OptionSpec … ]
 output:
@@ -81,8 +82,8 @@ examples:
     expect: { exit_code: 0, stdout_contains: "disk full" }         # optional, alle Felder optional
 templates:
   - { title: "Treffer zählen", workflow: grep_count.workflow.yaml }  # Pfad relativ zur Moduldatei
-i18n:                       # optional, Übersetzungen von label/help/summary je Sprache
-  en: { summary: "…", options: { ignore_case: { label: "Ignore case" } } }
+i18n:                       # optional, Übersetzungen von category/label/help/summary je Sprache
+  en: { category: "Text", summary: "…", options: { ignore_case: { label: "Ignore case" } } }
 ```
 
 ## 4. Workflow (`models/workflow.py`), überarbeitet nach 8.3

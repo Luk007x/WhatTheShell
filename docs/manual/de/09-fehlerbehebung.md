@@ -102,6 +102,10 @@ Variablen werden bei `wts run` als `--var name=wert` übergeben, z. B. `--var lo
 
 `wts run` hat riskante Schritte gefunden und kann nicht nachfragen (z. B. in einem Skript). Mit `--yes` bestätigen oder zuerst mit `--dry-run` prüfen (Exit-Code 2).
 
+### „Tool … nicht auf PATH gefunden“
+
+Das Werkzeug des Schritts ist nicht installiert. Der Schritt trägt im Graph und in der Blockansicht die Markierung „Tool fehlt“, das Schrittpanel zeigt den Hinweis. Das Werkzeug installieren; hat das Modul einen Installationsbefehl, steht er in der Meldung („Installation: …“). Sonst die Schreibweise des Werkzeugs prüfen.
+
 ### „Arbeitsverzeichnis … existiert nicht“
 
 Mit `--cwd` einen vorhandenen Ordner angeben.

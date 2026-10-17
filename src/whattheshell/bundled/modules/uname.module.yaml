@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: uname
+display_name: "uname – Systeminfo anzeigen"
+category: System
+summary: "Gibt Kernel- und Systeminformationen aus."
+description: |
+  uname zeigt Name und Version des Betriebssystemkerns, den Rechnernamen und die Hardware-Architektur. Typisch ist die Frage "Welche Kernelversion läuft hier?" oder "Ist das ein 64-Bit-System?".
+  Ohne Optionen wird nur der Kernelname (Linux) ausgegeben.
+override_mode: merge
+safety: safe
+
+options:
+  - id: all
+    flags: ["-a", "--all"]
+    label: Alles anzeigen
+    type: bool
+    group: Auswahl
+    importance: common
+    help: "Gibt alle verfügbaren Informationen in einer Zeile aus."
+  - id: kernel_release
+    flags: ["-r", "--kernel-release"]
+    label: Kernel-Release
+    type: bool
+    group: Auswahl
+    importance: common
+    help: "Zeigt die Release-Nummer des Kernels, z. B. 6.8.0."
+  - id: machine
+    flags: ["-m", "--machine"]
+    label: Hardware-Architektur
+    type: bool
+    group: Auswahl
+    importance: common
+    help: "Zeigt den Maschinentyp, z. B. x86_64 oder aarch64."
+  - id: nodename
+    flags: ["-n", "--nodename"]
+    label: Rechnername
+    type: bool
+    group: Auswahl
+    importance: common
+    help: "Zeigt den Netzwerknamen des Rechners."
+
+output:
+  stdout:
+    kind: text
+
+examples:
+  - title: "Alle Informationen"
+    description: "Gibt alle Systeminformationen in einer Zeile aus."
+    args:
+      all: true
+    expect:
+      exit_code: 0
+      stdout_contains: "Linux"
+
+i18n:
+  en:
+    display_name: "uname – show system info"
+    summary: "Prints kernel and system information."
+    description: |
+      uname shows the name and version of the operating system kernel, the host name and the hardware architecture. Typical use is "Which kernel version is running?" or "Is this a 64-bit system?".
+      Without options only the kernel name (Linux) is printed.
+    category: System
+    options:
+      all: {label: "Show everything", help: "Prints all available information on one line."}
+      kernel_release: {label: "Kernel release", help: "Shows the kernel release number, e.g. 6.8.0."}
+      machine: {label: "Hardware architecture", help: "Shows the machine type, e.g. x86_64 or aarch64."}
+      nodename: {label: "Host name", help: "Shows the network name of the machine."}

@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: nproc
+display_name: "nproc – CPU-Kerne zählen"
+category: System
+summary: "Gibt die Anzahl verfügbarer Prozessorkerne aus."
+description: |
+  nproc zeigt, wie viele Recheneinheiten dem aktuellen Prozess zur Verfügung stehen. Typisch, um bei Build-Werkzeugen die Zahl paralleler Jobs zu wählen.
+  Stolperfalle: Der Wert kann durch CPU-Beschränkungen kleiner sein als die Zahl der installierten Kerne; "Alle installierten" ignoriert diese Grenzen.
+override_mode: merge
+safety: safe
+
+options:
+  - id: all
+    flags: ["--all"]
+    label: Alle installierten
+    type: bool
+    group: Anzeige
+    importance: common
+    help: "Zählt alle installierten Prozessoren, unabhängig von Beschränkungen."
+  - id: ignore
+    flags: ["--ignore"]
+    label: Kerne auslassen
+    type: int
+    min: 0
+    metavar: N
+    group: Anzeige
+    importance: normal
+    help: "Zieht N Kerne ab; das Ergebnis ist mindestens 1."
+
+output:
+  stdout:
+    kind: text
+
+examples:
+  - title: "Kerne zählen"
+    description: "Gibt die Zahl der verfügbaren Kerne aus."
+    args: {}
+    expect:
+      exit_code: 0
+      stdout_regex: "^[0-9]+"
+
+i18n:
+  en:
+    display_name: "nproc – count CPU cores"
+    summary: "Prints the number of available processor cores."
+    description: |
+      nproc shows how many processing units are available to the current process. Typical use is choosing the number of parallel jobs for build tools.
+      Pitfall: the value can be lower than the number of installed cores because of CPU limits; "All installed" ignores these limits.
+    category: System
+    options:
+      all: {label: "All installed", help: "Counts all installed processors regardless of limits."}
+      ignore: {label: "Leave out cores", help: "Subtracts N cores; the result is at least 1."}

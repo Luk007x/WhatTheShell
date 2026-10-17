@@ -231,9 +231,29 @@ examples:
 
 i18n:
   en:
+    inputs:
+      "start": {label: "Start folder", help: "Folder where the search begins (default: current folder)."}
     display_name: "find – search files"
+    category: Files
     summary: "Finds files and folders by name, type, size or age."
     options:
+      "path": {label: "Path matches pattern", help: "The whole path matches the pattern, e.g. */src/*."}
+      "regex": {label: "Path matches regular expression", help: "The whole path must match the regular expression."}
+      "empty": {label: "Empty files/folders only", help: "Finds empty files and empty folders."}
+      "mindepth": {label: "Minimum depth", help: "Ignores entries above this level."}
+      "mtime": {label: "Modified days ago", help: "Modified this many days ago; a leading + or - means older or newer."}
+      "mmin": {label: "Modified minutes ago", help: "Modified this many minutes ago."}
+      "newer": {label: "Newer than file", help: "Finds entries modified more recently than the given file."}
+      "perm": {label: "Permissions", help: "File permissions, e.g. 644 or -u+x for executable."}
+      "user": {label: "Owner", help: "Owned by the given user."}
+      "print": {label: "Print paths", help: "Prints each match as a path (this is the default anyway)."}
+      "print0": {label: "Separate paths with null byte", help: "Separates paths with a null byte, safe for names with spaces in pipes (xargs -0)."}
+      "ls": {label: "List in detail", help: "Shows size, permissions and date per match like ls -l."}
+      "delete": {label: "Delete matches", help: "Permanently deletes every match; there is no trash."}
+      "exec": {label: "Run command", help: "Runs a command for each match, {} stands for the path, ends with ;."}
+      "prune": {label: "Do not enter folder", help: "Does not descend into the folder just found, e.g. to skip .git."}
+      "follow": {label: "Follow symbolic links", help: "Follows symbolic links to folders."}
+      "xdev": {label: "Stay on file system", help: "Stays on the same volume and does not enter mounted drives."}
       name: {label: "Name matches pattern", help: "File name matches the pattern, e.g. *.txt (case-sensitive)."}
       iname: {label: "Name matches (case-insensitive)", help: "Like name, but ignores upper and lower case."}
       type: {label: "Entry type", help: "f = file, d = directory, l = symbolic link."}

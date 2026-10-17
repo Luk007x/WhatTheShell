@@ -9,6 +9,7 @@ from pathlib import Path
 from whattheshell.i18n import _
 from whattheshell.models.module import Module
 from whattheshell.modules.loader import MODULE_SUFFIXES, DocumentError, load_module_file
+from whattheshell.subproc import printable
 
 
 @dataclass(frozen=True)
@@ -70,6 +71,13 @@ class ModuleRegistry:
         """Modules of a tool in ascending priority."""
         with self._lock:
             return list(self.modules.get(tool, []))
+
+    def install_hint(self, tool: str) -> str | None:
+        """Install hint of the highest-priority module that sets one, sanitized."""
+        for loaded in reversed(self.for_tool(tool)):
+            if loaded.module.install:
+                return printable(loaded.module.install)
+        return None
 
     def all(self) -> list[LoadedModule]:
         """All loaded modules."""

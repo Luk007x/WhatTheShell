@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: free
+display_name: "free – Speicher anzeigen"
+category: System
+summary: "Zeigt belegten und freien Arbeitsspeicher."
+description: |
+  free listet Arbeitsspeicher (RAM) und Swap mit Gesamtgröße, belegtem und freiem Platz auf. Typisch, um zu prüfen, ob dem Rechner der Speicher ausgeht.
+  Stolperfallen: Die Spalte "available" ist aussagekräftiger als "free", weil Linux freien Speicher als Cache nutzt. Ohne Einheitenoption werden Kibibyte angezeigt.
+override_mode: merge
+safety: safe
+
+options:
+  - id: human
+    flags: ["-h", "--human"]
+    label: Menschenlesbare Größen
+    type: bool
+    group: Einheit
+    importance: common
+    help: "Wählt automatisch passende Einheiten wie Mi oder Gi."
+  - id: mebi
+    flags: ["-m", "--mebi"]
+    label: In Mebibyte
+    type: bool
+    group: Einheit
+    importance: common
+    help: "Zeigt alle Größen in Mebibyte."
+  - id: gibi
+    flags: ["-g", "--gibi"]
+    label: In Gibibyte
+    type: bool
+    group: Einheit
+    importance: normal
+    help: "Zeigt alle Größen in Gibibyte."
+
+output:
+  stdout:
+    kind: lines
+
+examples:
+  - title: "Speicher lesbar anzeigen"
+    description: "Zeigt den Speicher mit passenden Einheiten."
+    args:
+      human: true
+    expect:
+      exit_code: 0
+      stdout_contains: "Mem"
+
+i18n:
+  en:
+    display_name: "free – show memory"
+    summary: "Shows used and free memory."
+    description: |
+      free lists main memory (RAM) and swap with total, used and free size. Typical use is checking whether the machine is running out of memory.
+      Pitfalls: the "available" column is more meaningful than "free" because Linux uses free memory as cache. Without a unit option sizes are shown in kibibytes.
+    category: System
+    options:
+      human: {label: "Human-readable sizes", help: "Picks suitable units such as Mi or Gi automatically."}
+      mebi: {label: "In mebibytes", help: "Shows all sizes in mebibytes."}
+      gibi: {label: "In gibibytes", help: "Shows all sizes in gibibytes."}

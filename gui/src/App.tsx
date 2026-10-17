@@ -23,7 +23,7 @@ import { applyTheme, getTheme, setTheme, THEMES, type Theme } from "./theme";
 import { clampCol, COL_MIN, colMax, Resizer } from "./Resizer";
 import { getLang, setLang, t, type Lang } from "./i18n";
 import { addStep, captureOutput, evaluateOutput, findStep, newId, removeStep, renameStep, setVariables, stepIdAtErrorPath, updateStep, type OpResult } from "./model/ops";
-import type { SandboxStatus, ToolInfo, ToolSummary } from "./types/api";
+import type { SandboxStatus, ToolInfo, ToolSummary, ValidationResult } from "./types/api";
 import type { Workflow } from "./types/workflow";
 
 const msg = errMsg;
@@ -138,7 +138,7 @@ export function App() {
   const addToolRef = useRef<((tool: string) => void) | null>(null);
   const [fileId, setFileId] = useState<string | null>(null);
   const [savedJson, setSavedJson] = useState(JSON.stringify(emptyWorkflow()));
-  const [validation, setValidation] = useState<{ ok: boolean; errors: { path: string; message: string }[] } | "checking" | string>("checking");
+  const [validation, setValidation] = useState<ValidationResult | "checking" | string>("checking");
   const [state, dispatch] = useReducer(reducer, { doc: emptyWorkflow(), past: [], future: [], warnings: [], lastKey: null, epoch: 0 });
   const token = hasToken();
   useEffect(() => { if (token && shouldOpenHelp(helpSeen(), loadHelpStart())) setHelpSection("start"); }, [token]); // first start
@@ -191,6 +191,9 @@ export function App() {
     return () => { stale = true; };
   }, [catalogTool, refresh]);
 
+  const missingTools = useMemo(
+    () => new Map(typeof validation === "object" ? (validation.missing_tools ?? []).map((m) => [m.step, m.install] as const) : []),
+    [validation]);
   // validation, debounced; the backend is the authority
   const docKey = useDebounced(wf, 500);
   useEffect(() => {
@@ -256,8 +259,8 @@ export function App() {
         return null; // RunView replaces the whole editor grid
       case "build":
         return view === "graph"
-          ? <Canvas wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} categoryOf={categoryOf} onNotice={setNotice} theme={theme} addToolRef={addToolRef} knownTools={knownTools} interactiveTools={interactiveTools} />
-          : <BlockView wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} categoryOf={categoryOf} knownTools={knownTools} interactiveTools={interactiveTools} />;
+          ? <Canvas wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} categoryOf={categoryOf} onNotice={setNotice} theme={theme} addToolRef={addToolRef} knownTools={knownTools} interactiveTools={interactiveTools} missingTools={missingTools} />
+          : <BlockView wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} categoryOf={categoryOf} knownTools={knownTools} interactiveTools={interactiveTools} missingTools={missingTools} />;
     }
   })();
   const maxCol = colMax();
@@ -327,7 +330,7 @@ export function App() {
           <div className="panel__header"><h2 id="details-h">{t("details.title")}</h2></div>
           <div className="panel__body">
           {selStep ? (
-            <StepPanel key={`${selStep.id}:${state.epoch}:${refresh}`} autoPreview={autoPreview} step={selStep} wf={wf} sandbox={sandbox} onRetest={retest}
+            <StepPanel missing={missingTools.has(selStep.id) ? { install: missingTools.get(selStep.id) ?? null } : undefined} key={`${selStep.id}:${state.epoch}:${refresh}`} autoPreview={autoPreview} step={selStep} wf={wf} sandbox={sandbox} onRetest={retest}
               update={(patch, key) => edit((w) => updateStep(w, selStep.id, patch), key ? `${selStep.id}:${key}` : undefined)}
               rename={(n) => {
                 const r = renameStep(wf, selStep.id, n);

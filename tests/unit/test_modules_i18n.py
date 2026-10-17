@@ -29,6 +29,11 @@ SPEC = CommandSpec(
 )
 
 
+def test_translate_category() -> None:
+    spec = CommandSpec(name=["t"], category="Netz", i18n={"en": Translation(category="Network")})
+    assert translate_command(spec, "en").category == "Network"
+
+
 def test_translate_applies_texts_recursively_on_a_copy() -> None:
     result = translate_command(SPEC, "en")
     assert result.summary == "Translated"

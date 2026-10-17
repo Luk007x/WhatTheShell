@@ -1,0 +1,131 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: du
+display_name: "du – Speicherverbrauch"
+category: Dateien
+summary: "Zeigt, wie viel Platz Dateien und Ordner belegen."
+description: |
+  du berechnet den belegten Platz von Ordnern samt Unterordnern. Typisch ist die Suche nach den größten Ordnern, wenn der Speicher knapp wird.
+  Mit "Lesbare Größen" erscheinen KB, MB oder GB, mit "Nur Summe" nur eine Zeile je Argument.
+  Stolperfalle: Ohne Tiefenbegrenzung wird jeder Unterordner einzeln aufgelistet. Bei großen Verzeichnissen dauert die Berechnung.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: file
+    label: Dateien oder Ordner
+    type: path
+    multiple: true
+    position: 0
+    help: "Was vermessen wird (Standard: aktueller Ordner)."
+
+options:
+  - id: human_readable
+    flags: ["-h", "--human-readable"]
+    label: Lesbare Größen
+    group: Ausgabe
+    importance: common
+    help: "Gibt Größen als KB, MB, GB aus."
+  - id: summarize
+    flags: ["-s", "--summarize"]
+    label: Nur Summe
+    group: Umfang
+    importance: common
+    help: "Zeigt nur die Gesamtsumme je Argument."
+  - id: max_depth
+    flags: ["-d", "--max-depth"]
+    label: Maximale Tiefe
+    type: int
+    min: 0
+    metavar: N
+    group: Umfang
+    importance: common
+    help: "Zeigt Ordner nur bis zu dieser Verschachtelungstiefe."
+  - id: all
+    flags: ["-a", "--all"]
+    label: Auch Dateien
+    group: Umfang
+    importance: normal
+    help: "Listet nicht nur Ordner, sondern auch einzelne Dateien."
+  - id: total
+    flags: ["-c", "--total"]
+    label: Gesamtsumme anhängen
+    group: Ausgabe
+    importance: normal
+    help: "Fügt am Ende eine Summenzeile hinzu."
+  - id: apparent_size
+    flags: ["-A", "--apparent-size"]
+    label: Scheinbare Größe
+    group: Ausgabe
+    importance: rare
+    help: "Zeigt die Dateigröße statt des belegten Plattenplatzes."
+  - id: one_file_system
+    flags: ["-x", "--one-file-system"]
+    label: Auf einem Dateisystem bleiben
+    group: Umfang
+    importance: rare
+    help: "Überspringt Ordner auf anderen Dateisystemen."
+  - id: exclude
+    flags: ["--exclude"]
+    label: Muster ausschließen
+    type: string
+    metavar: MUSTER
+    group: Umfang
+    importance: normal
+    help: "Überspringt Dateien, deren Name zum Muster passt."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolgreich"
+    1: "Fehler, z. B. Ordner nicht lesbar"
+
+examples:
+  - title: "Gesamtgröße eines Ordners"
+    description: "Zeigt die Summe eines Ordners in einer Zeile."
+    fixtures:
+      - path: projekt/a.txt
+        content: "hallo\n"
+      - path: projekt/unter/b.txt
+        content: "welt\n"
+    args:
+      summarize: true
+      file: ["projekt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "projekt"
+  - title: "Nur oberste Ebene"
+    description: "Zeigt den Ordner und seine direkten Unterordner."
+    fixtures:
+      - path: projekt/a.txt
+        content: "hallo\n"
+      - path: projekt/unter/b.txt
+        content: "welt\n"
+    args:
+      max_depth: 1
+      file: ["projekt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "unter"
+
+i18n:
+  en:
+    display_name: "du – disk usage"
+    category: Files
+    summary: "Shows how much space files and folders use."
+    description: |
+      du calculates the space used by folders including subfolders. Typical use is finding the biggest folders when storage runs low.
+      "Readable sizes" prints KB, MB or GB; "Summary only" prints just one line per argument.
+      Pitfall: without a depth limit, every subfolder is listed separately. Large directories take a while.
+    options:
+      human_readable: {label: "Readable sizes", help: "Prints sizes as KB, MB, GB."}
+      summarize: {label: "Summary only", help: "Shows only the total for each argument."}
+      max_depth: {label: "Maximum depth", help: "Shows folders only down to this nesting depth."}
+      all: {label: "Include files", help: "Lists individual files, not just folders."}
+      total: {label: "Add grand total", help: "Appends a total line at the end."}
+      apparent_size: {label: "Apparent size", help: "Shows file size instead of disk space used."}
+      one_file_system: {label: "Stay on one file system", help: "Skips folders on other file systems."}
+      exclude: {label: "Exclude pattern", help: "Skips files whose name matches the pattern."}
+    inputs:
+      file: {label: "Files or folders", help: "What to measure (default: current folder)."}

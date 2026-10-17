@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: ping
+display_name: "ping – Erreichbarkeit testen"
+category: Netzwerk
+summary: "Prüft, ob ein Rechner im Netz antwortet, und misst die Laufzeit."
+description: |
+  ping schickt kleine Testpakete an einen Rechner (Name oder IP-Adresse) und zeigt, wie schnell die Antworten kommen. Typisch ist der Test, ob das Internet oder ein Server im Heimnetz erreichbar ist.
+  Stolperfalle: Ohne "Anzahl Pakete" läuft ping endlos weiter, bis es mit Strg+C beendet wird. Manche Server blockieren ping, obwohl sie sonst erreichbar sind.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: destination
+    label: Ziel
+    type: string
+    required: true
+    position: 0
+    help: "Rechnername oder IP-Adresse, z. B. example.org."
+
+options:
+  - id: c
+    flags: ["-c"]
+    label: Anzahl Pakete
+    type: int
+    min: 1
+    metavar: ANZAHL
+    group: Ablauf
+    importance: common
+    help: "Beendet ping nach dieser Anzahl Antworten."
+  - id: i
+    flags: ["-i"]
+    label: Pause zwischen Paketen
+    type: float
+    min: 0
+    metavar: SEKUNDEN
+    group: Ablauf
+    importance: normal
+    help: "Sekunden zwischen zwei Paketen; sehr kleine Werte sind nur mit Root erlaubt."
+  - id: w_upper
+    flags: ["-W"]
+    label: Wartezeit auf Antwort
+    type: int
+    min: 1
+    metavar: SEKUNDEN
+    group: Ablauf
+    importance: normal
+    help: "Wie lange ping auf eine einzelne Antwort wartet."
+  - id: opt_4
+    flags: ["-4"]
+    label: Nur IPv4
+    group: Netz
+    importance: normal
+    help: "Verwendet ausschließlich IPv4."
+  - id: opt_6
+    flags: ["-6"]
+    label: Nur IPv6
+    group: Netz
+    importance: normal
+    help: "Verwendet ausschließlich IPv6."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Mindestens eine Antwort erhalten"
+    1: "Keine Antwort"
+    2: "Fehler, z. B. Name nicht auflösbar"
+
+i18n:
+  en:
+    display_name: "ping – test reachability"
+    category: Network
+    summary: "Checks whether a host answers on the network and measures the round-trip time."
+    description: |
+      ping sends small test packets to a host (name or IP address) and shows how fast the replies arrive. It is typically used to test whether the internet or a server on the home network is reachable.
+      Pitfall: Without "Number of packets" ping runs forever until stopped with Ctrl+C. Some servers block ping although they are reachable otherwise.
+    inputs:
+      destination: {label: "Target", help: "Host name or IP address, e.g. example.org."}
+    options:
+      c: {label: "Number of packets", help: "Stops ping after this many replies."}
+      i: {label: "Pause between packets", help: "Seconds between two packets; very small values need root."}
+      w_upper: {label: "Wait time for reply", help: "How long ping waits for a single reply."}
+      opt_4: {label: "IPv4 only", help: "Uses IPv4 exclusively."}
+      opt_6: {label: "IPv6 only", help: "Uses IPv6 exclusively."}

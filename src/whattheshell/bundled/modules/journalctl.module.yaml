@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: journalctl
+display_name: "journalctl – Systemlog lesen"
+category: System
+summary: "Zeigt Einträge des systemd-Journals."
+description: |
+  journalctl liest das zentrale Systemlog. Typisch ist die Fehlersuche für einen Dienst ("Dienst" angeben) oder die Frage, was beim letzten Start passiert ist ("Aktueller Start").
+  Stolperfallen: Ohne Einschränkung ist die Ausgabe riesig; "Anzahl Zeilen" oder ein Zeitfilter helfen. Ohne Root sieht man evtl. nicht alle Einträge (Gruppe systemd-journal oder sudo).
+override_mode: merge
+safety: safe
+
+options:
+  - id: unit
+    flags: ["-u", "--unit"]
+    label: Dienst
+    type: string
+    metavar: UNIT
+    group: Filter
+    importance: common
+    help: "Zeigt nur Einträge dieser Unit, z. B. sshd.service."
+  - id: boot
+    flags: ["-b", "--boot"]
+    label: Aktueller Start
+    type: bool
+    group: Filter
+    importance: common
+    help: "Zeigt nur Einträge seit dem letzten Systemstart."
+  - id: lines
+    flags: ["-n", "--lines"]
+    label: Anzahl Zeilen
+    type: int
+    min: 1
+    metavar: ZAHL
+    group: Ausgabe
+    importance: common
+    help: "Zeigt nur die jüngsten Einträge dieser Anzahl."
+  - id: since
+    flags: ["-S", "--since"]
+    label: Ab Zeitpunkt
+    type: string
+    metavar: DATUM
+    group: Filter
+    importance: normal
+    help: "Zeigt nur Einträge ab diesem Zeitpunkt, z. B. today oder \"2 hours ago\"."
+  - id: until
+    flags: ["-U", "--until"]
+    label: Bis Zeitpunkt
+    type: string
+    metavar: DATUM
+    group: Filter
+    importance: normal
+    help: "Zeigt nur Einträge bis zu diesem Zeitpunkt, z. B. yesterday."
+  - id: priority
+    flags: ["-p", "--priority"]
+    label: Priorität
+    type: string
+    metavar: BEREICH
+    group: Filter
+    importance: normal
+    help: "Filtert nach Schweregrad, z. B. err oder warning..err."
+  - id: no_pager
+    flags: ["--no-pager"]
+    label: Ohne Seitenanzeige
+    type: bool
+    group: Ausgabe
+    importance: common
+    help: "Gibt alles direkt aus, ohne Pager (less)."
+  - id: follow
+    flags: ["-f", "--follow"]
+    label: Live mitlesen
+    type: bool
+    group: Ausgabe
+    importance: rare
+    help: "Wartet auf neue Einträge und zeigt sie laufend an; beendet sich nicht von selbst."
+
+output:
+  stdout:
+    kind: lines
+
+i18n:
+  en:
+    display_name: "journalctl – read system log"
+    summary: "Shows entries of the systemd journal."
+    description: |
+      journalctl reads the central system log. Typical use is troubleshooting a service (set "Service") or finding out what happened during the last boot ("Current boot").
+      Pitfalls: without a restriction the output is huge; "Number of lines" or a time filter helps. Without root you may not see all entries (group systemd-journal or sudo).
+    category: System
+    options:
+      unit: {label: "Service", help: "Shows only entries of this unit, e.g. sshd.service."}
+      boot: {label: "Current boot", help: "Shows only entries since the last boot."}
+      lines: {label: "Number of lines", help: "Shows only this many of the most recent entries."}
+      since: {label: "Since", help: "Shows only entries from this point in time, e.g. today or \"2 hours ago\"."}
+      until: {label: "Until", help: "Shows only entries up to this point in time, e.g. yesterday."}
+      priority: {label: "Priority", help: "Filters by severity, e.g. err or warning..err."}
+      no_pager: {label: "No pager", help: "Prints everything directly without a pager (less)."}
+      follow: {label: "Follow live", help: "Waits for new entries and keeps showing them; does not end on its own."}

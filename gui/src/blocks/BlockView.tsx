@@ -39,8 +39,9 @@ export function BlockView(props: {
   categoryOf: (tool: string) => string | null;
   knownTools: ReadonlySet<string>;
   interactiveTools: ReadonlySet<string>;
+  missingTools: ReadonlyMap<string, string | null>;
 }) {
-  const { wf, selected, onSelect, edit, catalogTool, safetyOf, categoryOf, knownTools, interactiveTools } = props;
+  const { wf, selected, onSelect, edit, catalogTool, safetyOf, categoryOf, knownTools, interactiveTools, missingTools } = props;
   const toolStep = (name: string) => commandStep(wf, name, { terminal: interactiveTools.has(name) });
   const tree = useMemo(() => toBlocks(wf), [wf]);
   const [live, setLive] = useState("");
@@ -163,6 +164,7 @@ export function BlockView(props: {
             <span className="blk-title">{title}</span>
             <span className="badge">{t(`kind.${kind}`)}</span>
             {safety && <span className={`badge badge--${safety}`}>{t(`safety.${safety}`)}</span>}
+            {missingTools.has(s.id) && <span className="badge badge--dangerous">{t("step.toolmissing")}</span>}
             <button className="blk-menu-btn btn--icon" aria-label={t("blocks.menu", { id: s.id })} aria-expanded={menu === s.id}
               onClick={(e) => { e.stopPropagation(); setMenu(menu === s.id ? null : s.id); }}>⋯</button>
           </div>

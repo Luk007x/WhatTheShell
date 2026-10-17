@@ -117,6 +117,14 @@ def test_not_found(bin_dir: Path, cat: Catalog) -> None:
         cat.get("nope")
 
 
+def test_not_found_shows_install_hint(bin_dir: Path, tmp_path: Path) -> None:
+    registry = _registry(
+        tmp_path, "schema_version: 1\ntool: nope\ninstall: 'Fedora: sudo dnf install nope'\n"
+    )
+    with pytest.raises(ToolNotFound, match="Installation: Fedora: sudo dnf install nope"):
+        Catalog(tmp_path / "cache", registry).get("nope")
+
+
 def test_fallback(bin_dir: Path, cat: Catalog) -> None:
     make_tool(bin_dir, "silent", "#!/bin/sh\nexit 1\n")
     info = cat.get("silent")

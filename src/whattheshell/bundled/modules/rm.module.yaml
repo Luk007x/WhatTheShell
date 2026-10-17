@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: rm
+display_name: "rm – Dateien löschen"
+category: Dateien
+summary: "Löscht Dateien und Ordner unwiederbringlich."
+description: |
+  rm entfernt Dateien endgültig; es gibt keinen Papierkorb und keine Rückgängig-Funktion. Ordner werden nur mit "Rekursiv" samt Inhalt gelöscht.
+  Typischer Einsatz: Aufräumen von Temporärdateien oder alten Ordnern.
+  Stolperfallen: Vor dem Ausführen Pfad und Muster doppelt prüfen. "Rekursiv" zusammen mit "Ohne Rückfrage" löscht ganze Verzeichnisbäume sofort.
+override_mode: merge
+safety: dangerous
+
+inputs:
+  - id: file
+    label: Dateien oder Ordner
+    type: path
+    multiple: true
+    required: true
+    position: 0
+    help: "Alles, was gelöscht werden soll."
+
+options:
+  - id: recursive
+    flags: ["-r", "-R", "--recursive"]
+    label: Rekursiv
+    group: Auswahl
+    importance: common
+    help: "Löscht Ordner samt allem, was darin liegt."
+  - id: force
+    flags: ["-f", "--force"]
+    label: Ohne Rückfrage
+    group: Auswahl
+    importance: common
+    help: "Ignoriert fehlende Dateien und fragt nie nach."
+  - id: i
+    flags: ["-i"]
+    label: Vor jedem Löschen fragen
+    group: Auswahl
+    importance: rare
+    help: "Fragt vor jeder Datei nach (braucht ein Terminal)."
+  - id: dir
+    flags: ["-d", "--dir"]
+    label: Leere Ordner löschen
+    group: Auswahl
+    importance: normal
+    help: "Entfernt auch leere Ordner, ohne sie rekursiv zu behandeln."
+  - id: one_file_system
+    flags: ["--one-file-system"]
+    label: Auf einem Dateisystem bleiben
+    group: Auswahl
+    importance: rare
+    help: "Überspringt Ordner, die auf einem anderen Dateisystem liegen (nur mit Rekursiv)."
+  - id: verbose
+    flags: ["-v", "--verbose"]
+    label: Ausführlich
+    group: Ausgabe
+    importance: common
+    help: "Zeigt jede gelöschte Datei an."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Alles gelöscht"
+    1: "Fehler, z. B. Datei nicht vorhanden oder nicht löschbar"
+
+i18n:
+  en:
+    display_name: "rm – delete files"
+    category: Files
+    summary: "Deletes files and folders permanently."
+    description: |
+      rm removes files for good; there is no trash and no undo. Folders are only deleted, including their contents, with "Recursive".
+      Typical use: cleaning up temporary files or old folders.
+      Pitfalls: double-check paths and patterns before running. "Recursive" together with "Force" deletes whole directory trees immediately.
+    options:
+      recursive: {label: "Recursive", help: "Deletes folders including everything inside."}
+      force: {label: "Force", help: "Ignores missing files and never asks."}
+      i: {label: "Ask before each deletion", help: "Asks before every file (needs a terminal)."}
+      dir: {label: "Delete empty folders", help: "Also removes empty folders without recursing."}
+      one_file_system: {label: "Stay on one file system", help: "Skips folders on a different file system (only with Recursive)."}
+      verbose: {label: "Verbose", help: "Shows each deleted file."}
+    inputs:
+      file: {label: "Files or folders", help: "Everything that is to be deleted."}

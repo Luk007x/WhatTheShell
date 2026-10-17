@@ -7,7 +7,7 @@ from whattheshell.models.catalog import CommandSpec
 from whattheshell.models.common import InputSpec, OptionSpec
 from whattheshell.models.module import FieldText
 
-TEXT_FIELDS = {"display_name", "summary", "description"}
+TEXT_FIELDS = {"display_name", "category", "summary", "description"}
 T = TypeVar("T", InputSpec, OptionSpec)
 
 

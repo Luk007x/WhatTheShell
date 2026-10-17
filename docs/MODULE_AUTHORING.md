@@ -104,6 +104,7 @@ Pflicht "ja" heißt: Datei ist sonst ungültig. Alle anderen Felder dürfen fehl
 | `override_mode` | nein | `merge`/`replace` | Standard `merge` | `replace` |
 | `display_name`, `category`, `summary`, `description` | nein | string | Anzeigetexte | `category: Text` |
 | `safety` | nein | `safe`/`caution`/`dangerous` | Klasse des Befehls (Abschnitt 5) | `caution` |
+| `install` | nein | string | Installationsbefehle je Distribution als Freitext; steht in der Meldung „Tool nicht auf PATH gefunden“ und im Schrittpanel | `install: "Fedora: sudo dnf install jq · Debian/Ubuntu: sudo apt install jq"` |
 
 **`inputs` (Positionsargumente) und `options`** (gleiche Felder; `flags` nur bei Optionen, `position` nur bei Inputs)
 
@@ -140,7 +141,7 @@ subcommands:
 
 **`templates`**: `title`, `workflow` (Pfad relativ zur Moduldatei, ohne `..`): `{ title: "Treffer zählen", workflow: grep_count.workflow.yaml }`.
 
-**`i18n`**: Sprachcode → `display_name`, `summary`, `description`, `options: {id: {label, help}}`, `inputs: {id: {label, help}}`. Basistexte sind deutsch, `en` ist die Standardübersetzung.
+**`i18n`**: Sprachcode → `display_name`, `category`, `summary`, `description`, `options: {id: {label, help}}`, `inputs: {id: {label, help}}`. Basistexte sind deutsch, `en` ist die Standardübersetzung.
 
 ## 4. Merge-Regeln
 

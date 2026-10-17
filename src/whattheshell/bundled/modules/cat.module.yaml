@@ -1,0 +1,107 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: cat
+display_name: "cat – Dateien ausgeben"
+category: Dateien
+summary: "Gibt Dateien nacheinander auf dem Bildschirm aus."
+description: |
+  cat gibt den Inhalt einer oder mehrerer Dateien aus und hängt sie dabei aneinander. Typisch ist das Ansehen kurzer Dateien oder das Zusammenfügen mehrerer Dateien.
+  Stolperfalle: Ohne Dateiangabe wartet cat auf Eingaben. Bei großen Dateien ist head oder tail oft besser.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: file
+    label: Dateien
+    type: path
+    multiple: true
+    position: 0
+    help: "Dateien, die ausgegeben werden."
+
+options:
+  - id: number
+    flags: ["-n", "--number"]
+    label: Zeilen nummerieren
+    group: Ausgabe
+    importance: common
+    help: "Setzt jeder Zeile ihre Nummer voran."
+  - id: number_nonblank
+    flags: ["-b", "--number-nonblank"]
+    label: Nur nichtleere Zeilen nummerieren
+    group: Ausgabe
+    importance: normal
+    help: "Nummeriert nur Zeilen mit Inhalt."
+  - id: squeeze_blank
+    flags: ["-s", "--squeeze-blank"]
+    label: Leerzeilen zusammenfassen
+    group: Ausgabe
+    importance: normal
+    help: "Ersetzt mehrere aufeinanderfolgende Leerzeilen durch eine."
+  - id: show_ends
+    flags: ["-E", "--show-ends"]
+    label: Zeilenenden anzeigen
+    group: Sichtbar machen
+    importance: normal
+    help: "Markiert jedes Zeilenende mit $."
+  - id: show_tabs
+    flags: ["-T", "--show-tabs"]
+    label: Tabulatoren anzeigen
+    group: Sichtbar machen
+    importance: normal
+    help: "Zeigt Tabulatoren als ^I an."
+  - id: show_all
+    flags: ["-A", "--show-all"]
+    label: Alles sichtbar machen
+    group: Sichtbar machen
+    importance: rare
+    help: "Zeigt Zeilenenden, Tabulatoren und Steuerzeichen an."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolgreich"
+    1: "Fehler, z. B. Datei nicht lesbar"
+
+examples:
+  - title: "Datei mit Zeilennummern"
+    description: "Gibt eine Datei aus und nummeriert die Zeilen."
+    fixtures:
+      - path: notiz.txt
+        content: "eins\nzwei\n"
+    args:
+      number: true
+      file: ["notiz.txt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "zwei"
+  - title: "Dateien zusammenfügen"
+    description: "Hängt zwei Dateien aneinander."
+    fixtures:
+      - path: a.txt
+        content: "Anfang\n"
+      - path: b.txt
+        content: "Ende\n"
+    args:
+      file: ["a.txt", "b.txt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "Ende"
+
+i18n:
+  en:
+    display_name: "cat – print files"
+    category: Files
+    summary: "Prints files one after another."
+    description: |
+      cat prints the contents of one or more files, joining them together. Typical use is viewing short files or concatenating several files.
+      Pitfall: without a file argument, cat waits for input. For large files, head or tail is often better.
+    options:
+      number: {label: "Number lines", help: "Prefixes each line with its number."}
+      number_nonblank: {label: "Number non-blank lines", help: "Numbers only lines with content."}
+      squeeze_blank: {label: "Squeeze blank lines", help: "Replaces consecutive blank lines with one."}
+      show_ends: {label: "Show line ends", help: "Marks each line end with $."}
+      show_tabs: {label: "Show tabs", help: "Shows tabs as ^I."}
+      show_all: {label: "Show everything", help: "Shows line ends, tabs and control characters."}
+    inputs:
+      file: {label: "Files", help: "Files to print."}

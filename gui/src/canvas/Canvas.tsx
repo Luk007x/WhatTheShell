@@ -60,6 +60,7 @@ function StepNodeView({ data, selected }: NodeProps<StepNode>) {
         <span className="node-title">{s.label ?? s.id}</span>
         {isTerminal(s) && <span className="badge"><Icon name="terminal" />{t("kind.terminal")}</span>}
         {safety && <span className={`badge badge--${safety}`}>{t(`safety.${safety}`)}</span>}
+        {data.missing && <span className="badge badge--dangerous">{t("step.toolmissing")}</span>}
       </div>
       <div className="node-sub" title={subtitle(s)}>{subtitle(s)}</div>
       {kind === "command" && <div className="node-io">{at("left")}{at("right")}</div>}
@@ -114,10 +115,12 @@ export function Canvas(props: {
   knownTools: ReadonlySet<string>;
   /** Tools the catalog marks as interactive: they become terminal steps. */
   interactiveTools: ReadonlySet<string>;
+  /** Step id to install hint for steps whose tool is not installed. */
+  missingTools: ReadonlyMap<string, string | null>;
   /** Set to "append this tool at the chosen target" for the catalog's Enter key. */
   addToolRef?: MutableRefObject<((tool: string) => void) | null>;
 }) {
-  const { wf, selected, onSelect, edit, catalogTool, safetyOf, categoryOf, onNotice, addToolRef, knownTools, interactiveTools } = props;
+  const { wf, selected, onSelect, edit, catalogTool, safetyOf, categoryOf, onNotice, addToolRef, knownTools, interactiveTools, missingTools } = props;
   const toolStep = (name: string) => commandStep(wf, name, { terminal: interactiveTools.has(name) });
   const rf = useRef<ReactFlowInstance<StepNode, FlowEdge> | null>(null);
   const [target, setTarget] = useState("end");
@@ -132,10 +135,10 @@ export function Canvas(props: {
         ...n,
         selected: n.id === selected,
         ariaLabel: [s.label ?? s.id, t(`kind.${s.kind ?? "command"}`), safety ? t(`safety.${safety}`) : ""].filter(Boolean).join(", "),
-        data: { ...n.data, safety, category: isToolStep(s) ? categoryOf(s.tool) : null },
+        data: { ...n.data, safety, category: isToolStep(s) ? categoryOf(s.tool) : null, missing: missingTools.has(s.id) },
       };
     }));
-  }, [graph, selected, safetyOf, categoryOf]);
+  }, [graph, selected, safetyOf, categoryOf, missingTools]);
 
   const edges: FlowEdge[] = graph.edges.map((e) => {
     const pipe = e.data?.kind === "pipe";

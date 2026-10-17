@@ -1,0 +1,95 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: tail
+display_name: "tail – Dateiende anzeigen"
+category: Dateien
+summary: "Zeigt die letzten Zeilen einer Datei."
+description: |
+  tail gibt standardmäßig die letzten 10 Zeilen einer Datei aus. Typisch ist der Blick auf die neuesten Einträge einer Logdatei.
+  Mit "Mitverfolgen" bleibt tail offen und zeigt neue Zeilen, sobald sie hinzukommen.
+  Stolperfalle: Mitverfolgen endet nie von selbst und muss abgebrochen werden.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: file
+    label: Dateien
+    type: path
+    multiple: true
+    position: 0
+    help: "Dateien, deren Ende angezeigt wird."
+
+options:
+  - id: lines
+    flags: ["-n", "--lines"]
+    label: Zeilen
+    type: string
+    metavar: NUM
+    group: Umfang
+    importance: common
+    help: "Anzahl der Zeilen; +NUM zeigt ab Zeile NUM."
+  - id: bytes
+    flags: ["-c", "--bytes"]
+    label: Bytes
+    type: string
+    metavar: NUM
+    group: Umfang
+    importance: normal
+    help: "Zeigt die letzten Bytes statt Zeilen."
+  - id: follow
+    flags: ["-f", "--follow"]
+    label: Mitverfolgen
+    type: bool
+    group: Ausgabe
+    importance: rare
+    help: "Bleibt offen und zeigt neu angehängte Zeilen (endet nicht von selbst)."
+  - id: quiet
+    flags: ["-q", "--quiet", "--silent"]
+    label: Keine Dateinamen
+    group: Ausgabe
+    importance: normal
+    help: "Unterdrückt die Kopfzeilen mit Dateinamen."
+  - id: verbose
+    flags: ["-v", "--verbose"]
+    label: Immer Dateinamen
+    group: Ausgabe
+    importance: rare
+    help: "Zeigt immer eine Kopfzeile mit dem Dateinamen."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolgreich"
+    1: "Fehler, z. B. Datei nicht lesbar"
+
+examples:
+  - title: "Letzte zwei Zeilen"
+    description: "Zeigt nur das Ende einer Datei."
+    fixtures:
+      - path: liste.txt
+        content: "eins\nzwei\ndrei\n"
+    args:
+      lines: "2"
+      file: ["liste.txt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "drei"
+
+i18n:
+  en:
+    display_name: "tail – show end of file"
+    category: Files
+    summary: "Shows the last lines of a file."
+    description: |
+      tail prints the last 10 lines of a file by default. Typical use is looking at the newest entries of a log file.
+      "Follow" keeps tail running and shows new lines as they are appended.
+      Pitfall: following never ends on its own and has to be cancelled.
+    options:
+      lines: {label: "Lines", help: "Number of lines; +NUM starts output at line NUM."}
+      bytes: {label: "Bytes", help: "Shows the last bytes instead of lines."}
+      follow: {label: "Follow", help: "Keeps running and shows newly appended lines (does not end on its own)."}
+      quiet: {label: "No file names", help: "Suppresses the header lines with file names."}
+      verbose: {label: "Always file names", help: "Always shows a header line with the file name."}
+    inputs:
+      file: {label: "Files", help: "Files whose end is shown."}

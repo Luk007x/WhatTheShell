@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: hostname
+display_name: "hostname – Rechnername anzeigen"
+category: System
+summary: "Zeigt den Namen dieses Rechners."
+description: |
+  hostname gibt den Namen des Rechners aus, unter dem er im Netzwerk auftritt. Praktisch, um sicherzugehen, auf welcher Maschine man gerade arbeitet.
+  Stolperfalle: Mit Argumenten kann hostname den Namen ändern; dieses Modul zeigt ihn nur an.
+override_mode: merge
+safety: safe
+
+output:
+  stdout:
+    kind: text
+
+examples:
+  - title: "Rechnername"
+    description: "Gibt den Rechnernamen aus."
+    expect:
+      exit_code: 0
+
+i18n:
+  en:
+    display_name: "hostname – show host name"
+    summary: "Shows the name of this computer."
+    description: |
+      hostname prints the name under which this computer appears on the network. Handy to make sure which machine you are working on.
+      Pitfall: with arguments hostname can change the name; this module only displays it.
+    category: System

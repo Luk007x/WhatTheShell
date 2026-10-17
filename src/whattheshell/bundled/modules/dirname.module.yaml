@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: dirname
+display_name: "dirname – Ordner aus Pfad"
+category: Dateien
+summary: "Gibt den Ordnerteil eines Pfades aus."
+description: |
+  dirname entfernt den letzten Namen eines Pfades und gibt den Ordner davor aus, z. B. wird aus /etc/hosts der Ordner /etc.
+  Hat der Pfad keinen Ordnerteil, ergibt sich ein Punkt für den aktuellen Ordner.
+  Typischer Einsatz: in Skripten den Ordner einer Datei bestimmen. Es wird nicht geprüft, ob der Pfad existiert.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: name
+    label: Pfade
+    type: string
+    multiple: true
+    required: true
+    position: 0
+    help: "Pfade, deren Ordnerteil ausgegeben wird."
+
+options:
+  - id: zero
+    flags: ["-z", "--zero"]
+    label: Mit Nullbyte trennen
+    group: Ausgabe
+    importance: rare
+    help: "Trennt die Ausgabe mit Nullbytes statt Zeilenumbrüchen."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolgreich"
+    1: "Fehler, z. B. fehlendes Argument"
+
+examples:
+  - title: "Ordner eines Pfades"
+    description: "Gibt den Ordnerteil aus."
+    args:
+      name: ["/home/anna/bericht.txt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "/home/anna"
+
+i18n:
+  en:
+    display_name: "dirname – folder from path"
+    category: Files
+    summary: "Prints the folder part of a path."
+    description: |
+      dirname removes the last name of a path and prints the folder before it, e.g. /etc/hosts becomes /etc.
+      If the path has no folder part, the result is a dot for the current folder.
+      Typical use: determining the folder of a file in scripts. It does not check whether the path exists.
+    options:
+      zero: {label: "Separate with NUL", help: "Separates output with NUL bytes instead of newlines."}
+    inputs:
+      name: {label: "Paths", help: "Paths whose folder part is printed."}

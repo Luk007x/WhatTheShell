@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: dig
+display_name: "dig – DNS abfragen"
+category: Netzwerk
+summary: "Fragt den Namensdienst (DNS) nach den Daten zu einem Domainnamen ab."
+description: |
+  dig fragt das DNS ab, also das "Telefonbuch des Internets", und zeigt etwa die IP-Adresse zu einem Namen. Typisch ist die Fehlersuche, wenn eine Webseite nicht erreichbar ist.
+  Mit "Nur die Antwort" wird die Ausgabe kurz. Der Typ legt fest, was gefragt wird: A (IPv4-Adresse), AAAA (IPv6), MX (Mailserver), TXT (Textdaten) u. a.
+override_mode: merge
+safety: safe
+install: "Fedora: sudo dnf install bind-utils · Debian/Ubuntu: sudo apt install dnsutils"
+
+inputs:
+  - id: name
+    label: Name
+    type: string
+    required: true
+    position: 0
+    help: "Domainname, z. B. example.org."
+  - id: record_type
+    label: Typ
+    type: string
+    position: 1
+    help: "Art des Eintrags, z. B. A, AAAA, MX, TXT; ohne Angabe A."
+
+options:
+  - id: short
+    flags: ["+short"]
+    label: Nur die Antwort
+    group: Ausgabe
+    importance: common
+    help: "Gibt nur die Antwortdaten ohne Zusatzinformationen aus."
+
+output:
+  stdout:
+    kind: lines
+
+i18n:
+  en:
+    display_name: "dig – query DNS"
+    category: Network
+    summary: "Queries the name service (DNS) for the data of a domain name."
+    description: |
+      dig queries DNS, the "phone book of the internet", and shows for example the IP address of a name. It is typically used for troubleshooting when a website cannot be reached.
+      With "Answer only" the output is short. The type defines what is asked: A (IPv4 address), AAAA (IPv6), MX (mail servers), TXT (text data) and more.
+    inputs:
+      name: {label: "Name", help: "Domain name, e.g. example.org."}
+      record_type: {label: "Type", help: "Kind of record, e.g. A, AAAA, MX, TXT; A if omitted."}
+    options:
+      short: {label: "Answer only", help: "Prints only the answer data without extra information."}

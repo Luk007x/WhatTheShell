@@ -115,9 +115,15 @@ examples:
 
 i18n:
   en:
+    inputs:
+      "file": {label: "Files", help: "Files to count; without any, standard input is read."}
     display_name: "wc – Count lines, words and characters"
+    category: Text
     summary: "Counts lines, words and bytes in files or input."
     options:
+      "max_line_length": {label: "Longest line", help: "Prints the length of the longest line."}
+      "total": {label: "Total", help: "Controls whether a total line is printed (auto, always, only, never)."}
+      "files0_from": {label: "File list from file", help: "Reads null-separated file names from a file, e.g. from find -print0."}
       lines: {label: "Count lines", help: "Prints the number of newlines."}
       words: {label: "Count words", help: "Prints the number of whitespace-separated words."}
       chars: {label: "Count characters", help: "Prints the number of characters (umlauts count once)."}

@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: echo
+display_name: "echo – Text ausgeben"
+category: Text
+summary: "Gibt den angegebenen Text aus."
+description: |
+  echo schreibt seine Argumente, durch Leerzeichen getrennt, auf die Ausgabe. Es dient zum Testen, für Meldungen und um Text in eine Pipeline zu schicken.
+  Stolperfallen: Normalerweise folgt ein Zeilenumbruch. Sonderzeichen wie \n oder \t wirken nur mit "Escape-Folgen auswerten".
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: text
+    label: Text
+    type: string
+    multiple: true
+    position: 0
+    help: "Der auszugebende Text."
+
+options:
+  - id: n
+    flags: ["-n"]
+    label: Ohne Zeilenumbruch
+    type: bool
+    group: Ausgabe
+    importance: common
+    help: "Lässt den abschließenden Zeilenumbruch weg."
+  - id: e
+    flags: ["-e"]
+    label: Escape-Folgen auswerten
+    type: bool
+    group: Ausgabe
+    importance: common
+    help: "Wertet \\n (Zeilenumbruch), \\t (Tabulator) und ähnliche Folgen aus."
+
+output:
+  stdout:
+    kind: text
+  exit_codes:
+    0: "Erfolg"
+
+examples:
+  - title: "Text ausgeben"
+    description: "Gibt einen einfachen Text aus."
+    args:
+      text: ["Hallo", "Welt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "Hallo Welt"
+  - title: "Mit Tabulator"
+    description: "Wertet die Folge \\t als Tabulator aus."
+    args:
+      e: true
+      text: ["a\\tb"]
+    expect:
+      exit_code: 0
+      stdout_regex: "a\\tb"
+
+i18n:
+  en:
+    display_name: "echo – print text"
+    category: Text
+    summary: "Prints the given text."
+    description: |
+      echo writes its arguments, separated by spaces, to the output. It is used for testing, for messages and to feed text into a pipeline.
+      Pitfalls: a newline normally follows. Sequences such as \n or \t only take effect with "Interpret escape sequences".
+    inputs:
+      text: {label: "Text", help: "The text to print."}
+    options:
+      n: {label: "No trailing newline", help: "Omits the final newline."}
+      e: {label: "Interpret escape sequences", help: "Interprets \\n (newline), \\t (tab) and similar sequences."}

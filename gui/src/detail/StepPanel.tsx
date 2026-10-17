@@ -494,12 +494,19 @@ function ControlForm({ step, wf, update }: { step: Exclude<Step, CommandStep | T
 export function StepPanel(props: {
   step: Step; wf: Workflow; sandbox: SandboxStatus | null; onRetest: () => void;
   update: Update; rename: (newId: string) => void; remove: () => void; autoPreview: boolean;
+  missing?: { install: string | null };
 }) {
   const { step } = props;
   const [idDraft, setIdDraft] = useState(step.id);
   return (
     <div className="step-panel">
       <h3 className="step-title">{step.label ?? step.id} <span className="badge">{t(`kind.${step.kind ?? "command"}`)}</span></h3>
+      {props.missing && isToolStep(step) && (
+        <>
+          <p role="alert" className="error">{t("step.toolmissing.help", { tool: step.tool })}</p>
+          {props.missing.install && <p>{t("step.install")}: <code className="install-hint">{props.missing.install}</code></p>}
+        </>
+      )}
       <Text id={`f-${step.id}-id`} label={t("step.id")} help={t("step.id.help")} value={idDraft} onChange={(v) => { setIdDraft(v); }} />
       {idDraft !== step.id && <button onClick={() => props.rename(idDraft)}>{t("step.rename")}</button>}
       <Text id={`f-${step.id}-label`} label={t("step.label")} value={step.label ?? ""} onChange={(v) => props.update({ label: v || undefined }, "label")} />

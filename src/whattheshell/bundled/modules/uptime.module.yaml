@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: uptime
+display_name: "uptime – Laufzeit anzeigen"
+category: System
+summary: "Zeigt, wie lange der Rechner schon läuft."
+description: |
+  uptime gibt die Zeit seit dem letzten Start aus, dazu Benutzerzahl und die durchschnittliche Systemlast der letzten 1, 5 und 15 Minuten. Typisch, um einen unerwarteten Neustart zu erkennen oder die Auslastung zu prüfen.
+  Last-Werte über der Anzahl der CPU-Kerne bedeuten, dass das System überlastet ist.
+override_mode: merge
+safety: safe
+
+options:
+  - id: pretty
+    flags: ["-p", "--pretty"]
+    label: Lesbare Laufzeit
+    type: bool
+    group: Ausgabe
+    importance: common
+    help: "Zeigt die Laufzeit in Worten, z. B. up 2 days, 3 hours."
+  - id: since
+    flags: ["-s", "--since"]
+    label: Laufend seit
+    type: bool
+    group: Ausgabe
+    importance: common
+    help: "Zeigt Datum und Uhrzeit des letzten Starts."
+
+output:
+  stdout:
+    kind: text
+
+examples:
+  - title: "Startzeitpunkt"
+    description: "Zeigt, seit wann der Rechner läuft."
+    args:
+      since: true
+    expect:
+      exit_code: 0
+
+i18n:
+  en:
+    display_name: "uptime – show running time"
+    summary: "Shows how long the computer has been running."
+    description: |
+      uptime prints the time since the last boot, the number of users and the average system load over the last 1, 5 and 15 minutes. Typical use is spotting an unexpected reboot or checking the load.
+      Load values above the number of CPU cores mean the system is overloaded.
+    category: System
+    options:
+      pretty: {label: "Readable running time", help: "Shows the running time in words, e.g. up 2 days, 3 hours."}
+      since: {label: "Running since", help: "Shows the date and time of the last boot."}

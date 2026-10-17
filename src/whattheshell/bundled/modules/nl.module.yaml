@@ -1,0 +1,112 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: nl
+display_name: "nl – Zeilen nummerieren"
+category: Text
+summary: "Gibt Dateien mit vorangestellten Zeilennummern aus."
+description: |
+  nl setzt jeder Zeile eine Nummer voran. Standardmäßig werden nur nichtleere Zeilen nummeriert; mit "Nummerierung" lässt sich das ändern.
+  Stolperfalle: Die Nummer wird mit einem Tabulator vom Text getrennt. Für einfaches Nummerieren aller Zeilen genügt auch cat -n.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: files
+    label: Dateien
+    type: path
+    multiple: true
+    position: 0
+    help: "Dateien, die nummeriert werden; ohne Angabe wird die Standardeingabe gelesen."
+
+options:
+  - id: body_numbering
+    flags: ["-b", "--body-numbering"]
+    label: Nummerierung
+    type: string
+    metavar: STIL
+    group: Nummerierung
+    importance: common
+    help: "Welche Zeilen: a (alle), t (nur nichtleere), n (keine) oder pREGEXP."
+  - id: number_format
+    flags: ["-n", "--number-format"]
+    label: Nummernformat
+    type: enum
+    choices: [ln, rn, rz]
+    metavar: FORMAT
+    group: Format
+    importance: common
+    help: "ln: linksbündig, rn: rechtsbündig, rz: rechtsbündig mit führenden Nullen."
+  - id: number_width
+    flags: ["-w", "--number-width"]
+    label: Breite der Nummer
+    type: int
+    min: 1
+    metavar: ANZAHL
+    group: Format
+    importance: normal
+    help: "Anzahl Spalten für die Zeilennummer."
+  - id: number_separator
+    flags: ["-s", "--number-separator"]
+    label: Trenner nach der Nummer
+    type: string
+    metavar: ZKETTE
+    group: Format
+    importance: normal
+    help: "Zeichenkette zwischen Nummer und Text (Standard: Tabulator)."
+  - id: starting_line_number
+    flags: ["-v", "--starting-line-number"]
+    label: Erste Nummer
+    type: int
+    metavar: NUMMER
+    group: Nummerierung
+    importance: normal
+    help: "Nummer der ersten Zeile (Standard: 1)."
+  - id: line_increment
+    flags: ["-i", "--line-increment"]
+    label: Schrittweite
+    type: int
+    metavar: ANZAHL
+    group: Nummerierung
+    importance: rare
+    help: "Erhöht die Nummer pro Zeile um diesen Wert."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolg"
+    1: "Fehler, z. B. Datei nicht lesbar"
+
+examples:
+  - title: "Alle Zeilen nummerieren"
+    description: "Nummeriert alle Zeilen, auch leere."
+    fixtures:
+      - path: text.txt
+        content: |
+          eins
+
+          drei
+    args:
+      body_numbering: "a"
+      files: ["text.txt"]
+    expect:
+      exit_code: 0
+      stdout_regex: "3\\tdrei"
+
+i18n:
+  en:
+    display_name: "nl – number lines"
+    category: Text
+    summary: "Prints files with line numbers in front."
+    description: |
+      nl puts a number in front of each line. By default only non-empty lines are numbered; "Numbering" changes that.
+      Pitfall: the number is separated from the text by a tab. To simply number all lines, cat -n also works.
+    inputs:
+      files: {label: "Files", help: "Files to number; without any, standard input is read."}
+    options:
+      body_numbering: {label: "Numbering", help: "Which lines: a (all), t (non-empty only), n (none) or pREGEXP."}
+      number_format: {label: "Number format", help: "ln: left-aligned, rn: right-aligned, rz: right-aligned with leading zeros."}
+      number_width: {label: "Number width", help: "Number of columns for the line number."}
+      number_separator: {label: "Separator after number", help: "String between number and text (default: tab)."}
+      starting_line_number: {label: "First number", help: "Number of the first line (default: 1)."}
+      line_increment: {label: "Step", help: "Increases the number by this value per line."}

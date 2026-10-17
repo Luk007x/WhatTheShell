@@ -163,9 +163,20 @@ examples:
 
 i18n:
   en:
+    inputs:
+      "script": {label: "Script", help: "Sed command, e.g. s/old/new/g; not needed when -e or -f is used."}
+      "input_file": {label: "Input files", help: "Files to edit; without any, standard input is read."}
     display_name: "sed – Transform text"
+    category: Text
     summary: "Replaces and edits text line by line with a short script."
     options:
+      "separate": {label: "Treat files separately", help: "Line numbers and addresses restart in each file."}
+      "follow_symlinks": {label: "Follow symlinks", help: "With -i, edits the target file of a symlink instead of replacing the link."}
+      "null_data": {label: "Null-separated lines", help: "Separates lines with a null byte instead of a newline."}
+      "line_length": {label: "Line length for l", help: "Sets the wrap width of the l command."}
+      "unbuffered": {label: "Unbuffered", help: "Reads and writes in small chunks, useful for live input."}
+      "posix": {label: "Strict POSIX", help: "Disables GNU extensions."}
+      "sandbox": {label: "Sandbox mode", help: "Forbids the commands e, r and w."}
       quiet: {label: "Suppress automatic output", help: "Prints only lines explicitly printed by a command such as p."}
       regexp_extended: {label: "Extended regular expressions", help: "Allows groups and alternatives without backslashes, e.g. (a|b)+."}
       expression: {label: "Script on the command line", help: "Adds a sed command; may be repeated."}

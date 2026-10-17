@@ -24,6 +24,7 @@ CATALOG: dict[str, str] = {
     "{path}: Dateiname entspricht nicht dem Muster {pattern}": "{path}: file name does not match the pattern {pattern}",
     "'{workflow_id}' wird von der Projektdatei {path} (Quelle project) überdeckt. Dort von Hand ändern oder entfernen.": "'{workflow_id}' is overridden by the project file {path} (source project). Change or remove it there by hand.",
     "Tool '{name}' nicht auf PATH gefunden. Prüfe die Schreibweise oder installiere es.": "Tool '{name}' not found on PATH. Check the spelling or install it.",
+    "Installation: {install}": "Installation: {install}",
     "Tool {tool} ist gefährlich": "Tool {tool} is dangerous",
     "Tool {tool} erfordert Vorsicht": "Tool {tool} requires caution",
     "systemctl fährt das System herunter oder startet neu": "systemctl shuts the system down or reboots it",

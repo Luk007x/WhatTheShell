@@ -102,6 +102,10 @@ Variables are passed to `wts run` as `--var name=value`, e.g. `--var logdir=./lo
 
 `wts run` found risky steps and cannot ask (e.g. in a script). Confirm with `--yes` or check first with `--dry-run` (exit code 2).
 
+### "Tool … not found on PATH"
+
+The step's tool is not installed. The step carries the "Tool missing" marker in the graph and block view, and the step panel shows the hint. Install the tool; if the module has an install command, it is in the message ("Installation: …"). Otherwise check the spelling of the tool.
+
 ### "Working directory … does not exist"
 
 Give an existing folder with `--cwd`.

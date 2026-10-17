@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: which
+display_name: "which – Programm im PATH finden"
+category: System
+summary: "Zeigt den vollen Pfad eines Befehls."
+description: |
+  which sucht einen Befehl in den Ordnern der PATH-Variable und gibt den Pfad der ersten Fundstelle aus. Typisch, um zu klären, welche Version eines Programms tatsächlich gestartet wird.
+  Stolperfallen: Shell-eigene Befehle und Aliase findet which nicht. Wird nichts gefunden, endet es mit Exit-Code 1.
+override_mode: merge
+safety: safe
+install: "Fedora: sudo dnf install which · Debian/Ubuntu: sudo apt install debianutils"
+
+inputs:
+  - id: command
+    label: Befehl
+    type: string
+    required: true
+    multiple: true
+    position: 0
+    help: "Name eines oder mehrerer Befehle, z. B. python3."
+
+options:
+  - id: all
+    flags: ["-a", "--all"]
+    label: Alle Fundstellen
+    type: bool
+    group: Suche
+    importance: common
+    help: "Zeigt alle Treffer im PATH, nicht nur den ersten."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Alle Befehle gefunden"
+    1: "Mindestens ein Befehl nicht gefunden"
+
+examples:
+  - title: "Pfad von sh"
+    description: "Sucht den Pfad des Befehls sh."
+    args:
+      command: ["sh"]
+    expect:
+      exit_code: 0
+      stdout_contains: "sh"
+
+i18n:
+  en:
+    display_name: "which – find a program in PATH"
+    summary: "Shows the full path of a command."
+    description: |
+      which looks up a command in the folders of the PATH variable and prints the path of the first match. Typical use is finding out which version of a program is actually started.
+      Pitfalls: shell built-ins and aliases are not found by which. If nothing is found it exits with code 1.
+    category: System
+    inputs:
+      command: {label: "Command", help: "Name of one or more commands, e.g. python3."}
+    options:
+      all: {label: "All matches", help: "Shows all matches in PATH, not only the first."}

@@ -15,3 +15,11 @@ inputs:
     required: true
     position: 0
     help: "Zum Beispiel -e DATEI (existiert), -f DATEI (normale Datei) oder -x DATEI (ausführbar)."
+
+i18n:
+  en:
+    display_name: "test – check a file or condition"
+    category: Files
+    summary: "Checks files (exit 0 = yes, 1 = no)."
+    inputs:
+      expression: {label: "Expression", help: "For example -e FILE (exists), -f FILE (regular file) or -x FILE (executable)."}

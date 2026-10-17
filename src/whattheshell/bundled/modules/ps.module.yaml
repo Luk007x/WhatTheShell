@@ -1,0 +1,84 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: ps
+display_name: "ps – Prozesse anzeigen"
+category: System
+summary: "Listet laufende Prozesse als Momentaufnahme auf."
+description: |
+  ps zeigt, welche Programme gerade laufen, samt Prozessnummer (PID), Besitzer und Befehl. Typisch ist die Suche nach einem hängenden Programm, dessen PID man dann z. B. mit kill verwendet.
+  Ohne Optionen zeigt ps nur die Prozesse des aktuellen Terminals. Mit "Alle Prozesse" sieht man das ganze System.
+  Stolperfallen: ps ist eine Momentaufnahme und aktualisiert sich nicht; dafür gibt es top.
+override_mode: merge
+safety: safe
+
+options:
+  - id: e
+    flags: ["-e", "-A"]
+    label: Alle Prozesse
+    type: bool
+    group: Auswahl
+    importance: common
+    help: "Zeigt alle Prozesse des Systems, nicht nur die des eigenen Terminals."
+  - id: user
+    flags: ["-u", "--user"]
+    label: Nur Prozesse eines Benutzers
+    type: string
+    metavar: USER
+    group: Auswahl
+    importance: common
+    help: "Zeigt nur Prozesse des angegebenen Benutzernamens oder der Benutzer-ID."
+  - id: f
+    flags: ["-f"]
+    label: Ausführliches Format
+    type: bool
+    group: Ausgabe
+    importance: common
+    help: "Zeigt zusätzlich Besitzer, Eltern-PID, Startzeit und den vollständigen Befehl."
+  - id: format
+    flags: ["-o", "--format"]
+    label: Spalten festlegen
+    type: string
+    metavar: FORMAT
+    group: Ausgabe
+    importance: common
+    help: "Kommagetrennte Spaltenliste, z. B. pid,comm,%mem."
+  - id: sort
+    flags: ["--sort"]
+    label: Sortieren nach
+    type: string
+    metavar: SPEC
+    group: Ausgabe
+    importance: normal
+    help: "Sortierschlüssel, z. B. -%mem für höchsten Speicherverbrauch zuerst."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Mindestens ein Prozess ausgewählt"
+    1: "Kein Prozess ausgewählt"
+
+examples:
+  - title: "Eigene Prozesse mit gewählten Spalten"
+    description: "Zeigt PID und Namen der Prozesse im aktuellen Terminal."
+    args:
+      format: "pid,comm"
+    expect:
+      exit_code: 0
+      stdout_contains: "PID"
+
+i18n:
+  en:
+    display_name: "ps – show processes"
+    summary: "Lists running processes as a snapshot."
+    description: |
+      ps shows which programs are currently running, with process ID (PID), owner and command. Typical use is finding a hanging program whose PID you then pass to kill.
+      Without options ps only shows processes of the current terminal. "All processes" shows the whole system.
+      Pitfalls: ps is a snapshot and does not refresh; use top for a live view.
+    category: System
+    options:
+      e: {label: "All processes", help: "Shows all processes on the system, not only those of your terminal."}
+      user: {label: "Only processes of a user", help: "Shows only processes of the given user name or user ID."}
+      f: {label: "Full format", help: "Also shows owner, parent PID, start time and the full command."}
+      format: {label: "Choose columns", help: "Comma-separated column list, e.g. pid,comm,%mem."}
+      sort: {label: "Sort by", help: "Sort key, e.g. -%mem for highest memory use first."}

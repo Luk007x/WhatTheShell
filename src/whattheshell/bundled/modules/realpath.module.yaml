@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: realpath
+display_name: "realpath – Absoluten Pfad ermitteln"
+category: Dateien
+summary: "Wandelt Pfade in absolute Pfade um und löst Links auf."
+description: |
+  realpath gibt zu einem relativen Pfad den vollständigen, absoluten Pfad aus. Symbolische Links, ".." und "." werden dabei aufgelöst.
+  Typischer Einsatz: den echten Ort einer Datei herausfinden oder Pfade für Skripte eindeutig machen.
+  Stolperfalle: Standardmäßig darf die letzte Pfadkomponente fehlen; mit "Alles muss existieren" wird das ein Fehler.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: file
+    label: Pfade
+    type: path
+    multiple: true
+    required: true
+    position: 0
+    help: "Pfade, die aufgelöst werden."
+
+options:
+  - id: canonicalize_existing
+    flags: ["-e", "--canonicalize-existing"]
+    label: Alles muss existieren
+    group: Prüfung
+    importance: common
+    help: "Alle Pfadteile müssen vorhanden sein, sonst Fehler."
+  - id: canonicalize_missing
+    flags: ["-m", "--canonicalize-missing"]
+    label: Fehlendes erlauben
+    group: Prüfung
+    importance: normal
+    help: "Pfadteile müssen nicht existieren."
+  - id: relative_to
+    flags: ["--relative-to"]
+    label: Relativ zu Ordner
+    type: path
+    metavar: ORDNER
+    group: Ausgabe
+    importance: common
+    help: "Gibt den Pfad relativ zu diesem Ordner aus."
+  - id: strip
+    flags: ["-s", "--strip", "--no-symlinks"]
+    label: Links nicht auflösen
+    group: Auflösung
+    importance: normal
+    help: "Löst symbolische Links nicht auf."
+  - id: quiet
+    flags: ["-q", "--quiet"]
+    label: Fehlermeldungen unterdrücken
+    group: Ausgabe
+    importance: rare
+    help: "Zeigt keine Fehlermeldungen an."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolgreich"
+    1: "Fehler, z. B. Pfad nicht auflösbar"
+
+examples:
+  - title: "Absoluten Pfad bilden"
+    description: "Löst einen relativen Pfad mit .. auf."
+    fixtures:
+      - path: a/datei.txt
+        content: "x\n"
+    args:
+      canonicalize_existing: true
+      file: ["a/../a/datei.txt"]
+    expect:
+      exit_code: 0
+      stdout_contains: "/a/datei.txt"
+
+i18n:
+  en:
+    display_name: "realpath – resolve absolute path"
+    category: Files
+    summary: "Converts paths to absolute paths and resolves links."
+    description: |
+      realpath prints the full, absolute path for a relative path. Symbolic links, ".." and "." are resolved along the way.
+      Typical use: finding the real location of a file or making paths unambiguous for scripts.
+      Pitfall: by default the last path component may be missing; "Everything must exist" turns that into an error.
+    options:
+      canonicalize_existing: {label: "Everything must exist", help: "All path components must exist, otherwise an error."}
+      canonicalize_missing: {label: "Allow missing", help: "Path components do not need to exist."}
+      relative_to: {label: "Relative to folder", help: "Prints the path relative to this folder."}
+      strip: {label: "Do not resolve links", help: "Does not resolve symbolic links."}
+      quiet: {label: "Suppress errors", help: "Does not show error messages."}
+    inputs:
+      file: {label: "Paths", help: "Paths to resolve."}

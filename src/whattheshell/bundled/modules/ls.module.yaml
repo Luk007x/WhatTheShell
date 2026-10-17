@@ -195,9 +195,26 @@ examples:
 
 i18n:
   en:
+    inputs:
+      "file": {label: "Files or folders", help: "What to list (default: current folder)."}
     display_name: "ls – list directory contents"
+    category: Files
     summary: "Lists files and folders."
     options:
+      "almost_all": {label: "Show hidden (without . and ..)", help: "Like show hidden, but without the entries . and .."}
+      "directory": {label: "Show folder itself", help: "Shows the folder itself instead of its contents."}
+      "ignore": {label: "Hide pattern", help: "Hides entries whose name matches the pattern, e.g. *.tmp."}
+      "group_directories_first": {label: "Folders first", help: "Shows folders before files."}
+      "s_upper": {label: "Sort by size", help: "Sorts the largest entries to the top."}
+      "reverse": {label: "Reverse order", help: "Reverses the sort order."}
+      "sort": {label: "Sort by", help: "Selects the sort criterion instead of the name."}
+      "classify": {label: "Append type character", help: "Appends / to folders and * to executable files."}
+      "opt_1": {label: "One entry per line", help: "Prints each entry on its own line."}
+      "inode": {label: "Show inode number", help: "Shows the internal number of each file in the file system."}
+      "size": {label: "Show allocated space", help: "Shows the storage used by each file in blocks."}
+      "color": {label: "Colored output", help: "Colors file types: always, never or only in a terminal."}
+      "time_style": {label: "Time format", help: "Date format in the long listing, e.g. long-iso."}
+      "dereference": {label: "Resolve links", help: "Shows the target of symbolic links instead of the link."}
       l: {label: "Long format", help: "Shows permissions, owner, size and date for each entry."}
       all: {label: "Show hidden", help: "Also shows entries whose names start with a dot."}
       human_readable: {label: "Readable sizes", help: "Prints sizes as KB, MB, GB; works together with the long format."}

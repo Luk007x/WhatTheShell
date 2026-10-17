@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: gunzip
+display_name: "gunzip – .gz-Dateien entpacken"
+category: Archive
+summary: "Entpackt mit gzip komprimierte Dateien."
+description: |
+  gunzip stellt .gz-Dateien wieder her und entfernt dabei die Endung .gz. Typisch ist das Entpacken heruntergeladener oder archivierter Logdateien.
+  Stolperfalle: Standardmäßig wird die .gz-Datei nach dem Entpacken gelöscht; mit "Original behalten" bleibt sie erhalten. Eine vorhandene Zieldatei wird nicht ohne Nachfrage überschrieben.
+override_mode: merge
+safety: caution
+
+inputs:
+  - id: file
+    label: Dateien
+    type: path
+    multiple: true
+    position: 0
+    help: "Die .gz-Dateien, die entpackt oder aufgelistet werden."
+
+options:
+  - id: keep
+    flags: ["-k", "--keep"]
+    label: Original behalten
+    group: Ablauf
+    importance: common
+    help: "Löscht die .gz-Datei nach dem Entpacken nicht."
+  - id: list
+    flags: ["-l", "--list"]
+    label: Inhalt auflisten
+    group: Ausgabe
+    importance: normal
+    help: "Zeigt Größen und Kompressionsrate, ohne zu entpacken."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolgreich"
+    1: "Fehler, z. B. keine gültige .gz-Datei"
+
+i18n:
+  en:
+    display_name: "gunzip – unpack .gz files"
+    category: Archives
+    summary: "Unpacks files compressed with gzip."
+    description: |
+      gunzip restores .gz files and removes the .gz ending. It is typically used to unpack downloaded or archived log files.
+      Pitfall: By default the .gz file is deleted after unpacking; with "Keep original" it stays. An existing target file is not overwritten without asking.
+    inputs:
+      file: {label: "Files", help: "The .gz files to unpack or list."}
+    options:
+      keep: {label: "Keep original", help: "Does not delete the .gz file after unpacking."}
+      list: {label: "List contents", help: "Shows sizes and compression ratio without unpacking."}

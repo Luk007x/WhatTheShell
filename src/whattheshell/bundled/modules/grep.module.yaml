@@ -237,9 +237,29 @@ examples:
 
 i18n:
   en:
+    inputs:
+      "patterns": {label: "Search pattern", help: "Regular expression or fixed text."}
+      "files": {label: "Files", help: "Files or folders to search."}
     display_name: "grep – search text"
+    category: Text
     summary: "Searches files or input for patterns and prints the matching lines."
     options:
+      "word_regexp": {label: "Whole words only", help: "The pattern must occur as a word of its own, not just as part of a word."}
+      "fixed_strings": {label: "Search fixed text", help: "Treats the pattern as plain text without special characters."}
+      "extended_regexp": {label: "Extended regular expression", help: "Allows notations like a|b or (ab)+ without backslashes."}
+      "include": {label: "Only files with matching name", help: "Searches only files whose name matches the pattern, e.g. *.py."}
+      "exclude": {label: "Skip files with matching name", help: "Skips files whose name matches the pattern, e.g. *.log."}
+      "exclude_dir": {label: "Skip folders", help: "Skips folders with a matching name, e.g. node_modules."}
+      "count": {label: "Count matches", help: "Shows only the number of matching lines per file."}
+      "only_matching": {label: "Print only the matching part", help: "Prints only the part that matches the pattern instead of the whole line."}
+      "with_filename": {label: "Show file names", help: "Prefixes each matching line with the file name."}
+      "no_filename": {label: "Suppress file names", help: "Shows no file names before lines when searching several files."}
+      "max_count": {label: "At most this many matches", help: "Stops after this many matching lines per file."}
+      "quiet": {label: "No output", help: "Prints nothing; only the exit code shows whether there were matches."}
+      "colour": {label: "Colored output", help: "Highlights matches in color: always, never or only in a terminal."}
+      "color": {label: "Colored output", help: "Highlights matches in color: always, never or only in a terminal."}
+      "before_context": {label: "Lines before", help: "Shows this many lines before each match."}
+      "after_context": {label: "Lines after", help: "Shows this many lines after each match."}
       ignore_case: {label: "Ignore case", help: "Does not distinguish between upper and lower case."}
       invert_match: {label: "Invert match", help: "Shows only lines that do not contain the pattern."}
       recursive: {label: "Search directories recursively", help: "Searches folders including all subfolders."}

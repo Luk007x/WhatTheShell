@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: touch
+display_name: "touch – Datei anlegen / Zeit setzen"
+category: Dateien
+summary: "Legt leere Dateien an oder setzt ihre Zeitstempel."
+description: |
+  touch legt eine leere Datei an, falls sie noch nicht existiert. Existiert sie schon, wird nur ihr Änderungszeitpunkt auf jetzt gesetzt; der Inhalt bleibt unverändert.
+  Typischer Einsatz: Platzhalterdateien anlegen oder Zeitstempel für Build-Werkzeuge erneuern.
+override_mode: merge
+safety: caution
+
+inputs:
+  - id: file
+    label: Dateien
+    type: path
+    multiple: true
+    required: true
+    position: 0
+    help: "Dateien, die angelegt oder aktualisiert werden."
+
+options:
+  - id: no_create
+    flags: ["-c", "--no-create"]
+    label: Nicht anlegen
+    group: Verhalten
+    importance: common
+    help: "Legt keine neuen Dateien an."
+  - id: date
+    flags: ["-d", "--date"]
+    label: Zeit als Text
+    type: string
+    metavar: ZEIT
+    group: Zeit
+    importance: common
+    help: "Setzt die angegebene Zeit, z. B. \"2024-01-31 12:00\" oder \"yesterday\"."
+  - id: reference
+    flags: ["-r", "--reference"]
+    label: Zeit von Datei übernehmen
+    type: path
+    metavar: DATEI
+    group: Zeit
+    importance: normal
+    help: "Übernimmt die Zeitstempel dieser Datei."
+  - id: a
+    flags: ["-a"]
+    label: Nur Zugriffszeit
+    group: Zeit
+    importance: normal
+    help: "Ändert nur die Zugriffszeit."
+  - id: m
+    flags: ["-m"]
+    label: Nur Änderungszeit
+    group: Zeit
+    importance: normal
+    help: "Ändert nur die Änderungszeit."
+  - id: no_dereference
+    flags: ["-h", "--no-dereference"]
+    label: Symlink selbst ändern
+    group: Verhalten
+    importance: rare
+    help: "Ändert den Symlink statt seines Ziels."
+
+i18n:
+  en:
+    display_name: "touch – create file / set time"
+    category: Files
+    summary: "Creates empty files or sets their timestamps."
+    description: |
+      touch creates an empty file if it does not exist yet. If it exists, only its modification time is set to now; the content stays unchanged.
+      Typical use: creating placeholder files or refreshing timestamps for build tools.
+    options:
+      no_create: {label: "Do not create", help: "Does not create new files."}
+      date: {label: "Time as text", help: "Sets the given time, e.g. \"2024-01-31 12:00\" or \"yesterday\"."}
+      reference: {label: "Copy time from file", help: "Uses the timestamps of this file."}
+      a: {label: "Access time only", help: "Changes only the access time."}
+      m: {label: "Modification time only", help: "Changes only the modification time."}
+      no_dereference: {label: "Change the symlink itself", help: "Changes the symlink rather than its target."}
+    inputs:
+      file: {label: "Files", help: "Files to create or update."}

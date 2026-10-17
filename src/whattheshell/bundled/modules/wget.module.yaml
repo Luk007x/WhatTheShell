@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: wget
+display_name: "wget – Dateien herunterladen"
+category: Netzwerk
+summary: "Lädt eine Datei von einer Internetadresse herunter."
+description: |
+  wget lädt Dateien über HTTP, HTTPS oder FTP herunter und speichert sie im aktuellen Ordner. Typisch ist das Herunterladen eines Programms oder einer Datei, auch große Downloads lassen sich mit "Abgebrochenen Download fortsetzen" wieder aufnehmen.
+  Stolperfallen: wget schreibt Dateien; mit "Ausgabedatei" wird eine vorhandene Datei überschrieben. Bei Umleitungen speichert wget unter dem Namen aus der URL.
+override_mode: merge
+safety: caution
+install: "Fedora: sudo dnf install wget · Debian/Ubuntu: sudo apt install wget"
+
+inputs:
+  - id: url
+    label: Adresse (URL)
+    type: string
+    required: true
+    position: 0
+    help: "Zieladresse, z. B. https://example.org/datei.zip."
+
+options:
+  - id: o_upper
+    flags: ["-O", "--output-document"]
+    label: Ausgabedatei
+    type: path
+    metavar: DATEI
+    group: Ausgabe
+    importance: common
+    help: "Speichert den Inhalt unter diesem Namen; eine vorhandene Datei wird überschrieben."
+  - id: p_upper
+    flags: ["-P", "--directory-prefix"]
+    label: Zielordner
+    type: path
+    metavar: ORDNER
+    group: Ausgabe
+    importance: common
+    help: "Speichert die Datei in diesem Ordner statt im aktuellen."
+  - id: q
+    flags: ["-q", "--quiet"]
+    label: Still
+    group: Ausgabe
+    importance: normal
+    help: "Gibt keine Meldungen und keinen Fortschrittsbalken aus."
+  - id: c
+    flags: ["-c", "--continue"]
+    label: Abgebrochenen Download fortsetzen
+    group: Ablauf
+    importance: normal
+    help: "Setzt einen unvollständigen Download dort fort, wo er aufgehört hat."
+  - id: t_upper
+    flags: ["-T", "--timeout"]
+    label: Zeitlimit
+    type: int
+    min: 1
+    metavar: SEKUNDEN
+    group: Ablauf
+    importance: normal
+    help: "Bricht ab, wenn das Netz so lange nicht antwortet."
+
+output:
+  stdout:
+    kind: lines
+
+i18n:
+  en:
+    display_name: "wget – download files"
+    category: Network
+    summary: "Downloads a file from an internet address."
+    description: |
+      wget downloads files over HTTP, HTTPS or FTP and saves them in the current folder. It is typically used to fetch a program or a file; large downloads can be resumed with "Resume interrupted download".
+      Pitfalls: wget writes files; with "Output file" an existing file is overwritten. After redirects wget saves under the name from the URL.
+    inputs:
+      url: {label: "Address (URL)", help: "Target address, e.g. https://example.org/file.zip."}
+    options:
+      o_upper: {label: "Output file", help: "Saves the content under this name; an existing file is overwritten."}
+      p_upper: {label: "Target folder", help: "Saves the file in this folder instead of the current one."}
+      q: {label: "Quiet", help: "Prints no messages and no progress bar."}
+      c: {label: "Resume interrupted download", help: "Continues an incomplete download where it stopped."}
+      t_upper: {label: "Time limit", help: "Gives up when the network does not answer for this long."}

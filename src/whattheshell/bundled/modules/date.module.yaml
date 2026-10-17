@@ -1,0 +1,111 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: date
+display_name: "date – Datum und Uhrzeit"
+category: Text
+summary: "Zeigt Datum und Uhrzeit an, auch in eigenen Formaten."
+description: |
+  date gibt die aktuelle Zeit oder, mit "Zeit angeben", eine andere Zeit aus. Mit einem Format wie +%Y-%m-%d bestimmen Sie das Aussehen, z. B. für Dateinamen oder Logs.
+  Stolperfallen: Das Format muss mit einem Pluszeichen beginnen und wird oft in Anführungszeichen gesetzt. Ohne UTC gilt die Zeitzone des Rechners.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: format
+    label: Format
+    type: string
+    position: 0
+    help: "Ausgabeformat mit führendem +, z. B. +%Y-%m-%d oder +%H:%M."
+
+options:
+  - id: date
+    flags: ["-d", "--date"]
+    label: Zeit angeben
+    type: string
+    metavar: ZEICHENKETTE
+    group: Zeit
+    importance: common
+    help: "Zeigt diese Zeit statt der aktuellen, z. B. 2024-03-05 oder yesterday."
+  - id: utc
+    flags: ["-u", "--utc", "--universal"]
+    label: UTC verwenden
+    type: bool
+    group: Zeit
+    importance: common
+    help: "Gibt die koordinierte Weltzeit statt der lokalen Zeit aus."
+  - id: iso_8601
+    flags: ["-I", "--iso-8601"]
+    label: ISO-8601-Format
+    type: bool
+    group: Ausgabe
+    importance: common
+    help: "Gibt das Datum im Format JJJJ-MM-TT aus."
+  - id: rfc_email
+    flags: ["-R", "--rfc-email"]
+    label: E-Mail-Format (RFC 5322)
+    type: bool
+    group: Ausgabe
+    importance: normal
+    help: "Gibt Datum und Zeit im Format für E-Mail-Kopfzeilen aus."
+  - id: reference
+    flags: ["-r", "--reference"]
+    label: Zeit einer Datei
+    type: path
+    metavar: DATEI
+    group: Zeit
+    importance: normal
+    help: "Zeigt den Zeitpunkt der letzten Änderung dieser Datei."
+  - id: set
+    flags: ["-s", "--set"]
+    label: Systemzeit setzen
+    type: string
+    metavar: ZEICHENKETTE
+    group: Zeit
+    importance: rare
+    help: "Stellt die Systemuhr um (braucht Administratorrechte)."
+    safety: dangerous
+
+output:
+  stdout:
+    kind: text
+  exit_codes:
+    0: "Erfolg"
+    1: "Fehler, z. B. ungültiges Datum oder Format"
+
+examples:
+  - title: "Festes Datum formatieren"
+    description: "Gibt ein angegebenes Datum im Format Tag.Monat.Jahr aus."
+    args:
+      utc: true
+      date: "2024-03-05 12:00"
+      format: "+%d.%m.%Y"
+    expect:
+      exit_code: 0
+      stdout_contains: "05.03.2024"
+  - title: "ISO-Datum"
+    description: "Gibt ein angegebenes Datum im ISO-Format aus."
+    args:
+      utc: true
+      date: "2024-03-05 12:00"
+      iso_8601: true
+    expect:
+      exit_code: 0
+      stdout_contains: "2024-03-05"
+
+i18n:
+  en:
+    display_name: "date – date and time"
+    category: Text
+    summary: "Shows the date and time, also in custom formats."
+    description: |
+      date prints the current time or, with "Specify time", a different one. With a format such as +%Y-%m-%d you control the appearance, e.g. for file names or logs.
+      Pitfalls: the format must start with a plus sign and is often quoted. Without UTC, the machine's time zone applies.
+    inputs:
+      format: {label: "Format", help: "Output format with leading +, e.g. +%Y-%m-%d or +%H:%M."}
+    options:
+      date: {label: "Specify time", help: "Shows this time instead of the current one, e.g. 2024-03-05 or yesterday."}
+      utc: {label: "Use UTC", help: "Prints coordinated universal time instead of local time."}
+      iso_8601: {label: "ISO 8601 format", help: "Prints the date as YYYY-MM-DD."}
+      rfc_email: {label: "Email format (RFC 5322)", help: "Prints date and time as used in email headers."}
+      set: {label: "Set system time", help: "Changes the system clock (needs administrator rights)."}
+      reference: {label: "Time of a file", help: "Shows the last modification time of this file."}

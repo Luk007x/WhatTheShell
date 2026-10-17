@@ -721,6 +721,18 @@
           "default": null,
           "title": "Display Name"
         },
+        "category": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Category"
+        },
         "summary": {
           "anyOf": [
             {
@@ -914,6 +926,19 @@
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$",
       "title": "Tool",
       "type": "string"
+    },
+    "install": {
+      "anyOf": [
+        {
+          "maxLength": 300,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Install"
     },
     "override_mode": {
       "default": "merge",

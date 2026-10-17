@@ -1,0 +1,74 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: basename
+display_name: "basename – Dateiname aus Pfad"
+category: Dateien
+summary: "Gibt den Dateinamen ohne Ordnerteil aus."
+description: |
+  basename entfernt den Ordnerteil eines Pfades und lässt nur den letzten Namen übrig, z. B. aus /etc/hosts wird hosts.
+  Optional schneidet es eine Endung ab, z. B. .txt.
+  Typischer Einsatz: in Skripten aus einem Pfad den reinen Dateinamen gewinnen.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: name
+    label: Pfad
+    type: string
+    required: true
+    position: 0
+    help: "Pfad, dessen Name ausgegeben wird."
+  - id: suffix_arg
+    label: Endung
+    type: string
+    position: 1
+    help: "Endung, die zusätzlich entfernt wird, z. B. .txt (nicht zusammen mit \"Mehrere Pfade\")."
+
+options:
+  - id: multiple
+    flags: ["-a", "--multiple"]
+    label: Mehrere Pfade
+    group: Verhalten
+    importance: normal
+    help: "Erlaubt mehrere Pfade; jeder wird einzeln verarbeitet."
+  - id: suffix
+    flags: ["-s", "--suffix"]
+    label: Endung entfernen
+    type: string
+    metavar: ENDUNG
+    group: Verhalten
+    importance: common
+    help: "Entfernt diese Endung von jedem Namen (impliziert Mehrere Pfade)."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Erfolgreich"
+    1: "Fehler, z. B. fehlendes Argument"
+
+examples:
+  - title: "Name mit Endung entfernen"
+    description: "Schneidet Ordner und Endung ab."
+    args:
+      name: "/home/anna/bericht.txt"
+      suffix_arg: ".txt"
+    expect:
+      exit_code: 0
+      stdout_contains: "bericht"
+
+i18n:
+  en:
+    display_name: "basename – file name from path"
+    category: Files
+    summary: "Prints the file name without the folder part."
+    description: |
+      basename strips the folder part of a path and leaves only the last name, e.g. /etc/hosts becomes hosts.
+      Optionally it removes a suffix such as .txt.
+      Typical use: getting the plain file name from a path in scripts.
+    options:
+      multiple: {label: "Multiple paths", help: "Allows several paths; each is processed separately."}
+      suffix: {label: "Remove suffix", help: "Removes this suffix from each name (implies multiple paths)."}
+    inputs:
+      name: {label: "Path", help: "Path whose name is printed."}
+      suffix_arg: {label: "Suffix", help: "Suffix that is also removed, e.g. .txt (not together with \"Multiple paths\")."}

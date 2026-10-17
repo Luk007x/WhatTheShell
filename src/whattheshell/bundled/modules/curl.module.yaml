@@ -190,9 +190,26 @@ examples:
 
 i18n:
   en:
+    inputs:
+      "url": {label: "Address (URL)", help: "Target address, e.g. https://example.org/file.txt. Not needed only with --version."}
     display_name: "curl – transfer data over the network"
+    category: Network
     summary: "Downloads content from URLs or sends data to servers."
     options:
+      "show_error": {label: "Show errors anyway", help: "Shows error messages even in silent mode."}
+      "verbose": {label: "Verbose", help: "Shows connection details and sent headers for troubleshooting."}
+      "show_headers": {label: "Show response headers", help: "Prints the HTTP headers before the content."}
+      "head": {label: "Fetch headers only", help: "Fetches only the headers without loading the content."}
+      "request": {label: "HTTP method", help: "Uses a different method instead of GET, e.g. POST or DELETE."}
+      "header": {label: "Additional header", help: "Sends an additional header, e.g. Accept: application/json."}
+      "data": {label: "Send data (POST)", help: "Sends this data in the body; the method automatically becomes POST."}
+      "upload_file": {label: "Upload file", help: "Uploads the file to the address (PUT for HTTP)."}
+      "user": {label: "Credentials", help: "User name and password for login; the password ends up in the shell history."}
+      "user_agent": {label: "Browser identifier", help: "Sets the User-Agent curl presents to the server."}
+      "max_time": {label: "Time limit in seconds", help: "Aborts if the whole operation takes longer (exit code 28)."}
+      "connect_timeout": {label: "Connection time limit", help: "Maximum wait in seconds until the connection is established."}
+      "insecure": {label: "Do not verify certificate", help: "Ignores certificate errors for HTTPS and is therefore insecure."}
+      "version": {label: "Show version", help: "Shows the version and supported protocols."}
       output: {label: "Output file", help: "Saves the response to this file; an existing one is overwritten."}
       remote_name: {label: "Use server file name", help: "Saves the file under the name from the URL in the current folder."}
       silent: {label: "Silent", help: "Suppresses progress meter and error messages."}

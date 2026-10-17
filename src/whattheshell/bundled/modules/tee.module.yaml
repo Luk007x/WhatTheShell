@@ -15,3 +15,11 @@ inputs:
     required: true
     position: 0
     help: "Zieldateien. Vorhandene Dateien werden überschrieben."
+
+i18n:
+  en:
+    display_name: "tee – write input to files"
+    category: Files
+    summary: "Writes the text from stdin to a file (and prints it)."
+    inputs:
+      file: {label: "Files", help: "Target files. Existing files are overwritten."}

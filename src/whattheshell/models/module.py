@@ -89,6 +89,7 @@ class Translation(StrictModel):
     """Translations for one language."""
 
     display_name: str | None = None
+    category: str | None = None
     summary: str | None = None
     description: str | None = None
     options: dict[str, FieldText] = {}
@@ -138,6 +139,7 @@ class Module(CommandOverride):
 
     schema_version: Literal[1]
     tool: ToolName
+    install: str | None = Field(default=None, max_length=300)
     override_mode: Literal["merge", "replace"] = "merge"
     templates: list[TemplateRef] = []
 

@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: ln
+display_name: "ln – Verknüpfung anlegen"
+category: Dateien
+summary: "Legt Verknüpfungen (Links) auf Dateien oder Ordner an."
+description: |
+  ln erzeugt einen zweiten Namen für eine Datei. Mit "Symbolischer Link" entsteht eine Verknüpfung, die auf den Pfad der Datei zeigt; das ist der übliche Fall.
+  Ohne diese Option entsteht ein harter Link, der nur im selben Dateisystem funktioniert und nicht für Ordner.
+  Stolperfalle: Bei symbolischen Links gilt ein relativer Zielpfad vom Ordner des Links aus gesehen, nicht vom aktuellen Ordner.
+override_mode: merge
+safety: caution
+
+inputs:
+  - id: target
+    label: Ziel
+    type: path
+    required: true
+    position: 0
+    help: "Datei oder Ordner, auf den der Link zeigt."
+  - id: link_name
+    label: Linkname
+    type: path
+    required: true
+    position: 1
+    help: "Pfad des neuen Links."
+
+options:
+  - id: symbolic
+    flags: ["-s", "--symbolic"]
+    label: Symbolischer Link
+    group: Art
+    importance: common
+    help: "Legt einen symbolischen statt eines harten Links an."
+  - id: force
+    flags: ["-f", "--force"]
+    label: Vorhandenes ersetzen
+    group: Verhalten
+    importance: common
+    help: "Entfernt vorhandene Zieldateien, statt abzubrechen."
+  - id: relative
+    flags: ["-r", "--relative"]
+    label: Relativer Link
+    group: Art
+    importance: normal
+    help: "Legt symbolische Links relativ zum Linkort an."
+  - id: no_dereference
+    flags: ["-n", "--no-dereference"]
+    label: Link-Ziel nicht folgen
+    group: Verhalten
+    importance: rare
+    help: "Behandelt einen bestehenden Link auf einen Ordner als normale Datei."
+  - id: verbose
+    flags: ["-v", "--verbose"]
+    label: Ausführlich
+    group: Ausgabe
+    importance: normal
+    help: "Zeigt jeden angelegten Link an."
+
+i18n:
+  en:
+    display_name: "ln – create links"
+    category: Files
+    summary: "Creates links to files or folders."
+    description: |
+      ln creates a second name for a file. With "Symbolic link" it creates a shortcut that points to the file's path; this is the usual case.
+      Without that option it creates a hard link, which only works within one file system and not for folders.
+      Pitfall: for symbolic links, a relative target path is interpreted from the link's folder, not from the current folder.
+    options:
+      symbolic: {label: "Symbolic link", help: "Creates a symbolic instead of a hard link."}
+      force: {label: "Replace existing", help: "Removes existing destination files instead of failing."}
+      relative: {label: "Relative link", help: "Creates symbolic links relative to the link location."}
+      no_dereference: {label: "Do not follow link", help: "Treats an existing link to a folder as a normal file."}
+      verbose: {label: "Verbose", help: "Shows every link created."}
+    inputs:
+      target: {label: "Target", help: "File or folder the link points to."}
+      link_name: {label: "Link name", help: "Path of the new link."}

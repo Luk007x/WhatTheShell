@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: kill
+display_name: "kill – Prozesse beenden"
+category: System
+summary: "Sendet ein Signal an Prozesse, standardmäßig zum Beenden."
+description: |
+  kill schickt einem Prozess anhand seiner Nummer (PID) ein Signal. Ohne Angabe ist das SIGTERM, die höfliche Bitte zum Beenden; SIGKILL beendet sofort und ohne Aufräumen. PIDs findet man mit ps.
+  Stolperfallen: Ungespeicherte Daten des Prozesses gehen verloren. Eine falsche PID trifft ein anderes Programm; die PID 1 oder Systemprozesse zu beenden kann das System lahmlegen. Fremde Prozesse erfordern Root-Rechte.
+override_mode: merge
+safety: dangerous
+
+inputs:
+  - id: pid
+    label: Prozessnummer (PID)
+    type: int
+    required: true
+    multiple: true
+    min: 1
+    position: 0
+    help: "Eine oder mehrere PIDs, z. B. aus der Ausgabe von ps."
+
+options:
+  - id: signal
+    flags: ["-s"]
+    label: Signal
+    type: string
+    metavar: SIGNAL
+    group: Signal
+    importance: common
+    help: "Name oder Nummer des Signals, z. B. TERM, HUP oder KILL."
+  - id: list
+    flags: ["-l"]
+    label: Signale auflisten
+    type: bool
+    group: Signal
+    importance: normal
+    help: "Zeigt die verfügbaren Signalnamen, ohne etwas zu senden."
+
+output:
+  stdout:
+    kind: text
+
+i18n:
+  en:
+    display_name: "kill – terminate processes"
+    summary: "Sends a signal to processes, by default to terminate them."
+    description: |
+      kill sends a signal to a process identified by its number (PID). By default this is SIGTERM, the polite request to quit; SIGKILL ends it immediately without cleanup. Find PIDs with ps.
+      Pitfalls: unsaved data of the process is lost. A wrong PID hits another program; killing PID 1 or system processes can break the system. Other users' processes require root rights.
+    category: System
+    inputs:
+      pid: {label: "Process ID (PID)", help: "One or more PIDs, e.g. from the output of ps."}
+    options:
+      signal: {label: "Signal", help: "Signal name or number, e.g. TERM, HUP or KILL."}
+      list: {label: "List signals", help: "Shows the available signal names without sending anything."}

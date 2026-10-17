@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: md5sum
+display_name: "md5sum – Prüfsumme berechnen"
+category: Archive
+summary: "Berechnet MD5-Prüfsummen von Dateien oder prüft sie."
+description: |
+  md5sum erzeugt aus dem Inhalt einer Datei eine kurze Kennung (Prüfsumme). Typisch ist das Prüfen eines Downloads: Stimmt die Summe mit der des Anbieters überein, ist die Datei unverändert.
+  Mit "Summen prüfen" liest md5sum eine Liste aus Summen und Dateinamen und meldet pro Datei OK oder FAILED. Stolperfalle: MD5 gilt als unsicher gegen gezielte Manipulation und eignet sich nur zum Erkennen versehentlicher Fehler. Schon ein Byte Unterschied ergibt eine völlig andere Summe.
+override_mode: merge
+safety: safe
+
+inputs:
+  - id: file
+    label: Dateien
+    type: path
+    multiple: true
+    position: 0
+    help: "Dateien, deren Prüfsumme berechnet wird; mit \"Summen prüfen\" die Liste der Summen."
+
+options:
+  - id: check
+    flags: ["-c", "--check"]
+    label: Summen prüfen
+    group: Ablauf
+    importance: common
+    help: "Liest Summen aus der angegebenen Datei und vergleicht sie mit den echten Dateien."
+
+output:
+  stdout:
+    kind: lines
+  exit_codes:
+    0: "Alles in Ordnung"
+    1: "Eine Summe stimmt nicht oder Datei fehlt"
+
+i18n:
+  en:
+    display_name: "md5sum – compute checksum"
+    category: Archives
+    summary: "Computes MD5 checksums of files or verifies them."
+    description: |
+      md5sum derives a short identifier (checksum) from the content of a file. It is typically used to verify a download: if the sum matches the provider's, the file is unchanged.
+      With "Verify sums" md5sum reads a list of sums and file names and reports OK or FAILED per file. Pitfall: MD5 is insecure against deliberate tampering and only detects accidental errors. A single byte of difference gives a completely different sum.
+    inputs:
+      file: {label: "Files", help: "Files whose checksum is computed; with \"Verify sums\" the list of sums."}
+    options:
+      check: {label: "Verify sums", help: "Reads sums from the given file and compares them with the actual files."}

@@ -21,7 +21,7 @@ test.describe.serial("terminal step", () => {
     test.skip((await page.getByTestId("sandbox-status").getAttribute("data-available")) !== "true", "bwrap fehlt: Terminal-Schritte sind ohne Sandbox gesperrt (SECURITY.md 7.2)");
 
     await page.getByRole("searchbox", { name: "Werkzeuge suchen" }).fill("cat");
-    await page.locator("button.tool", { hasText: /^cat\b/ }).first().click();
+    await page.locator(`button.tool[data-tool="cat"]`).first().click();
     await page.getByRole("button", { name: "Hinzufügen: cat" }).click();
     await expect(page.locator(".react-flow__node")).toHaveCount(1);
     await page.getByLabel("Als Terminal-Schritt ausführen").check();

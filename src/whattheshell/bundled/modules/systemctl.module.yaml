@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: CC0-1.0
+schema_version: 1
+tool: systemctl
+display_name: "systemctl – Dienste verwalten"
+category: System
+summary: "Zeigt und steuert systemd-Dienste und andere Units."
+description: |
+  systemctl fragt den Dienstmanager systemd ab und steuert ihn: Status anzeigen, Dienste starten, stoppen oder für den Systemstart aktivieren. Typisch bei Webservern, Datenbanken oder dem Netzwerkdienst.
+  Die Sicherheitsstufe hängt vom Unterbefehl ab: status, list-units und is-active lesen nur; start, stop und restart ändern den laufenden Zustand; enable und disable ändern dauerhaft, was beim Systemstart passiert.
+  Stolperfallen: Systemweite Dienste brauchen meist Root-Rechte (sudo); mit "Benutzer-Dienste" arbeitet man auf den eigenen Diensten. Ein gestoppter Dienst kann Abhängige mitreißen.
+override_mode: merge
+safety: caution
+
+options:
+  - id: user
+    flags: ["--user"]
+    label: Benutzer-Dienste
+    type: bool
+    group: Allgemein
+    importance: common
+    help: "Arbeitet mit den Diensten des eigenen Benutzers statt mit den systemweiten."
+  - id: no_pager
+    flags: ["--no-pager"]
+    label: Ohne Seitenanzeige
+    type: bool
+    group: Allgemein
+    importance: common
+    help: "Gibt alles direkt aus, ohne die Ausgabe in einem Pager (less) zu öffnen."
+
+subcommands:
+  - name: status
+    summary: "Zustand einer Unit anzeigen"
+    safety: safe
+    inputs:
+      - { id: unit, label: Unit, type: string, position: 0, help: "Name der Unit, z. B. sshd.service. Ohne Angabe: Gesamtstatus." }
+  - name: list-units
+    summary: "Geladene Units auflisten"
+    safety: safe
+  - name: is-active
+    summary: "Prüfen, ob eine Unit läuft"
+    safety: safe
+    inputs:
+      - { id: unit, label: Unit, type: string, required: true, position: 0, help: "Name der Unit, z. B. sshd.service." }
+  - name: start
+    summary: "Unit jetzt starten"
+    safety: caution
+    inputs:
+      - { id: unit, label: Unit, type: string, required: true, position: 0, help: "Name der Unit, z. B. nginx.service." }
+  - name: stop
+    summary: "Unit jetzt stoppen"
+    safety: caution
+    inputs:
+      - { id: unit, label: Unit, type: string, required: true, position: 0, help: "Name der Unit, z. B. nginx.service." }
+  - name: restart
+    summary: "Unit stoppen und neu starten"
+    safety: caution
+    inputs:
+      - { id: unit, label: Unit, type: string, required: true, position: 0, help: "Name der Unit, z. B. nginx.service." }
+  - name: enable
+    summary: "Unit beim Systemstart aktivieren"
+    safety: dangerous
+    inputs:
+      - { id: unit, label: Unit, type: string, required: true, position: 0, help: "Name der Unit, z. B. nginx.service." }
+  - name: disable
+    summary: "Autostart einer Unit abschalten"
+    safety: dangerous
+    inputs:
+      - { id: unit, label: Unit, type: string, required: true, position: 0, help: "Name der Unit, z. B. nginx.service." }
+
+output:
+  stdout:
+    kind: lines
+
+i18n:
+  en:
+    display_name: "systemctl – manage services"
+    summary: "Shows and controls systemd services and other units."
+    description: |
+      systemctl queries and controls the systemd service manager: show status, start, stop or enable services for boot. Typical for web servers, databases or the network service.
+      The safety level depends on the subcommand: status, list-units and is-active only read; start, stop and restart change the running state; enable and disable permanently change what happens at boot.
+      Pitfalls: system-wide services usually need root rights (sudo); "User services" works on your own services. Stopping a service can take dependent ones down with it.
+    category: System
+    options:
+      user: {label: "User services", help: "Works on the current user's services instead of the system-wide ones."}
+      no_pager: {label: "No pager", help: "Prints everything directly without opening the output in a pager (less)."}
