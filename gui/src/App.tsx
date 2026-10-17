@@ -150,7 +150,7 @@ export function App() {
   const editorBar = mode !== "run" && manual === null; // file menu and history belong to the editor
   const dirty = useMemo(() => JSON.stringify(wf) !== savedJson, [wf, savedJson]);
 
-  useEffect(() => { document.title = `${dirty ? "* " : ""}${wf.name || t("file.untitled")} – ${t("app.name")}`; }, [dirty, wf.name]);
+  useEffect(() => { document.title = (dirty ? "* " : "") + t("app.name"); }, [dirty]);
   useEffect(() => {
     if (!dirty) return;
     const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); };
