@@ -151,16 +151,33 @@ test.describe.serial("smoke", () => {
   });
 
   test("k2) Trockenlauf mit Pflichtvariablen: Dialog, Plan übernehmen", async () => {
+    // own minimal workflow instead of a bundled one: bundled ones need tools the CI runner may lack
+    const token = new URLSearchParams(new URL(server.url).hash.slice(1)).get("token") ?? "";
+    const content = [
+      "schema_version: 1",
+      'name: "E2E Pflichtvariable"',
+      "variables:",
+      '  datei: { type: path, required: true, label: "Datei" }',
+      "steps:",
+      "  - id: zeige",
+      "    tool: echo",
+      '    extra_args: ["{{ var.datei }}"]',
+      "",
+    ].join("\n");
+    const res = await page.request.post(new URL("/api/workflows/import", server.url).href, {
+      headers: { "X-WTS-Token": token },
+      data: { filename: "e2e-pflicht.workflow.yaml", content },
+    });
+    expect(res.status()).toBe(201);
     await page.getByRole("button", { name: "Öffnen", exact: true }).click();
-    await page.getByRole("dialog", { name: "Öffnen" }).getByRole("button", { name: /^AppImage installieren \(Fedora\)/ }).click();
+    await page.getByRole("dialog", { name: "Öffnen" }).getByRole("button", { name: /^E2E Pflichtvariable/ }).click();
     await page.getByRole("button", { name: "Trockenlauf" }).click();
     const dlg = page.getByRole("dialog", { name: "Trockenlauf" });
-    await dlg.getByLabel(/AppImage-Datei/).fill("/tmp/e2e-demo.AppImage");
-    await dlg.getByLabel(/Name im Menü/).fill("E2E Demo");
-    await expect(dlg.locator("pre.plan")).toContainText("/tmp/e2e-demo.AppImage", { timeout: 10_000 });
+    await dlg.getByLabel(/Datei/).fill("/tmp/e2e-demo.txt");
+    await expect(dlg.locator("pre.plan")).toContainText("/tmp/e2e-demo.txt", { timeout: 10_000 });
     await dlg.getByRole("button", { name: "Plan übernehmen" }).click();
     await expect(dlg).toBeHidden();
-    await expect(page.getByTestId("plan")).toContainText("/tmp/e2e-demo.AppImage");
+    await expect(page.getByTestId("plan")).toContainText("/tmp/e2e-demo.txt");
   });
 
   test("l) Modul-Editor", async () => {
