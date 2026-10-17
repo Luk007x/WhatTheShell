@@ -9,7 +9,7 @@ Jede Abweichung vom Projektauftrag und jede offene Wahl, die der Auftrag an Clau
 | PyPI `whattheshell` | frei (JSON-Seite liefert 404) |
 | PyPI `what-the-shell` | frei (404) |
 | GitHub | ~13 kleine Repos mit dem Namen, keines über 10 Sterne, keine Produkte; Verwechslungsgefahr gering |
-| `command -v wts` (Fedora 44) | kein Treffer; `dnf provides '*/bin/wts'` leer |
+| `command -v wts` (Fedora) | kein Treffer; `dnf provides '*/bin/wts'` leer |
 | Debian-Paketinhalte, Datei `wts` (stable) | kein Paket liefert eine Datei `wts` |
 | Domain, DPMA/EUIPO | nicht geprüft, vor Veröffentlichung nachholen |
 

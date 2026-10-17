@@ -104,7 +104,7 @@ There is deliberately no update from within the running app (see `docs/DECISIONS
 ## Release and development
 
 `git tag vX.Y.Z && git push --tags` builds the wheel and attaches it to the GitHub release.
-Every release ships a CycloneDX SBOM (`wts --sbom`). Publishing to PyPI locally: `scripts/build_wheel.sh && uv publish dist/*`. Step by step: `docs/RELEASING.md`.
+Every release ships a CycloneDX SBOM (`wts --sbom`). The same workflow publishes to PyPI via trusted publishing (GitHub environment `pypi`). Step by step: `docs/RELEASING.md`.
 
 ```
 uv sync --group dev
@@ -116,5 +116,5 @@ uv run pytest
 
 ## License
 
-Code: AGPL-3.0-or-later (see `LICENSE`). Bundled modules and workflows (`src/whattheshell/bundled/`): CC0-1.0.
+Copyright (C) 2026 Luk007x. Code: AGPL-3.0-or-later (see `LICENSE`). Bundled modules and workflows (`src/whattheshell/bundled/`): CC0-1.0.
 Security concept: `docs/SECURITY.md`.

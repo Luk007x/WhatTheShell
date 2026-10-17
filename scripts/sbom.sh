@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Erzeugt die CycloneDX-SBOM (Python-Laufzeitabhängigkeiten + gebündelte npm-Pakete).
 # Ausgabe: dist/sbom.cdx.json und src/whattheshell/sbom.cdx.json (landet im Wheel).
 # Voraussetzung: npm ci in gui/ (package-lock.json).

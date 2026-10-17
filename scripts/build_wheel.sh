@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Baut Frontend und Wheel/sdist nach dist/ (lokal und in der CI).
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"

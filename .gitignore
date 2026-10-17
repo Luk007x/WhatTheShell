@@ -14,3 +14,4 @@ graphify-out/
 src/whattheshell/api/static/*
 !src/whattheshell/api/static/.gitkeep
 src/whattheshell/sbom.cdx.json
+.claude/agent-memory/

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Paketierung: Frontend-Build kommt ins Wheel, Build-Skript ist ausführbar."""
 
 import os
