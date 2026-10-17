@@ -22,6 +22,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
+    "@cyclonedx/cyclonedx-npm": "^6.0.1",
     "@playwright/test": "^1.64.0",
     "@types/node": "^20.19.43",
     "@types/react": "^18.3.31",

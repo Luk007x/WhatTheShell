@@ -18,6 +18,7 @@ Lizenzen aus den Paket-Metadaten (importlib.metadata). Alle permissiv (MIT, BSD,
 | pytest (dev) | 9.1.1 | MIT | ja | Tests |
 | ruff (dev) | 0.17.0 | MIT | ja | Lint und Format |
 | mypy (dev) | 2.4.0 | MIT | ja | Typprüfung |
+| cyclonedx-bom (dev) | 7.5.0 | Apache-2.0 | ja (nur Build, nicht ausgeliefert) | `cyclonedx-py`: SBOM der Python-Abhängigkeiten (`scripts/sbom.sh`) |
 | httpx (dev) | 0.28.1 | BSD-3-Clause | ja | `TestClient` der API-Tests |
 | httpcore, certifi (dev, via httpx) | 1.0.9, 2026.7.22 | BSD-3-Clause, MPL-2.0 | ja (nicht ausgeliefert) | Transitiv |
 | keyring (optional, nicht installiert) | >=25 | MIT | ja | Extra `keyring`: API-Schlüssel im Systemschlüsselbund (`key_source: keyring`) |
@@ -35,6 +36,7 @@ Lizenzen aus den Paket-Metadaten (importlib.metadata). Alle permissiv (MIT, BSD,
 | yaml | 2.x | ISC | ja | Modul-Editor: Formular ↔ YAML-Rohtext |
 | marked (dev) | 18 | MIT | ja | Handbuch: `docs/manual/*.md` → HTML beim Build (Vite-Plugin), keine Laufzeitabhängigkeit |
 | vite, @vitejs/plugin-react, vitest (dev) | 6.4, 4.7, 4.1 | MIT | ja | Build, Tests |
+| @cyclonedx/cyclonedx-npm (dev) | 6.0.1 | Apache-2.0 | ja (nur Build, nicht ausgeliefert) | SBOM der gebündelten npm-Pakete (`scripts/sbom.sh`) |
 | typescript (dev) | 5.9 | Apache-2.0 | ja | Typprüfung |
 | json-schema-to-typescript (dev) | 16 | MIT | ja | Typen aus `schemas/` |
 | @playwright/test (dev) | 1.64 | Apache-2.0 | ja | E2E-Smoke |

@@ -43,3 +43,20 @@ def test_broken_pipe_is_not_an_error(tmp_path: Path, monkeypatch: pytest.MonkeyP
     with (tmp_path / "sink").open("w") as sink:
         monkeypatch.setattr(sys, "stdout", ClosedPipe(sink.fileno()))
         assert main(["tools"]) == 0
+
+
+def test_sbom_prints_packaged_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (tmp_path / "sbom.cdx.json").write_text('{"bomFormat": "CycloneDX"}')
+    monkeypatch.setattr("whattheshell.cli.resources.files", lambda _pkg: tmp_path)
+    assert main(["--sbom"]) == 0
+    assert capsys.readouterr().out == '{"bomFormat": "CycloneDX"}'
+
+
+def test_sbom_missing_is_an_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr("whattheshell.cli.resources.files", lambda _pkg: tmp_path)
+    assert main(["--sbom"]) == 1
+    assert "scripts/sbom.sh" in capsys.readouterr().err

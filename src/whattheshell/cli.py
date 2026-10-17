@@ -18,6 +18,7 @@ import termios
 import threading
 import time
 import webbrowser
+from importlib import resources
 from pathlib import Path
 from typing import Any, Literal
 
@@ -163,6 +164,7 @@ def _main(argv: list[str] | None) -> int:
     parser = argparse.ArgumentParser(prog="wts", description=APP_NAME)
     parser.add_argument("--lang", choices=["de", "en"], help=_("Sprache der Meldungen (de, en)"))
     parser.add_argument("--version", action="version", version=f"{APP_NAME} {__version__}")
+    parser.add_argument("--sbom", action="store_true", help=_("CycloneDX-SBOM des Pakets ausgeben"))
     commands = parser.add_subparsers(dest="command", required=False)
     schema = commands.add_parser("schema", help=_("JSON-Schemas verwalten"))
     schema_commands = schema.add_subparsers(dest="schema_command", required=True)
@@ -310,7 +312,20 @@ def _catalog(registry: ModuleRegistry | None = None, *, sandbox: bool = True) ->
     return Catalog(registry=registry, sandbox=self_test() if sandbox else None)
 
 
+def _print_sbom() -> int:
+    sbom = resources.files("whattheshell") / "sbom.cdx.json"
+    try:
+        text = sbom.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        print(_("Keine SBOM im Paket. Erzeugen: scripts/sbom.sh"), file=sys.stderr)
+        return 1
+    sys.stdout.write(text)
+    return 0
+
+
 def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
+    if args.sbom:
+        return _print_sbom()
     if args.command == "tools":
         needle = (args.search or "").lower()
         for tool in Catalog().tools():

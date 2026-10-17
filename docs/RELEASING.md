@@ -57,17 +57,23 @@ env -u VIRTUAL_ENV uv publish --publish-url https://test.pypi.org/legacy/ dist/*
 pipx install --index-url https://test.pypi.org/simple/ --pip-args="--extra-index-url https://pypi.org/simple/" whattheshell
 ```
 
-## 4. Spätere Releases: Trusted Publishing (empfohlen)
+## 4. Spätere Releases: Trusted Publishing
 
-Ohne Token im Repo: PyPI vertraut dem GitHub-Workflow direkt.
+Ohne Token im Repo: PyPI vertraut dem GitHub-Workflow direkt. Der Job `publish` in
+`.github/workflows/release.yml` ist eingebaut (`needs: release`, `environment: pypi`,
+`id-token: write`). Er lädt `dist/` aus dem Job `release`, kopiert nur `*.whl` und `*.tar.gz` nach
+`dist/pypi/` (die SBOM geht nur ans GitHub-Release, nicht nach PyPI) und lädt mit `skip-existing` hoch.
 
-1. pypi.org → Projekt `whattheshell` → Publishing → GitHub: Owner `Luk007x`, Repo `WhatTheShell`,
-   Workflow `release.yml`, Environment `pypi`.
-2. In `release.yml` einen Job `publish` ergänzen (`needs: release`, `environment: pypi`,
-   `permissions: id-token: write`, Schritt `pypa/gh-action-pypi-publish` mit `dist/`).
-3. Ab dann genügt: Version anheben, committen, `git tag vX.Y.Z && git push --tags`.
+Einmalige Einrichtung:
 
-Der Job ist noch nicht eingebaut; auf Zuruf baut ihn die Claude-Sitzung ein, der Tag-Push bleibt beim Auftraggeber.
+1. GitHub → Repo → Settings → Environments → New environment `pypi` (optional mit Required reviewers:
+   dann wartet der Job vor dem Upload auf eine Freigabe).
+2. pypi.org → Publishing → Add a new pending publisher (solange das Projekt noch nicht existiert) bzw.
+   Projekt `whattheshell` → Publishing: Owner `Luk007x`, Repo `WhatTheShell`, Workflow `release.yml`,
+   Environment `pypi`.
+
+Ablauf danach: Version in `pyproject.toml` anheben, committen, `git tag vX.Y.Z && git push --tags`.
+Der Tag-Push bleibt beim Auftraggeber (D-001, D-016).
 
 ## 5. Wo liegt was
 
@@ -118,3 +124,17 @@ Noch vom Auftraggeber zu liefern:
 - [ ] Optional: Screenshot oder Logo (siehe oben).
 - [ ] Entscheidung über die Projekt-URLs (derzeit `https://github.com/Luk007x/WhatTheShell`, Changelog = Releases-Seite).
 - [ ] Autor mit E-Mail in `authors` (z. B. `authors = [{ name = "…", email = "…" }]`); die Adresse wird öffentlich angezeigt.
+
+## 7. SBOM
+
+Jede Veröffentlichung enthält eine CycloneDX-SBOM (JSON, Spec 1.5) der Python-Laufzeitabhängigkeiten
+(aus `uv.lock`, ohne Dev-Gruppe) und der gebündelten npm-Pakete (aus `gui/package-lock.json`, ohne Dev).
+
+- Erzeugt von `scripts/sbom.sh` (ruft `scripts/sbom_merge.py`), automatisch aus `scripts/build_wheel.sh`.
+  Voraussetzung: `npm ci` in `gui/` (macht `build_wheel.sh` vorher).
+- Ablage: `dist/sbom.cdx.json` (Anhang des GitHub-Releases) und `src/whattheshell/sbom.cdx.json`
+  (gitignored, liegt im Wheel und sdist). Auf PyPI wird nur Wheel und sdist hochgeladen.
+- Prüfen: `wts --sbom` gibt die mitgelieferte Datei aus, z. B. `wts --sbom | python3 -m json.tool | head`.
+  Im Entwicklungs-Checkout ohne Build meldet es „Keine SBOM im Paket“ (Exit 1).
+- Grenze: Für Python-Pakete enthält die SBOM keine Abhängigkeitskanten untereinander; alle hängen direkt an
+  der Wurzel `whattheshell`.

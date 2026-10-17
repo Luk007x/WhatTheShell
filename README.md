@@ -104,7 +104,7 @@ There is deliberately no update from within the running app (see `docs/DECISIONS
 ## Release and development
 
 `git tag vX.Y.Z && git push --tags` builds the wheel and attaches it to the GitHub release.
-Publishing to PyPI locally: `scripts/build_wheel.sh && uv publish dist/*`. Step by step: `docs/RELEASING.md`.
+Every release ships a CycloneDX SBOM (`wts --sbom`). Publishing to PyPI locally: `scripts/build_wheel.sh && uv publish dist/*`. Step by step: `docs/RELEASING.md`.
 
 ```
 uv sync --group dev

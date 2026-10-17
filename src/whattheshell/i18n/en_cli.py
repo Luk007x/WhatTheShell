@@ -8,6 +8,8 @@ CATALOG: dict[str, str] = {
     "JSON-Schemas verwalten": "Manage JSON schemas",
     "Schemas aus den Modellen erzeugen": "Generate schemas from the models",
     "Zielordner": "Target folder",
+    "CycloneDX-SBOM des Pakets ausgeben": "Print the CycloneDX SBOM of the package",
+    "Keine SBOM im Paket. Erzeugen: scripts/sbom.sh": "No SBOM in the package. Create it: scripts/sbom.sh",
     "Programme auf PATH auflisten": "List programs on PATH",
     "Nur Namen, die diesen Text enthalten": "Only names containing this text",
     "Hilfe eines Tools als Katalogeintrag zeigen": "Show a tool's help as a catalog entry",
