@@ -100,6 +100,8 @@ Types in the start form: text, number, choice (`enum`), checkbox (`bool`), passw
 
 "Add variable" creates a new one, "Remove variable" deletes it. A variable set with "Set variable" must be declared here.
 
+The variables table can be edited in a large dialog via "Open details in a window"; "Back to the sidebar" or Esc closes it.
+
 ## Control blocks
 
 ### Condition (`if`)

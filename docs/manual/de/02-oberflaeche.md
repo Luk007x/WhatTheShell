@@ -57,6 +57,8 @@ Ist die Fläche leer, steht dort: „Werkzeug aus dem Katalog hierher ziehen ode
 
 Details zu allen Feldern: Kapitel „Workflow bauen“.
 
+Oben rechts im Bereich öffnet „Details im Fenster öffnen“ (Pfeil-Symbol) denselben Inhalt (Schritt-Felder oder Variablentabelle) in einem großen Dialog mit mehrspaltigen Feldern. „Zurück in die Seitenleiste“ oder Esc schließt ihn. Die Spaltenbreite lässt sich weiterhin am Trenner ziehen, bis zur halben Fensterbreite.
+
 ## Ausgabe (unten)
 
 Die Ausgabe zeigt Live-Ausgabe, Meldungen und Plan eines Laufs je Schritt. „Ausgabe anzeigen“ und „Ausgabe ausblenden“ klappen den Bereich auf und zu. Bis zum ersten Lauf steht dort „Noch keine Ausgabe.“ Die Statuszeile meldet Fehler beim Verbinden und Hinweise („Workflow gültig“ oder „n Fehler im Workflow“).

@@ -56,6 +56,8 @@ The classification is a heuristic based on names and options. See the chapter "S
 
 The "Dry run" only shows the plan: all commands with safety class. Nothing is executed and no process is started. Terminal steps appear as "interactive, will be skipped".
 
+In "Build" mode, "Dry run" in the footer opens a "Dry run" dialog with the variable form if the workflow has variables. The plan updates as you type; nothing is executed. "Use plan" shows the plan in the footer, and the values you entered then also apply to "Run". Without variables the plan appears directly.
+
 ## During the run
 
 | Button | Effect |

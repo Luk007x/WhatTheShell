@@ -56,6 +56,8 @@ Die Einstufung ist eine Heuristik auf Namen und Optionen. Siehe Kapitel „Siche
 
 Der „Trockenlauf“ zeigt nur den Plan: alle Befehle mit Sicherheitsklasse. Es wird nichts ausgeführt und kein Prozess gestartet. Terminal-Schritte erscheinen als „interaktiv, wird übersprungen“.
 
+Im Modus „Erstellen“ öffnet der „Trockenlauf“ in der Fußleiste einen Dialog „Trockenlauf“ mit dem Variablenformular, sofern der Workflow Variablen hat. Der Plan aktualisiert sich beim Tippen; ausgeführt wird nichts. „Plan übernehmen“ zeigt den Plan in der Fußleiste, und die eingegebenen Werte gelten anschließend auch für „Ausführen“. Ohne Variablen erscheint der Plan direkt.
+
 ## Während des Laufs
 
 | Knopf | Wirkung |

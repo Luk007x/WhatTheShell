@@ -57,6 +57,8 @@ If the canvas is empty, it says: "Drag a tool from the catalog here, or insert i
 
 Details on all fields: chapter "Building a workflow".
 
+At the top right of the area, "Open details in a window" (arrow icon) opens the same content (step fields or variables table) in a large dialog with multi-column fields. "Back to the sidebar" or Esc closes it. The column width can still be changed by dragging the divider, up to half the window width.
+
 ## Output (bottom)
 
 The output shows live output, messages and the plan of a run, per step. "Show output" and "Hide output" expand and collapse the area. Until the first run it says "No output yet." The status line reports connection errors and notices ("Workflow valid" or "n errors in workflow").

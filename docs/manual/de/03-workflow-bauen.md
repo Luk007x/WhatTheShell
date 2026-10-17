@@ -100,6 +100,8 @@ Typen im Startformular: Text, Zahl, Auswahl (`enum`), Checkbox (`bool`), Passwor
 
 „Variable hinzufügen“ legt eine neue an, „Variable entfernen“ löscht sie. Eine mit „Variable setzen“ gesetzte Variable muss hier deklariert sein.
 
+Die Variablentabelle lässt sich über „Details im Fenster öffnen“ in einem großen Dialog bearbeiten; „Zurück in die Seitenleiste“ oder Esc schließt ihn.
+
 ## Kontrollbausteine
 
 ### Bedingung (`if`)
