@@ -4,7 +4,7 @@ name: "AppImage installieren (Linux Mint)"
 description: "Legt eine AppImage-Datei nach ~/Applications (oder Zielordner), macht sie ausführbar und erzeugt einen Menüeintrag mit Icon. Prüft nur die Voraussetzung (libfuse2), installiert nichts. Für Fedora: Workflow „AppImage installieren (Fedora)“."
 variables:
   appimage: { type: path, required: true, pattern: '/[^\n"$`%\\]*\.[Aa]pp[Ii]mage', label: "AppImage-Datei", help: "Die heruntergeladene Datei, Endung .AppImage." }
-  name: { type: string, required: true, label: "Name im Menü", help: "Erscheint im Anwendungsmenü und bestimmt Dateinamen. Erlaubt: Buchstaben, Ziffern, Leerzeichen, Punkt, Plus, Minus.", pattern: "[A-Za-z0-9][A-Za-z0-9 ._+-]*" }
+  name: { type: string, required: true, label: "Name im Menü", help: "Erscheint im Anwendungsmenü und bestimmt Dateinamen. Erlaubt: Buchstaben, Ziffern, Leerzeichen, Punkt, Plus, Minus.", pattern: "[A-Za-z0-9][A-Za-z0-9 ._+\\-]*" }
   icon: { type: path, default: "", pattern: '(/[^\n"$`%\\]*)?', label: "Icon (optional)", help: "PNG oder SVG. Leer lassen für das Standard-Icon (application-x-executable)." }
   categories: { type: enum, choices: [Utility, Development, Graphics, Network, Office, AudioVideo, Game, System], default: Utility, label: "Menü-Kategorie" }
   target_dir: { type: path, default: "", pattern: '(/[^\n"$`%\\]*)?', label: "Zielordner", help: "Wohin die AppImage kopiert wird. Leer lassen für den Ordner Applications im Home-Verzeichnis (~ wird nicht aufgelöst, daher hier einen absoluten Pfad angeben)." }

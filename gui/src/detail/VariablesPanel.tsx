@@ -4,19 +4,21 @@ import { HelpButton } from "../Help";
 import { t } from "../i18n";
 import { Icon } from "../icons";
 import { ID_PATTERN } from "../model/ops";
-import { patternOf } from "../run/runForm";
+import { compilePattern, patternOf } from "../run/runForm";
 import type { Workflow } from "../types/workflow";
 
 type Vars = NonNullable<Workflow["variables"]>;
 const TYPES = ["string", "int", "float", "bool", "path", "enum", "secret"] as const;
 
 function PatternInput({ value, onChange }: { value: string; onChange: (p: string) => void }) {
-  let bad = false;
-  try { new RegExp(value, "v"); } catch { bad = true; }
+  const bad = value !== "" && compilePattern(value) === null;
+  let vOk = true;
+  try { new RegExp(value, "v"); } catch { vOk = false; }
   return (
     <>
       <input aria-label={t("vars.pattern")} value={value} aria-invalid={bad} onChange={(e) => onChange(e.target.value)} />
       {bad && <small className="error" role="alert">{t("vars.pattern.invalid")}</small>}
+      {!bad && !vOk && <small role="note">{t("vars.pattern.vflag")}</small>}
     </>
   );
 }

@@ -119,6 +119,7 @@ Pflicht "ja" heißt: Datei ist sonst ungültig. Alle anderen Felder dürfen fehl
 | `default` | nein | beliebig | Vorgabewert | `3` |
 | `choices` | nein | Liste string | Bei `enum` | `[always, never, auto]` |
 | `min`, `max` | nein | Zahl | Bei `int`/`float` | `min: 0` |
+| `pattern` | nein | Regex | Bei `string`/`path` (Workflow-Variablen) | `"[a-z][a-z0-9\\-]*"` — muss in Python `re` und als JavaScript-Regex (Flag `v`) gültig sein, `-` in Zeichenklassen daher als `\-` schreiben |
 | `metavar` | nein | string | Platzhalter aus der Hilfe | `NUM` |
 | `group` | nein | string | GUI-Gruppe, deutsch | `Ausgabe` |
 | `importance` | nein | `common`/`normal`/`rare` | Reihenfolge/Einklappen; Standard `normal` | `common` |

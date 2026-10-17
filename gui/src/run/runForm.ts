@@ -19,11 +19,19 @@ export const patternOf = (v: VariableSpec): string | undefined => v.pattern || u
 
 /** Full match like the backend (`fullmatch`) and the HTML `pattern` attribute; an invalid regex is left to the backend. */
 export function matchesPattern(pattern: string, text: string): boolean {
-  try {
-    return new RegExp(`^(?:${pattern})$`, "v").test(text);
-  } catch {
-    return true;
+  return compilePattern(pattern)?.test(text) ?? true;
+}
+
+/** Anchored regex: flag "v" like the browser's `pattern` attribute, else "u" (accepts unescaped `-` in classes); null if invalid. */
+export function compilePattern(pattern: string): RegExp | null {
+  for (const flags of ["v", "u"]) {
+    try {
+      return new RegExp(`^(?:${pattern})$`, flags);
+    } catch {
+      /* try next flag */
+    }
   }
+  return null;
 }
 
 /** Stored values (if they fit the variable type) win over defaults; secrets never come from storage. */

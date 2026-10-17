@@ -202,7 +202,7 @@ Ein literales `{{` (z. B. `docker --format '{{.Names}}'`) wird als `\{{` geschri
 ### Validierungsregeln (Pydantic-Validatoren)
 
 - Alle `id`s eindeutig im gesamten Baum, Muster `^[a-z][a-z0-9_]*$`. `var` und `item` sind reserviert, auch für `foreach.as`. `foreach.as` darf keine id überdecken.
-- `variables.*`: `choices` nur bei `type: enum`, `min`/`max` nur bei `int`/`float`, `pattern` (Regex, höchstens 500 Zeichen, nur bei `string` und `path`; der ganze Wert muss passen, `re.fullmatch`) (Modellfehler sonst); der Lauf prüft Wert gegen `choices`, Grenzen und `pattern` (`RunError` mit Hinweis).
+- `variables.*`: `choices` nur bei `type: enum`, `min`/`max` nur bei `int`/`float`, `pattern` (Regex, höchstens 500 Zeichen, nur bei `string` und `path`; der ganze Wert muss passen, `re.fullmatch`; das Muster muss in Python `re` und als JavaScript-Regex (Flag `v`) gültig sein, `-` in Zeichenklassen daher als `\-` schreiben) (Modellfehler sonst); der Lauf prüft Wert gegen `choices`, Grenzen und `pattern` (`RunError` mit Hinweis).
 - Ein Dokument muss ein Objekt sein; Listen oder Skalare auf oberster Ebene sind ein Fehler mit Hinweis.
 - `tool` (Workflow und Modul) folgt `^[A-Za-z0-9][A-Za-z0-9._+-]*$`: kein führendes `-`, kein Pfad.
 - Regex-Felder (`condition.regex`, `expect.stdout_regex`) müssen kompilierbar sein.

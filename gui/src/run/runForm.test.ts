@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { expect, test } from "vitest";
-import { askedVariables, withoutAsked, initialValues, matchesPattern, storable, toOverrides, validate } from "./runForm";
+import { askedVariables, withoutAsked, initialValues, matchesPattern, compilePattern, storable, toOverrides, validate } from "./runForm";
 
 const entry = {
   variables: {
@@ -63,4 +63,12 @@ test("askedVariables walks nested steps; withoutAsked and toOverrides leave them
   expect(Object.keys(entry.variables)).toEqual(["d"]);
   expect(validate(entry, { d: "" })).toEqual({});
   expect(toOverrides(entry, { a: "x", d: "y" })).toEqual({ d: "y" });
+});
+
+test("pattern: unescaped dash falls back to flag u, escaped dash works, broken pattern is null", () => {
+  expect(matchesPattern("[a-z][a-z +-]*", "ab-c")).toBe(true);
+  expect(matchesPattern("[a-z][a-z +-]*", "ab!")).toBe(false);
+  expect(matchesPattern("[a-z][a-z +\\-]*", "ab-c")).toBe(true);
+  expect(compilePattern("[")).toBeNull();
+  expect(matchesPattern("[", "x")).toBe(true);
 });

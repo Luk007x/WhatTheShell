@@ -2,7 +2,12 @@
 // One field per workflow variable plus the working directory; used by the run view and the editor's run dialog.
 import { t } from "../i18n";
 import type { VariableSpec } from "../types/api";
-import { patternOf, type FieldError, type FormValues } from "./runForm";
+import { compilePattern, patternOf, type FieldError, type FormValues } from "./runForm";
+
+/** The browser compiles the HTML `pattern` attribute with flag "v"; set it only if that works. */
+const vOk = (p: string): boolean => {
+  try { new RegExp(`^(?:${p})$`, "v"); return true; } catch { return false; }
+};
 
 /** One field per variable (type, choices, pattern, required, help); shared by the run form and the ask dialog. */
 export function VariableFields({ prefix, variables, values, errors = {}, onValues }: {
@@ -43,7 +48,7 @@ export function VariableFields({ prefix, variables, values, errors = {}, onValue
           {choices.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
       ) : (
-        <input {...common} type={numeric ? "number" : v.type === "secret" ? "password" : "text"} step={v.type === "float" ? "any" : undefined} pattern={pattern} title={pattern ? t("runform.pattern", { pattern }) : undefined}
+        <input {...common} type={numeric ? "number" : v.type === "secret" ? "password" : "text"} step={v.type === "float" ? "any" : undefined} pattern={pattern !== undefined && vOk(pattern) ? pattern : undefined} title={pattern ? t("runform.pattern", { pattern }) : undefined}
           min={numeric ? v.min ?? undefined : undefined} max={numeric ? v.max ?? undefined : undefined} value={text}
           autoComplete={v.type === "secret" ? "off" : undefined} onChange={(e) => set(name, e.target.value)} />
       );
