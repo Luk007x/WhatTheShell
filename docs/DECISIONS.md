@@ -209,3 +209,9 @@ Auftraggeber: „Generell braucht das gesamte Tool Erklärungen." Bestandsaufnah
 - **Prüfung im Validate-Endpunkt:** `POST /api/workflows/validate` liefert zusätzlich `missing_tools: [{step, tool, install}]` statt eines eigenen Endpunkts (die GUI validiert ohnehin). `ok` bleibt unberührt, ein fehlendes Werkzeug ist eine Warnung und kein Dokumentfehler. Die Meldung beim Auflösen nennt den Installationsbefehl; Graph und Blockansicht markieren den Schritt mit „Tool fehlt“, das Schrittpanel zeigt den Hinweis. Dafür `catalog.catalog.find_executable(name) -> str | None`.
 - **Kategorie übersetzbar:** `i18n.<lang>.category` neben `display_name` und `summary`.
 - **Standardmodul-Bibliothek** wird mitgeliefert (Kategorien Dateien, Text, System, Netzwerk, Archive). Der Katalog zeigt nur installierte Werkzeuge; Module für nicht installierte Werkzeuge erscheinen erst nach der Installation.
+
+## D-024 – Details-Popup, Trockenlauf mit Variablen, Katalogbreite (2026-10-17)
+
+- **Details im Fenster**: Die Details-Spalte bleibt, bekommt aber einen Knopf, der denselben Inhalt (Schritt oder Variablen) in einem großen Dialog (`modal--wide`) öffnet; dort sind Felder mehrspaltig. Gewählt statt einer breiteren Spalte, weil der Graph den Platz braucht. Standardbreite der Spalte 420 px, Maximum 50 % des Fensters.
+- **Trockenlauf im Erstellen-Modus** öffnet bei vorhandenen Variablen den Lauf-Dialog im Modus `dry` (Formular, Plan live, Knopf „Plan übernehmen", nichts wird ausgeführt). Vorher scheiterte er ohne Werte. Ohne Variablen weiterhin direkt in der Fußleiste.
+- **Katalog** scrollt nie waagerecht (`overflow-x: hidden`); Ursache langer Werkzeugnamen durch `overflow-wrap: anywhere` behoben.

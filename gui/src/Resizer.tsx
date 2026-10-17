@@ -4,7 +4,7 @@ import { useRef, type KeyboardEvent, type PointerEvent } from "react";
 
 /** Limits of the side columns in px; the upper limit depends on the window width. */
 export const COL_MIN = { catalog: 192, details: 256 } as const;
-export const colMax = (): number => Math.max(320, Math.round(window.innerWidth * 0.4));
+export const colMax = (): number => Math.max(320, Math.round(window.innerWidth * 0.5));
 export const clampCol = (v: number, min: number, max: number): number => Math.round(Math.min(max, Math.max(min, v)));
 
 export function Resizer({ label, value, min, max, onChange, invert = false }: {

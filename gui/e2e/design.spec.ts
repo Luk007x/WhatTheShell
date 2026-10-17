@@ -89,6 +89,8 @@ test.describe.serial("design", () => {
 
   test("run panel", async () => {
     await page.getByRole("button", { name: "Trockenlauf" }).click();
+    const dlg = page.getByRole("dialog", { name: "Trockenlauf" });
+    await dlg.getByRole("button", { name: "Plan übernehmen" }).click();
     await expect(page.getByTestId("plan")).toContainText("grep");
     await noOverlap("run");
     await shot("run");

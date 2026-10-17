@@ -20,6 +20,7 @@ const PATHS = {
   blocks: <><rect x="3.5" y="4" width="17" height="5" rx="1" /><rect x="7.5" y="11" width="13" height="4" rx="1" /><rect x="3.5" y="17" width="17" height="3.5" rx="1" /></>,
   terminal: <><rect x="3" y="4.5" width="18" height="15" rx="2" /><path d="m7 9.5 3 2.5-3 2.5M12.5 15h4.5" /></>,
   help: <><circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6" /><circle cx="12" cy="17.3" r=".6" /></>,
+  expand: <path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7" />,
   book: <><path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5z" /><path d="M12 6.5v13" /></>,
 } satisfies Record<string, ReactNode>;
 

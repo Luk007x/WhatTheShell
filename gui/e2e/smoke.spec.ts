@@ -128,6 +128,7 @@ test.describe.serial("smoke", () => {
   test("k) Block-Ansicht", async () => {
     const plan = async (re: RegExp) => {
       await page.getByRole("button", { name: "Trockenlauf" }).click();
+      await page.getByRole("dialog", { name: "Trockenlauf" }).getByRole("button", { name: "Plan übernehmen" }).click();
       await expect(page.getByTestId("plan")).toHaveText(re); // retries until the new plan arrived
       return page.getByTestId("plan").innerText();
     };
@@ -147,6 +148,19 @@ test.describe.serial("smoke", () => {
     await expect(page.getByText("Workflow gültig")).toBeVisible({ timeout: 10_000 });
     await page.getByRole("button", { name: "Rückgängig" }).click();
     expect(await plan(/^ +ok \[message\]/m)).toBe(before);
+  });
+
+  test("k2) Trockenlauf mit Pflichtvariablen: Dialog, Plan übernehmen", async () => {
+    await page.getByRole("button", { name: "Öffnen", exact: true }).click();
+    await page.getByRole("dialog", { name: "Öffnen" }).getByRole("button", { name: /^AppImage installieren \(Fedora\)/ }).click();
+    await page.getByRole("button", { name: "Trockenlauf" }).click();
+    const dlg = page.getByRole("dialog", { name: "Trockenlauf" });
+    await dlg.getByLabel(/AppImage-Datei/).fill("/tmp/e2e-demo.AppImage");
+    await dlg.getByLabel(/Name im Menü/).fill("E2E Demo");
+    await expect(dlg.locator("pre.plan")).toContainText("/tmp/e2e-demo.AppImage", { timeout: 10_000 });
+    await dlg.getByRole("button", { name: "Plan übernehmen" }).click();
+    await expect(dlg).toBeHidden();
+    await expect(page.getByTestId("plan")).toContainText("/tmp/e2e-demo.AppImage");
   });
 
   test("l) Modul-Editor", async () => {

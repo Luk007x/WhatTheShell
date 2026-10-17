@@ -20,6 +20,7 @@ import { useDebounced } from "./hooks";
 import { Icon } from "./icons";
 import { ManualView } from "./manual/ManualView";
 import { applyTheme, getTheme, setTheme, THEMES, type Theme } from "./theme";
+import { Modal } from "./Modal";
 import { clampCol, COL_MIN, colMax, Resizer } from "./Resizer";
 import { getLang, setLang, t, type Lang } from "./i18n";
 import { addStep, captureOutput, evaluateOutput, findStep, newId, removeStep, renameStep, setVariables, stepIdAtErrorPath, updateStep, type OpResult } from "./model/ops";
@@ -60,7 +61,7 @@ const loadCols = (): Cols => {
       return { catalog: clampCol(raw.catalog, COL_MIN.catalog, max), details: clampCol(raw.details, COL_MIN.details, max) };
     }
   } catch { /* unreadable: defaults */ }
-  return { catalog: 256, details: 360 };
+  return { catalog: 256, details: 420 };
 };
 
 interface State {
@@ -129,6 +130,7 @@ export function App() {
   const [refresh, setRefresh] = useState(0); // bumped when ToolInfos must be reloaded (language, module saved)
   const [view, setViewState] = useState<View>(start.view);
   const [theme, setThemeState] = useState<Theme>(getTheme);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [outputOpen, setOutputOpen] = useState(true);
   const [helpSection, setHelpSection] = useState<HelpSection | null>(null);
   const [manual, setManual] = useState<string | null>(null); // open manual: chapter id wanted first (null = closed)
@@ -263,6 +265,35 @@ export function App() {
           : <BlockView wf={wf} selected={selected} onSelect={setSelected} edit={edit} catalogTool={catalogTool} safetyOf={safetyOf} categoryOf={categoryOf} knownTools={knownTools} interactiveTools={interactiveTools} missingTools={missingTools} />;
     }
   })();
+  const detailsContent = (
+    <>
+          {selStep ? (
+            <StepPanel missing={missingTools.has(selStep.id) ? { install: missingTools.get(selStep.id) ?? null } : undefined} key={`${selStep.id}:${state.epoch}:${refresh}`} autoPreview={autoPreview} step={selStep} wf={wf} sandbox={sandbox} onRetest={retest}
+              update={(patch, key) => edit((w) => updateStep(w, selStep.id, patch), key ? `${selStep.id}:${key}` : undefined)}
+              rename={(n) => {
+                const r = renameStep(wf, selStep.id, n);
+                edit((w) => renameStep(w, selStep.id, n));
+                if (r.wf !== wf) setSelected(n); // refused renames keep the selection
+              }}
+              remove={() => { edit((w) => removeStep(w, selStep.id)); setSelected(null); }} />
+          ) : (
+            <VariablesPanel key={state.epoch} variables={wf.variables} onChange={(v) => edit((w) => setVariables(w, v), "vars")} />
+          )}
+          {!selStep && catalogTool && (
+            <section aria-label={t("details.title")} className="tool-info">
+              {toolError && <p role="alert" className="error">{t("error.network", { message: toolError })}</p>}
+              {cmd && (
+                <div>
+                  <h3>{cmd.display_name ?? tool.name}</h3>
+                  {cmd.summary && <p>{cmd.summary}</p>}
+                  {cmd.usage && <><h4>{t("details.usage")}</h4><pre className="code">{cmd.usage}</pre></>}
+                </div>
+              )}
+              <Templates tool={catalogTool} onInsert={(doc) => { edit((w) => mergeTemplate(w, doc)); setSelected(null); }} />
+            </section>
+          )}
+    </>
+  );
   const maxCol = colMax();
 
   return (
@@ -327,33 +358,17 @@ export function App() {
         {center}
         <Resizer label={t("layout.details")} value={cols.details} min={COL_MIN.details} max={maxCol} invert onChange={(details) => setCols({ ...cols, details })} />
         <section className="panel" aria-labelledby="details-h">
-          <div className="panel__header"><h2 id="details-h">{t("details.title")}</h2></div>
+          <div className="panel__header">
+            <h2 id="details-h">{t("details.title")}</h2>
+            <button className="btn--icon" aria-label={t("details.expand")} title={t("details.expand")} onClick={() => setDetailsOpen(true)}><Icon name="expand" /></button>
+          </div>
           <div className="panel__body">
-          {selStep ? (
-            <StepPanel missing={missingTools.has(selStep.id) ? { install: missingTools.get(selStep.id) ?? null } : undefined} key={`${selStep.id}:${state.epoch}:${refresh}`} autoPreview={autoPreview} step={selStep} wf={wf} sandbox={sandbox} onRetest={retest}
-              update={(patch, key) => edit((w) => updateStep(w, selStep.id, patch), key ? `${selStep.id}:${key}` : undefined)}
-              rename={(n) => {
-                const r = renameStep(wf, selStep.id, n);
-                edit((w) => renameStep(w, selStep.id, n));
-                if (r.wf !== wf) setSelected(n); // refused renames keep the selection
-              }}
-              remove={() => { edit((w) => removeStep(w, selStep.id)); setSelected(null); }} />
-          ) : (
-            <VariablesPanel key={state.epoch} variables={wf.variables} onChange={(v) => edit((w) => setVariables(w, v), "vars")} />
-          )}
-          {!selStep && catalogTool && (
-            <section aria-label={t("details.title")} className="tool-info">
-              {toolError && <p role="alert" className="error">{t("error.network", { message: toolError })}</p>}
-              {cmd && (
-                <div>
-                  <h3>{cmd.display_name ?? tool.name}</h3>
-                  {cmd.summary && <p>{cmd.summary}</p>}
-                  {cmd.usage && <><h4>{t("details.usage")}</h4><pre className="code">{cmd.usage}</pre></>}
-                </div>
-              )}
-              <Templates tool={catalogTool} onInsert={(doc) => { edit((w) => mergeTemplate(w, doc)); setSelected(null); }} />
-            </section>
-          )}
+          {detailsOpen ? (
+            <>
+              <p className="muted">{t("details.inwindow")}</p>
+              <button onClick={() => setDetailsOpen(false)}>{t("details.collapse")}</button>
+            </>
+          ) : detailsContent}
           </div>
         </section>
       </main>}
@@ -391,6 +406,10 @@ export function App() {
             onEvaluate={(id) => { const created = newId(wf, `${id}_pruefe`); edit((w) => evaluateOutput(w, id)); setSelected(created); }} />
         </div>
       </footer>
+      <Modal open={detailsOpen} className="modal--wide" title={t("details.title")} onCancel={() => setDetailsOpen(false)}>
+        {detailsContent}
+        <div className="actions"><button data-autofocus onClick={() => setDetailsOpen(false)}>{t("details.collapse")}</button></div>
+      </Modal>
       <Help section={helpSection} onSection={setHelpSection} onClose={closeHelp} onManual={(s) => { closeHelp(); setManual(s); }} />
       <Settings open={settingsOpen} onClose={() => setSettingsOpen(false)} onStopped={() => { setSettingsOpen(false); setStopped(true); }} onAiChanged={setAiEnabled} lang={getLang()} onLang={changeLang}
         fontSize={fontSize} onFontSize={(s) => { saveFontSize(s); setFontSize(s); }}

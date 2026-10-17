@@ -199,13 +199,14 @@ main:focus { outline: none; }
 .search input { width: 100%; padding-left: 2rem; }
 .catalog h3 { display: flex; align-items: center; gap: var(--space-2); font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: var(--space-3) 0 var(--space-1); }
 .catalog .panel__body > div > div:first-child h3 { margin-top: 0; }
+.catalog .panel__body { overflow-x: hidden; } /* drag & drop must never scroll sideways */
 ul.tools { list-style: none; margin: 0; padding: 0; }
 ul.tools li { display: flex; align-items: stretch; gap: 0.125rem; }
-button.tool { flex: 1; min-width: 0; flex-direction: column; align-items: stretch; text-align: left; white-space: normal; gap: 0; padding: 0.3125rem 0.5rem; border: 1px solid transparent; box-shadow: none; background: transparent; border-radius: var(--radius); }
+button.tool { flex: 1; min-width: 0; flex-direction: column; align-items: stretch; text-align: left; white-space: normal; overflow-wrap: anywhere; gap: 0; padding: 0.3125rem 0.5rem; border: 1px solid transparent; box-shadow: none; background: transparent; border-radius: var(--radius); }
 button.tool[aria-current="true"] { background: var(--accent-weak); border-color: var(--accent); }
 button.tool .name { display: flex; align-items: center; font-weight: 600; }
 .summary { color: var(--muted); font-size: 0.78rem; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-button.star { border: 0; box-shadow: none; background: transparent; padding: 0 0.375rem; color: var(--muted); }
+button.star { flex: none; border: 0; box-shadow: none; background: transparent; padding: 0 0.375rem; color: var(--muted); }
 button.star[aria-pressed="true"] { color: var(--warning); }
 
 /* ---------- Details (form) ---------- */
@@ -366,6 +367,14 @@ textarea.rawyaml { width: 100%; font: 0.85rem/1.45 var(--mono); tab-size: 2; }
 
 /* ---------- Help dialog ---------- */
 /* fixed size: the content column scrolls, tabs and footer stay put */
+dialog.modal--wide { width: min(72rem, 94vw); height: min(46rem, 90vh); }
+.modal--wide .modal__body { display: flex; flex-direction: column; }
+.modal--wide .modal__body > .actions { margin-top: auto; }
+.modal--wide .step-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: 0 var(--space-4); }
+.modal--wide .step-panel > :not(.field) { grid-column: 1 / -1; }
+.table select { min-width: 5.5rem; }
+.modal--wide .step-panel fieldset, .modal--wide .step-panel details { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: 0 var(--space-4); }
+.modal--wide .step-panel :is(legend, summary) { grid-column: 1 / -1; }
 dialog.modal--help { width: min(56rem, 92vw); height: min(38rem, 88vh); }
 dialog.modal--help .modal__body { display: flex; flex-direction: column; }
 .help { flex: 1; min-height: 0; display: flex; gap: var(--space-4); align-items: stretch; }
@@ -376,7 +385,7 @@ dialog.modal--help .modal__body { display: flex; flex-direction: column; }
 .help-content h3 { margin-top: 0; }
 .help-content ul { padding-left: 1.2rem; }
 .help-content li { margin-bottom: var(--space-2); }
-@media (max-width: 40rem) { dialog.modal--help, dialog.modal--tall { height: auto; max-height: 88vh; } .help { flex-direction: column; } .help-tabs { flex: none; flex-direction: row; flex-wrap: wrap; } }
+@media (max-width: 40rem) { dialog.modal--help, dialog.modal--tall, dialog.modal--wide { height: auto; max-height: 88vh; } .help { flex-direction: column; } .help-tabs { flex: none; flex-direction: row; flex-wrap: wrap; } }
 .canvas-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: var(--space-4); pointer-events: none; z-index: 4; }
 .hhead { display: flex; align-items: center; gap: var(--space-2); } .hhead h3 { margin: 0; }
 

@@ -143,10 +143,12 @@ export function StepConfirm({ run }: { run: Run }) {
 }
 
 /** Workflow confirmation before the real run (10.6): plan, highest class, working directory. */
-export function RunDialog({ pr, children }: { pr: PlanThenRun; children?: ReactNode }) {
+export function RunDialog({ pr, children, onTake }: { pr: PlanThenRun; children?: ReactNode; onTake?: (plan: string) => void }) {
   const { prep } = pr;
+  const dry = pr.mode === "dry";
   return (
-    <Modal className="modal--tall" open={pr.open} title={t("run.dialog")} onCancel={pr.cancel}>
+    <Modal className="modal--tall" open={pr.open} title={dry ? t("run.dry") : t("run.dialog")} onCancel={pr.cancel}>
+      {dry && <p className="muted">{t("run.dry.dialog.help")}</p>}
       {pr.error !== null && <Problem error={pr.error} />}
       {pr.changed && <p role="alert" className="error">{t("run.plan.changed")}</p>}
       {prep ? (
@@ -159,7 +161,9 @@ export function RunDialog({ pr, children }: { pr: PlanThenRun; children?: ReactN
       {children}
       <div className="actions">
         <button data-autofocus onClick={pr.cancel}>{t("run.cancel")}</button>
-        <button className="btn--primary" onClick={() => void pr.confirm()} disabled={prep === null || pr.busy}>{t("run.confirm")}</button>
+        {dry
+          ? <button className="btn--primary" onClick={() => { if (prep) { onTake?.(prep.plan); pr.cancel(); } }} disabled={prep === null}>{t("run.plan.take")}</button>
+          : <button className="btn--primary" onClick={() => void pr.confirm()} disabled={prep === null || pr.busy}>{t("run.confirm")}</button>}
       </div>
     </Modal>
   );
@@ -190,6 +194,7 @@ export function RunPanel({ wf, onCapture, onEvaluate, onSelectStep }: {
 
   const trockenlauf = () => {
     run.setError(null);
+    if (Object.keys(entry.variables).length > 0) { setValues(initialValues(entry, values)); pr.plan("dry"); return; } // variables: the form lets the user set them
     request(true).then((r) => setPlan(r.plan), (e: unknown) => { setPlan(null); run.setError(e); });
   };
 
@@ -223,7 +228,7 @@ export function RunPanel({ wf, onCapture, onEvaluate, onSelectStep }: {
       {diag && <AiDialog task="diagnose" title={t("ai.diagnose")} diagnose onClose={() => setDiag(null)}
         build={(include) => ({ step: stripOutputs(diag, include), include_output: include })} />}
 
-      <RunDialog pr={pr}>
+      <RunDialog pr={pr} onTake={(p) => { setPlan(p); run.setError(null); }}>
         <RunForm prefix="rv" hidden={Object.keys(all).length - Object.keys(entry.variables).length} variables={entry.variables} values={values} cwd={cwd}
           onValues={(v) => change(() => setValues(v))} onCwd={(c) => change(() => setCwd(c))}
           transcript={hasTerminal(wf.steps) ? transcript : undefined} onTranscript={(on) => change(() => setTranscript(on))} />

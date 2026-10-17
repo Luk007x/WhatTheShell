@@ -163,6 +163,7 @@ export function usePlanThenRun(run: Run, create: (dry: boolean) => Promise<RunCr
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const [changed, setChanged] = useState(false);
+  const [mode, setMode] = useState<"run" | "dry">("run"); // "dry": the dialog only shows the plan, nothing is started
   const createRef = useRef(create);
   createRef.current = create;
   const transcriptRef = useRef(transcript);
@@ -175,7 +176,7 @@ export function usePlanThenRun(run: Run, create: (dry: boolean) => Promise<RunCr
     const n = ++seq.current;
     createRef.current(true).then((r) => { if (n === seq.current) { setPrep(r); setError(null); } }, (e: unknown) => { if (n === seq.current) { setPrep(null); setError(e); } });
   };
-  const plan = () => { invalidate(); setOpen(true); refresh(); };
+  const plan = (m: "run" | "dry" = "run") => { invalidate(); setMode(m); setOpen(true); refresh(); };
   const cancel = () => { seq.current++; setOpen(false); };
 
   const confirm = async () => {
@@ -197,6 +198,6 @@ export function usePlanThenRun(run: Run, create: (dry: boolean) => Promise<RunCr
     }
   };
 
-  return { open, prep, error, busy, changed, plan, refresh, invalidate, cancel, confirm };
+  return { open, prep, error, busy, changed, mode, plan, refresh, invalidate, cancel, confirm };
 }
 export type PlanThenRun = ReturnType<typeof usePlanThenRun>;
