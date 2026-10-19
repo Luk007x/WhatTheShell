@@ -13,14 +13,15 @@ from whattheshell.modules.registry import ModuleRegistry
 
 def _existing_ancestor(directory: Path, floors: Sequence[Path]) -> Path | None:
     """Nearest existing ancestor; None if that would lie above the parent of a `floors` entry
-    that `directory` is under (a missing ``.whattheshell`` must not widen the watch to ``/``).
+    that `directory` is under (a missing ``.whattheshell`` must not widen the watch to ``/``),
+    or if it is the home directory (too large to watch recursively).
     """
     limit = next((f.parent for f in floors if directory.is_relative_to(f)), None)
     while not directory.exists():
         if directory == limit or directory == directory.parent:
             return None
         directory = directory.parent
-    return directory
+    return None if directory == Path.home() else directory
 
 
 def watch_dirs(
@@ -51,7 +52,9 @@ def watch_dirs(
     if on_start is not None:
         on_start(pairs)
     # ponytail: recursive watch of the ancestor, can be large (e.g. a project root); narrow if slow
-    for changes in watch(*{ancestor for _, ancestor in pairs}, stop_event=stop):
+    for changes in watch(
+        *{ancestor for _, ancestor in pairs}, stop_event=stop, ignore_permission_denied=True
+    ):
         paths = {
             Path(p)
             for _, p in changes

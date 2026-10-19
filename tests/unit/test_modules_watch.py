@@ -4,8 +4,10 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
+import pytest
+
 from whattheshell.modules.registry import ModuleRegistry
-from whattheshell.modules.watch import watch_dirs, watch_modules
+from whattheshell.modules.watch import _existing_ancestor, watch_dirs, watch_modules
 
 
 def wait_for(condition: Callable[[], bool]) -> bool:
@@ -70,3 +72,9 @@ def test_missing_dir_never_climbs_above_cwd(tmp_path: Path) -> None:
     watch_dirs([inside, outside], (".x",), lambda _: None, stop, started.append, floors=floors)
     # `gone` exists nowhere, its parent `tmp_path` does: watched there, but never above it
     assert started == [[(inside, cwd), (outside, tmp_path)]]
+
+
+def test_ancestor_never_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    missing = tmp_path / ".whattheshell" / "workflows"
+    assert _existing_ancestor(missing, [tmp_path]) is None
